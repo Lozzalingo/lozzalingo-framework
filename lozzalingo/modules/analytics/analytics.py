@@ -116,6 +116,9 @@ class Analytics:
     def hash_fingerprint(fingerprint):
         if not fingerprint:
             return None
+        # Handle dict (deviceDetails) or string fingerprint
+        if isinstance(fingerprint, dict):
+            fingerprint = json.dumps(fingerprint, sort_keys=True)
         return hashlib.sha256(fingerprint.encode('utf-8')).hexdigest()
 
     @staticmethod
