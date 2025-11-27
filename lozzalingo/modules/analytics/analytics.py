@@ -348,9 +348,12 @@ class Analytics:
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
                 
+                # Convert fingerprint dict to JSON string for storage
+                fingerprint_str = json.dumps(fingerprint) if isinstance(fingerprint, dict) else fingerprint
+
                 values = (
                     ip, geo_data['country'], geo_data['region'], geo_data['city'],
-                    timestamp, user_agent, referer, fingerprint,
+                    timestamp, user_agent, referer, fingerprint_str,
                     event_type, interaction_type, additional_data_json, identity, hashed_fingerprint,
                     device_type, device_confidence, device_os, device_brand, url, from_route,
                     to_route, navigation_type, time_spent_seconds, session_page_count
