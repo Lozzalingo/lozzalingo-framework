@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ article.title }}</title>
+    <meta name="description" content="{{ article.content[:160]|striptags }}">
+
+    <!-- Social Media Meta Tags -->
+    <meta property="og:title" content="{{ article.title }}">
+    <meta property="og:description" content="{{ article.content[:160]|striptags }}">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="{{ request.url }}">
+    {% if article.image_url %}
+    <meta property="og:image" content="{{ article.image_url }}">
+    {% endif %}
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ article.title }}">
+    <meta name="twitter:description" content="{{ article.content[:160]|striptags }}">
+    {% if article.image_url %}
+    <meta name="twitter:image" content="{{ article.image_url }}">
+    {% endif %}
+</head>
+<body>
+    <article class="blog-post">
+        <header>
+            <nav>
+                <a href="{{ url_for('news.blog') }}">← Back to Blog</a>
+            </nav>
+
+            <h1>{{ article.title }}</h1>
+
+            <div class="meta">
+                <time>Published on {{ article.created_at }}</time>
+                {% if article.updated_at and article.updated_at != article.created_at %}
+                <span>Updated {{ article.updated_at }}</span>
+                {% endif %}
+            </div>
+        </header>
+
+        {% if article.image_url %}
+        <div class="image">
+            <img src="{{ article.image_url }}" alt="{{ article.title }}" loading="lazy">
+        </div>
+        {% endif %}
+
+        <div class="content">
+            {{ article.content|format_content|safe }}
+        </div>
+
+        <footer>
+            <div class="share">
+                <span>Share:</span>
+                <a href="https://twitter.com/intent/tweet?text={{ article.title|urlencode }}&url={{ request.url|urlencode }}"
+                   target="_blank" rel="noopener">Twitter</a>
+                <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.url|urlencode }}"
+                   target="_blank" rel="noopener">Facebook</a>
+            </div>
+        </footer>
+    </article>
+
+    {% if related_articles %}
+    <section class="related">
+        <h2>Related Articles</h2>
+        <div class="related-list">
+            {% for related in related_articles %}
+            <article>
+                {% if related.image_url %}
+                <img src="{{ related.image_url }}" alt="{{ related.title }}" loading="lazy">
+                {% endif %}
+                <h3><a href="{{ url_for('news.blog_post', slug=related.slug) }}">{{ related.title }}</a></h3>
+                <time>{{ related.created_at }}</time>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</body>
+</html>

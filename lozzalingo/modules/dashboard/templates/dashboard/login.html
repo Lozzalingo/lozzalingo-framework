@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login</title>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin.min.css') }}">
+</head>
+<body>
+    <div class="admin-login-container">
+        <div class="admin-login-box">
+            <h1>🔐 Admin Login</h1>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="admin-message admin-message-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('admin.login') }}">
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" required autofocus>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+
+                <button type="submit" class="admin-btn admin-btn-primary">Login</button>
+            </form>
+
+            <p class="admin-login-footer">
+                Need to create an admin account? <a href="{{ url_for('admin.create_admin') }}">Create Admin</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

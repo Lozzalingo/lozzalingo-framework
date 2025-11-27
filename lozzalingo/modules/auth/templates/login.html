@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Mario Pinto</title>
+    <link rel="stylesheet" href="{{ url_for(auth_bp_name ~ '.static', filename='css/main.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for(auth_bp_name ~ '.static', filename='css/admin.min.css') }}">
+</head>
+<body>
+    <div class="admin-login-container">
+        <form class="admin-form admin-login-form" method="POST" action="{{ url_for(auth_bp_name ~ '.login', next=request.args.get('next')) }}">
+            <h1>Admin Login</h1>
+
+            <!-- Flash messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="admin-message admin-message-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="admin-form-group">
+                <label for="email" class="admin-form-label">Email Address</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    class="admin-form-input"
+                    required
+                    value="{{ request.form.email if request.form.email }}"
+                    placeholder="Enter your email address"
+                >
+            </div>
+
+            <div class="admin-form-group">
+                <label for="password" class="admin-form-label">Password</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    class="admin-form-input"
+                    required
+                    placeholder="Enter your password"
+                >
+            </div>
+
+            <div class="admin-form-actions">
+                <button name="admin_login_submit" type="submit" class="admin-btn admin-btn-primary">Login to Admin Dashboard</button>
+            </div>
+
+        </form>
+    </div>
+    </div>
+
+    <script>
+        // Auto-focus first input
+        document.getElementById('email').focus();
+        
+        // Handle form submission
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const button = document.querySelector('.login-btn');
+            button.textContent = 'Logging in...';
+            button.disabled = true;
+        });
+    </script>
+</body>
+</html>

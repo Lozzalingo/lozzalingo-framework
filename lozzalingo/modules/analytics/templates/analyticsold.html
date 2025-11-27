@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .dashboard-header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .dashboard-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .dashboard-header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .time-selector {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .time-selector select {
+            background: rgba(255,255,255,0.9);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .time-selector select:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.95);
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+
+        .stat-card h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #4f46e5;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .change {
+            font-size: 0.9rem;
+            color: #10b981;
+        }
+
+
+
+        .chart-card {
+            background: rgba(255,255,255,0.95);
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.3rem;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .data-tables {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+        }
+
+        .table-card {
+            background: rgba(255,255,255,0.95);
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .table-card h3 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.3rem;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .data-table th {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            font-weight: 600;
+        }
+
+        .data-table tr:hover {
+            background: #f8fafc;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            color: #ef4444;
+            text-align: center;
+            padding: 20px;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .badge-human {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-bot {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-unknown {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .chart-fallback {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            background: #f8fafc;
+            border: 2px dashed #cbd5e1;
+            border-radius: 10px;
+            color: #64748b;
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: 10px;
+            }
+
+
+            .stat-card .number {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h1>📊 Analytics Dashboard</h1>
+            <p>Real-time insights and comprehensive analytics</p>
+        </div>
+
+        <div class="time-selector">
+            <label for="timeRange" style="color: white; margin-right: 10px;">Time Range:</label>
+            <select id="timeRange" onchange="updateDashboard()">
+                <option value="1">Last 24 Hours</option>
+                <option value="7" selected>Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="90">Last 90 Days</option>
+            </select>
+            <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="dashboard-content" style="display: none;">
+            <!-- Key Metrics -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Signed Up Users</h3>
+                    <div class="number" id="totalSignedUpUsers">-</div>
+                    <div class="change" id="signedUpChange">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Unique Users</h3>
+                    <div class="number" id="uniqueEmailsSubmissions">-</div>
+                    <div class="change" id="uniqueEmailsChange">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Page Views</h3>
+                    <div class="number" id="totalPageViews">-</div>
+                    <div class="change" id="pageViewsChange">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Unique Page Views</h3>
+                    <div class="number" id="uniquePageViews">-</div>
+                    <div class="change" id="uniquePageViewsChange">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Active Users</h3>
+                    <div class="number" id="activeUsers">-</div>
+                    <div class="change" id="activeChange">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Submissions</h3>
+                    <div class="number" id="totalSubmissions">-</div>
+                    <div class="change" id="submissionsChange">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Items</h3>
+                    <div class="number" id="totalItems">-</div>
+                    <div class="change" id="itemsChange">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Human Visitors</h3>
+                    <div class="number" id="humanVisitors">-</div>
+                    <div class="change" id="humanChange">-</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+                <div class="chart-card">
+                    <h3>Traffic Sources</h3>
+                    <div class="chart-container">
+                        <canvas id="trafficChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>User Activity Timeline</h3>
+                    <div class="chart-container">
+                        <canvas id="activityChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Device Types</h3>
+                    <div class="chart-container">
+                        <canvas id="deviceTypeChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Device Brands</h3>
+                    <div class="chart-container">
+                        <canvas id="deviceBrandChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Geographic Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="geoChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Item Categories</h3>
+                    <div class="chart-container">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+
+            <!-- Data Tables -->
+            <div class="data-tables">
+                <div class="table-card">
+                    <h3>Recent Analytics Events</h3>
+                    <div style="overflow-x: auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Event</th>
+                                    <th>Location</th>
+                                    <th>Identity</th>
+                                    <th>Email</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentEvents">
+                                <tr><td colspan="5">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="table-card">
+                    <h3>Top Countries</h3>
+                    <div style="overflow-x: auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Country</th>
+                                    <th>Visitors</th>
+                                    <th>Percentage</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topCountries">
+                                <tr><td colspan="3">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="table-card">
+                    <h3>Recent User Registrations</h3>
+                    <div style="overflow-x: auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Location</th>
+                                    <th>Joined</th>
+                                    <th>Level</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentUsers">
+                                <tr><td colspan="5">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="table-card">
+                    <h3>Popular Items</h3>
+                    <div style="overflow-x: auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Category</th>
+                                    <th>Orders</th>
+                                    <th>Earnings</th>
+                                    <th>Rating</th>
+                                </tr>
+                            </thead>
+                            <tbody id="popularItems">
+                                <tr><td colspan="5">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables for charts
+        let charts = {};
+        let currentTimeRange = 7;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDashboard();
+        });
+
+        function updateDashboard() {
+            currentTimeRange = document.getElementById('timeRange').value;
+            showLoading();
+            fetchAllData();
+        }
+
+        function refreshData() {
+            updateDashboard();
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('dashboard-content').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').textContent = message;
+            document.getElementById('error').style.display = 'block';
+        }
+
+        function showDashboard() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('dashboard-content').style.display = 'block';
+        }
+
+        async function fetchAllData() {
+            try {
+                // Fetch all data from actual API endpoints
+                const [
+                    analyticsData,
+                    usersData,
+                    submissionsData,
+                    itemsData,
+                    eventsData
+                ] = await Promise.all([
+                    fetchAnalyticsData(),
+                    fetchUsersData(),
+                    fetchSubmissionsData(),
+                    fetchItemsData(),
+                    fetchRecentEvents()
+                ]);
+
+                updateMetrics(analyticsData, usersData, submissionsData, itemsData);
+                updateCharts(analyticsData, usersData, submissionsData, itemsData);
+                updateTables(analyticsData, usersData, submissionsData, itemsData, eventsData);
+                showDashboard();
+
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                showError(`Failed to load dashboard data: ${error.message}`);
+            }
+        }
+
+        // API functions using actual endpoints
+        async function fetchAnalyticsData() {
+            const response = await fetch(`/analytics/api/device-analytics?days=${currentTimeRange}`);
+            if (!response.ok) {
+                throw new Error(`Analytics API error: ${response.statusText}`);
+            }
+            return await response.json();
+        }
+
+        async function fetchUsersData() {
+            const response = await fetch(`/analytics/api/users-data?days=${currentTimeRange}`);
+            if (!response.ok) {
+                throw new Error(`Users API error: ${response.statusText}`);
+            }
+            return await response.json();
+        }
+
+        async function fetchSubmissionsData() {
+            const response = await fetch(`/analytics/api/submissions-data?days=${currentTimeRange}`);
+            if (!response.ok) {
+                throw new Error(`Submissions API error: ${response.statusText}`);
+            }
+            return await response.json();
+        }
+
+        async function fetchItemsData() {
+            const response = await fetch(`/analytics/api/items-data?days=${currentTimeRange}`);
+            if (!response.ok) {
+                throw new Error(`Items API error: ${response.statusText}`);
+            }
+            return await response.json();
+        }
+
+        async function fetchRecentEvents() {
+            const response = await fetch(`/analytics/api/recent-events?days=${currentTimeRange}&limit=20`);
+            if (!response.ok) {
+                throw new Error(`Events API error: ${response.statusText}`);
+            }
+            return await response.json();
+        }
+
+        function updateMetrics(analytics, users, submissions, items) {
+            document.getElementById('totalSignedUpUsers').textContent = (users.total_signed_up_users || 0).toLocaleString();
+            document.getElementById('uniqueEmailsSubmissions').textContent = (users.unique_emails_submissions || 0).toLocaleString();
+            document.getElementById('totalPageViews').textContent = (users.total_page_views || 0).toLocaleString();
+            document.getElementById('uniquePageViews').textContent = (users.unique_page_views || 0).toLocaleString();
+            document.getElementById('activeUsers').textContent = (users.active_users || 0).toLocaleString();
+            document.getElementById('totalSubmissions').textContent = (submissions.total_submissions || 0).toLocaleString();
+            document.getElementById('totalItems').textContent = (items.total_items || 0).toLocaleString();
+            document.getElementById('humanVisitors').textContent = (analytics.unique_human_users || 0).toLocaleString();
+
+            // Add change indicators (mock data)
+            document.getElementById('signedUpChange').textContent = '+12.5% from last period';
+            document.getElementById('uniqueEmailsChange').textContent = '+8.3% from last period';
+            document.getElementById('pageViewsChange').textContent = '+18.2% from last period';
+            document.getElementById('uniquePageViewsChange').textContent = '+15.7% from last period';
+            document.getElementById('activeChange').textContent = '+8.3% from last period';
+            document.getElementById('submissionsChange').textContent = '+15.7% from last period';
+            document.getElementById('itemsChange').textContent = '+5.2% from last period';
+            document.getElementById('humanChange').textContent = '+9.8% from last period';
+        }
+
+        function updateCharts(analytics, users, submissions, items) {
+            // Traffic Sources Chart
+            updateTrafficChart(analytics.identity_breakdown || {});
+            
+            // Activity Timeline Chart
+            updateActivityChart();
+            
+            // Device Type Chart
+            updateDeviceTypeChart(users.device_types || {});
+            
+            // Device Brand Chart
+            updateDeviceBrandChart(users.device_brands || {});
+            
+            // Geographic Distribution Chart
+            updateGeoChart(analytics.top_countries || []);
+            
+            // Item Categories Chart
+            updateCategoryChart(items.categories || {});
+        }
+
+        function updateTrafficChart(identityData) {
+            const ctx = document.getElementById('trafficChart').getContext('2d');
+            
+            if (charts.traffic) {
+                charts.traffic.destroy();
+            }
+
+            if (!identityData || Object.keys(identityData).length === 0) {
+                ctx.canvas.parentNode.innerHTML = '<div class="chart-fallback">No traffic data available</div>';
+                return;
+            }
+
+            const labels = Object.keys(identityData);
+            const data = Object.values(identityData);
+            const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+            charts.traffic = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels.map(label => label.charAt(0).toUpperCase() + label.slice(1)),
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateActivityChart() {
+            const ctx = document.getElementById('activityChart').getContext('2d');
+            
+            if (charts.activity) {
+                charts.activity.destroy();
+            }
+
+            // Mock timeline data
+            const days = Array.from({length: parseInt(currentTimeRange)}, (_, i) => {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                return date.toLocaleDateString();
+            }).reverse();
+
+            const pageViews = days.map(() => Math.floor(Math.random() * 100) + 50);
+            const submissions = days.map(() => Math.floor(Math.random() * 30) + 10);
+
+            charts.activity = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: days,
+                    datasets: [
+                        {
+                            label: 'Page Views',
+                            data: pageViews,
+                            borderColor: '#4f46e5',
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Submissions',
+                            data: submissions,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateDeviceTypeChart(deviceTypes) {
+            const ctx = document.getElementById('deviceTypeChart').getContext('2d');
+            
+            if (charts.deviceType) {
+                charts.deviceType.destroy();
+            }
+
+            if (!deviceTypes || Object.keys(deviceTypes).length === 0) {
+                ctx.canvas.parentNode.innerHTML = '<div class="chart-fallback">No device type data available</div>';
+                return;
+            }
+
+            const labels = Object.keys(deviceTypes);
+            const data = Object.values(deviceTypes);
+            const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+            charts.deviceType = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels.map(label => label.charAt(0).toUpperCase() + label.slice(1)),
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateDeviceBrandChart(deviceBrands) {
+            const ctx = document.getElementById('deviceBrandChart').getContext('2d');
+            
+            if (charts.deviceBrand) {
+                charts.deviceBrand.destroy();
+            }
+
+            if (!deviceBrands || Object.keys(deviceBrands).length === 0) {
+                ctx.canvas.parentNode.innerHTML = '<div class="chart-fallback">No device brand data available</div>';
+                return;
+            }
+
+            const labels = Object.keys(deviceBrands);
+            const data = Object.values(deviceBrands);
+
+            charts.deviceBrand = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Visitors',
+                        data: data,
+                        backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                        borderColor: '#10b981',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateGeoChart(topCountries) {
+            const ctx = document.getElementById('geoChart').getContext('2d');
+            
+            if (charts.geo) {
+                charts.geo.destroy();
+            }
+
+            if (!topCountries || topCountries.length === 0) {
+                ctx.canvas.parentNode.innerHTML = '<div class="chart-fallback">No geographic data available</div>';
+                return;
+            }
+
+            const labels = topCountries.map(country => country[0]);
+            const data = topCountries.map(country => country[1]);
+
+            charts.geo = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Visitors',
+                        data: data,
+                        backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                        borderColor: '#4f46e5',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCategoryChart(categories) {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            
+            if (charts.category) {
+                charts.category.destroy();
+            }
+
+            if (!categories || Object.keys(categories).length === 0) {
+                ctx.canvas.parentNode.innerHTML = '<div class="chart-fallback">No category data available</div>';
+                return;
+            }
+
+            const labels = Object.keys(categories);
+            const data = Object.values(categories);
+            const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+            charts.category = new Chart(ctx, {
+                type: 'polarArea',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length).map(color => color + '80'),
+                        borderColor: colors.slice(0, labels.length),
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTables(analytics, users, submissions, items, events) {
+            // Recent Events
+            const recentEventsBody = document.getElementById('recentEvents');
+            if (events && events.events && events.events.length > 0) {
+                recentEventsBody.innerHTML = events.events.map(event => {
+                    const badge = event.identity === 'human' ? 'badge-human' : 
+                                 event.identity === 'bot' ? 'badge-bot' : 'badge-unknown';
+                    const timeFormatted = new Date(event.timestamp).toLocaleString();
+                    return `
+                        <tr>
+                            <td>${timeFormatted}</td>
+                            <td>${event.event_type}</td>
+                            <td>${event.location}</td>
+                            <td><span class="badge ${badge}">${event.identity}</span></td>
+                            <td>${event.email}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                recentEventsBody.innerHTML = '<tr><td colspan="5">No recent events</td></tr>';
+            }
+
+            // Top Countries
+            const topCountriesBody = document.getElementById('topCountries');
+            if (analytics && analytics.top_countries && analytics.top_countries.length > 0) {
+                const totalCountryVisitors = analytics.top_countries.reduce((sum, country) => sum + country[1], 0);
+                topCountriesBody.innerHTML = analytics.top_countries.map(country => {
+                    const percentage = totalCountryVisitors > 0 ? ((country[1] / totalCountryVisitors) * 100).toFixed(1) : 0;
+                    return `
+                        <tr>
+                            <td>${country[0]}</td>
+                            <td>${country[1]}</td>
+                            <td>${percentage}%</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                topCountriesBody.innerHTML = '<tr><td colspan="3">No country data available</td></tr>';
+            }
+
+            // Recent Users
+            const recentUsersBody = document.getElementById('recentUsers');
+            if (users && users.recent_users && users.recent_users.length > 0) {
+                recentUsersBody.innerHTML = users.recent_users.map(user => {
+                    const createdDate = new Date(user.created_at).toLocaleDateString();
+                    return `
+                        <tr>
+                            <td>${user.first_name} ${user.last_name}</td>
+                            <td>${user.email}</td>
+                            <td>${user.location || 'Unknown'}</td>
+                            <td>${createdDate}</td>
+                            <td><span class="badge ${user.user_level === 'admin' || user.user_level === 'premium' ? 'badge-human' : 'badge-unknown'}">${user.user_level}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                recentUsersBody.innerHTML = '<tr><td colspan="5">No users data available</td></tr>';
+            }
+
+            // Popular Items
+            const popularItemsBody = document.getElementById('popularItems');
+            if (items && items.popular_items && items.popular_items.length > 0) {
+                popularItemsBody.innerHTML = items.popular_items.map(item => {
+                    return `
+                        <tr>
+                            <td>${item.title}</td>
+                            <td>${item.category}</td>
+                            <td>${item.orders}</td>
+                            <td>${item.total_earnings}</td>
+                            <td>⭐ ${item.rating}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                popularItemsBody.innerHTML = '<tr><td colspan="5">No items data available</td></tr>';
+            }
+        }
+    </script>
+</body>
+</html>

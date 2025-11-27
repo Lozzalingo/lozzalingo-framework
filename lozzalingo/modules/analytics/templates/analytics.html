@@ -1,0 +1,1876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('analytics.static', filename='css/analytics.css') }}">
+    <link rel="stylesheet" href="{{ url_for('analytics.static', filename='css/admin.min.css') }}">
+
+</head>
+<body>
+    <!-- Admin Navigation -->
+    <header class="admin-header">
+        <div class="admin-title">
+            <h1 style="font-size: 1.5rem; margin: 0;">Analytics Dashboard</h1>
+            <p class="admin-welcome">Welcome, {{ session.admin_email }}</p>
+        </div>
+        <div class="admin-actions">
+            <a href="{{ url_for('admin.dashboard') }}" class="admin-btn admin-btn-secondary">
+                🏠 Main Dashboard
+            </a>
+            <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="admin-btn admin-btn-secondary">
+                🔒 Change Password
+            </a>
+            <a href="{{ url_for(auth_bp_name ~ '.logout') }}" class="admin-btn admin-btn-danger">
+                🚪 Logout
+            </a>
+        </div>
+    </header>
+
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h1>📊 Analytics Console</h1>
+            <p>Real-time insights into your platform performance</p>
+        </div>
+
+        <div class="controls">
+            <label for="timeRange">Time Range:</label>
+            <select id="timeRange" onchange="updateDashboard()">
+                <option value="1">Last 24 Hours</option>
+                <option value="7" selected>Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="90">Last 90 Days</option>
+                <option value="all">All Time</option>
+            </select>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading analytics data...</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="dashboard-content" style="display: none;">
+            <!-- Overview Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Page Views</h3>
+                    <div class="number" id="totalPageViews">-</div>
+                    <div class="change">All time activity</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Unique Visitors</h3>
+                    <div class="number" id="uniqueVisitors">-</div>
+                    <div class="change">Distinct users</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Subscribers</h3>
+                    <div class="number" id="totalSubscribers">-</div>
+                    <div class="change">Newsletter signups</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Active Subscribers</h3>
+                    <div class="number" id="activeSubscribers">-</div>
+                    <div class="change">Currently active</div>
+                </div>
+                <div class="stat-card">
+                    <h3>News Articles</h3>
+                    <div class="number" id="totalArticles">-</div>
+                    <div class="change">Published content</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Human Visitors</h3>
+                    <div class="number" id="humanVisitors">-</div>
+                    <div class="change">Verified humans</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Avg Session Time</h3>
+                    <div class="number" id="avgSessionTime">-</div>
+                    <div class="change">Time spent per session</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Avg Session Pages</h3>
+                    <div class="number" id="avgSessionPages">-</div>
+                    <div class="change">Pages per visit</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Top Referer</h3>
+                    <div class="number" id="topReferer">-</div>
+                    <div class="change">Primary traffic source</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Revenue</h3>
+                    <div class="number" id="totalRevenue">-</div>
+                    <div class="change">All time sales</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Orders</h3>
+                    <div class="number" id="totalOrders">-</div>
+                    <div class="change">Completed purchases</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Avg Order Value</h3>
+                    <div class="number" id="avgOrderValue">-</div>
+                    <div class="change">Per transaction</div>
+                </div>
+            </div>
+
+            <!-- E-Commerce Funnel Stats -->
+            <div class="charts-section">
+                <h2 class="section-title">🛒 E-Commerce Funnel</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Product Views</h3>
+                        <div class="number" id="productViews">-</div>
+                        <div class="change">Users viewing products</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Add to Cart</h3>
+                        <div class="number" id="addToCart">-</div>
+                        <div class="change">Size selections</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Checkouts Initiated</h3>
+                        <div class="number" id="checkoutsInitiated">-</div>
+                        <div class="change">Stripe sessions started</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Conversions</h3>
+                        <div class="number" id="conversions">-</div>
+                        <div class="change">Completed purchases</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Conversion Rate</h3>
+                        <div class="number" id="conversionRate">-</div>
+                        <div class="change">From product view</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Cart Abandonment</h3>
+                        <div class="number" id="cartAbandonment">-</div>
+                        <div class="change">Initiated but not completed</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Button Click Analytics -->
+            <div class="charts-section">
+                <h2 class="section-title">🖱️ Button Interactions</h2>
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Top Button Clicks</h3>
+                        <div class="chart-container">
+                            <canvas id="topButtonsChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Commerce-Specific Buttons</h3>
+                        <div class="chart-container">
+                            <canvas id="commerceButtonsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-section">
+                <h2 class="section-title">Traffic Analytics</h2>
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Traffic Timeline</h3>
+                        <div class="chart-container">
+                            <canvas id="timelineChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Visitor Types</h3>
+                        <div class="chart-container">
+                            <canvas id="identityChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Device Types</h3>
+                        <div class="chart-container">
+                            <canvas id="deviceChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Top Countries</h3>
+                        <div class="chart-container">
+                            <canvas id="countryChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Subscription Growth</h3>
+                        <div class="chart-container">
+                            <canvas id="subscriptionChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Device Brands</h3>
+                        <div class="chart-container">
+                            <canvas id="deviceBrandChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Operating Systems</h3>
+                        <div class="chart-container">
+                            <canvas id="deviceOSChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Content Publishing</h3>
+                        <div class="chart-container">
+                            <canvas id="newsChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Traffic Sources</h3>
+                        <div class="chart-container">
+                            <canvas id="refererChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Traffic Sources Details</h3>
+                        <div class="chart-container table-container">
+                            <div style="overflow-x: auto;">
+                                <table class="analytics-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Source</th>
+                                            <th>Visits</th>
+                                            <th>%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="trafficSourcesTable">
+                                        <tr><td colspan="3">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-section">
+                <h2 class="section-title">Sales Analytics</h2>
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Sales Timeline</h3>
+                        <div class="chart-container">
+                            <canvas id="salesTimelineChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Top Products</h3>
+                        <div class="chart-container">
+                            <canvas id="topProductsChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Size Distribution</h3>
+                        <div class="chart-container">
+                            <canvas id="sizeDistributionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-section">
+                <h2 class="section-title">Activity Details</h2>
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Recent Activity</h3>
+                        <div class="chart-container table-container">
+                            <div style="overflow-x: auto;">
+                                <table class="analytics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Event</th>
+                                        <th>Location</th>
+                                        <th>Identity</th>
+                                        <th>Device Type</th>
+                                        <th>Device OS</th>
+                                        <th>Brand</th>
+                                        <th>Time Spent</th>
+                                        <th>Route</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentActivity">
+                                    <tr><td colspan="9">Loading...</td></tr>
+                                </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3>Recent Subscribers</h3>
+                        <div class="chart-container table-container">
+                            <div style="overflow-x: auto;">
+                                <table class="analytics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Email</th>
+                                        <th>Source</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentSubscribers">
+                                    <tr><td colspan="4">Loading...</td></tr>
+                                </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3>Recent Articles</h3>
+                        <div class="chart-container table-container">
+                            <div style="overflow-x: auto;">
+                                <table class="analytics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Published</th>
+                                        <th>Length</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentArticles">
+                                    <tr><td colspan="3">Loading...</td></tr>
+                                </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3>Geographic Distribution</h3>
+                        <div class="chart-container table-container">
+                            <div style="overflow-x: auto;">
+                                <table class="analytics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Country</th>
+                                        <th>Region</th>
+                                        <th>City</th>
+                                        <th>Visits</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="geographicData">
+                                    <tr><td colspan="4">Loading...</td></tr>
+                                </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3>Recent Sales</h3>
+                        <div class="chart-container table-container">
+                            <div style="overflow-x: auto;">
+                                <table class="analytics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>Customer</th>
+                                        <th>Amount</th>
+                                        <th>Items</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentSales">
+                                    <tr><td colspan="5">Loading...</td></tr>
+                                </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Route Analytics Section -->
+            <div class="charts-section">
+                <h2 class="section-title">Route Analytics</h2>
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Top Pages</h3>
+                        <div class="chart-container table-container">
+                            <div style="overflow-x: auto;">
+                                <table class="analytics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Page</th>
+                                        <th>Visits</th>
+                                        <th>Avg Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="topPages">
+                                    <tr><td colspan="3">Loading...</td></tr>
+                                </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Route Transitions</h3>
+                        <div class="chart-container table-container">
+                            <div style="overflow-x: auto;">
+                                <table class="analytics-table">
+                                <thead>
+                                    <tr>
+                                        <th>From</th>
+                                        <th>To</th>
+                                        <th>Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="routeTransitions">
+                                    <tr><td colspan="3">Loading...</td></tr>
+                                </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        
+        // Global variables
+        let charts = {};
+        let currentTimeRange = 7;
+
+        // Initialize dashboard
+        function initDashboard() {
+            // Check if Chart.js is loaded
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js is not loaded, retrying...');
+                setTimeout(initDashboard, 100);
+                return;
+            }
+
+
+            updateDashboard();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initDashboard();
+        });
+
+
+        function updateDashboard() {
+            currentTimeRange = document.getElementById('timeRange').value;
+            showLoading();
+            fetchAllData();
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('dashboard-content').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').textContent = message;
+            document.getElementById('error').style.display = 'block';
+        }
+
+        function showDashboard() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('dashboard-content').style.display = 'block';
+        }
+
+        async function fetchAllData() {
+            try {
+                const timestamp = Date.now(); // Cache-busting timestamp
+                const [overviewStats, trafficTimeline, recentActivity, subscriberDetails, newsMetrics, geoData, routeAnalytics, refererData, salesMetrics] =
+                await Promise.all([
+                    fetch(`/admin/analytics/api/overview-stats?days=${currentTimeRange}&_t=${timestamp}`).then(r => r.json()),
+                    fetch(`/admin/analytics/api/traffic-timeline?days=${currentTimeRange}&_t=${timestamp}`).then(r => r.json()),
+                    fetch(`/admin/analytics/api/recent-activity?limit=20&_t=${timestamp}`).then(r => r.json()),
+                    fetch(`/admin/analytics/api/subscriber-details?days=${currentTimeRange}&limit=10&_t=${timestamp}`).then(r => r.json()),
+                    fetch(`/admin/analytics/api/news-metrics?days=${currentTimeRange}&limit=10&_t=${timestamp}`).then(r => r.json()),
+                    fetch(`/admin/analytics/api/geographic-data?days=${currentTimeRange}&_t=${timestamp}`).then(r => r.json()),
+                    fetch(`/admin/analytics/api/route-analytics?days=${currentTimeRange}&_t=${timestamp}`).then(r => r.json()),
+                    fetch(`/admin/analytics/api/referer-data?days=${currentTimeRange}&_t=${timestamp}`).then(r => r.json()),
+                    fetch(`/admin/analytics/api/sales-metrics?days=${currentTimeRange}&_t=${timestamp}`).then(r => r.json())
+                ]);
+
+
+                updateOverviewStats(overviewStats, refererData, salesMetrics);
+                showDashboard(); // Show dashboard first so charts can render
+                updateCharts(overviewStats, trafficTimeline, subscriberDetails, newsMetrics, refererData, salesMetrics);
+                updateTables(recentActivity, subscriberDetails, newsMetrics, geoData, salesMetrics);
+                updateTrafficSourcesTable(refererData);
+                updateRouteAnalytics(routeAnalytics);
+
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                showError(`Failed to load dashboard data: ${error.message}`);
+            }
+        }
+
+        function updateOverviewStats(stats, refererData, salesMetrics) {
+            document.getElementById('totalPageViews').textContent = (stats.total_page_views || 0).toLocaleString();
+            document.getElementById('uniqueVisitors').textContent = (stats.unique_visitors || 0).toLocaleString();
+            document.getElementById('totalSubscribers').textContent = (stats.total_subscribers || 0).toLocaleString();
+            document.getElementById('activeSubscribers').textContent = (stats.active_subscribers || 0).toLocaleString();
+            document.getElementById('totalArticles').textContent = (stats.total_articles || 0).toLocaleString();
+
+            const humanCount = stats.identity_breakdown ? (stats.identity_breakdown.human || 0) : 0;
+            document.getElementById('humanVisitors').textContent = humanCount.toLocaleString();
+
+            // Update new analytics fields
+            const avgSessionTime = stats.avg_session_time || 0;
+            console.log('Debug session time data:', {
+                avg_session_time: stats.avg_session_time,
+                debug_time_count: stats.debug_time_count,
+                raw_stats: stats
+            });
+            const timeFormatted = avgSessionTime > 60 ?
+                `${Math.floor(avgSessionTime / 60)}m ${Math.round(avgSessionTime % 60)}s` :
+                `${Math.round(avgSessionTime)}s`;
+            document.getElementById('avgSessionTime').textContent = timeFormatted;
+
+            const avgSessionPages = stats.avg_pages_per_session || 0;
+            document.getElementById('avgSessionPages').textContent = avgSessionPages.toFixed(1);
+
+            // Update top referer (now properly categorized)
+            if (refererData && refererData.top_referers && refererData.top_referers.length > 0) {
+                const topReferer = refererData.top_referers[0];
+                let refererDisplay = topReferer[0];
+
+                // The referer data is now properly categorized, so we can display it directly
+                // Truncate if too long for the display
+                if (refererDisplay.length > 15) {
+                    refererDisplay = refererDisplay.substring(0, 12) + '...';
+                }
+
+                document.getElementById('topReferer').textContent = refererDisplay;
+            } else {
+                document.getElementById('topReferer').textContent = 'Direct';
+            }
+
+            // Update sales metrics
+            if (salesMetrics) {
+                const totalRevenue = salesMetrics.total_revenue || 0;
+                document.getElementById('totalRevenue').textContent = `£${(totalRevenue / 100).toFixed(2)}`;
+                document.getElementById('totalOrders').textContent = (salesMetrics.total_orders || 0).toLocaleString();
+                document.getElementById('avgOrderValue').textContent = `£${(salesMetrics.avg_order_value || 0).toFixed(2)}`;
+            } else {
+                document.getElementById('totalRevenue').textContent = '£0.00';
+                document.getElementById('totalOrders').textContent = '0';
+                document.getElementById('avgOrderValue').textContent = '£0.00';
+            }
+
+            // Update e-commerce funnel metrics
+            fetch(`/admin/analytics/api/ecommerce-funnel?days=${currentTimeRange}`)
+                .then(response => response.json())
+                .then(funnel => {
+                    document.getElementById('productViews').textContent = (funnel.product_views || 0).toLocaleString();
+                    document.getElementById('addToCart').textContent = (funnel.add_to_cart || 0).toLocaleString();
+                    document.getElementById('checkoutsInitiated').textContent = (funnel.checkouts_initiated || 0).toLocaleString();
+                    document.getElementById('conversions').textContent = (funnel.conversions || 0).toLocaleString();
+
+                    const conversionRate = funnel.product_views > 0
+                        ? ((funnel.conversions / funnel.product_views) * 100).toFixed(2)
+                        : '0.00';
+                    document.getElementById('conversionRate').textContent = `${conversionRate}%`;
+
+                    const abandonmentRate = funnel.checkouts_initiated > 0
+                        ? ((funnel.abandoned / funnel.checkouts_initiated) * 100).toFixed(2)
+                        : '0.00';
+                    document.getElementById('cartAbandonment').textContent = `${abandonmentRate}%`;
+                })
+                .catch(error => {
+                    console.error('Failed to load e-commerce funnel:', error);
+                    document.getElementById('productViews').textContent = '-';
+                    document.getElementById('addToCart').textContent = '-';
+                    document.getElementById('checkoutsInitiated').textContent = '-';
+                    document.getElementById('conversions').textContent = '-';
+                    document.getElementById('conversionRate').textContent = '-';
+                    document.getElementById('cartAbandonment').textContent = '-';
+                });
+
+            // Update button click charts
+            fetch(`/admin/analytics/api/button-clicks?days=${currentTimeRange}`)
+                .then(response => response.json())
+                .then(data => {
+                    updateTopButtonsChart(data.top_buttons || []);
+                    updateCommerceButtonsChart(data.commerce_buttons || []);
+                })
+                .catch(error => {
+                    console.error('Failed to load button click data:', error);
+                });
+        }
+
+        function updateCharts(overviewStats, trafficTimeline, subscriberDetails, newsMetrics, refererData, salesMetrics) {
+            updateTimelineChart(trafficTimeline.timeline || []);
+            updateIdentityChart(overviewStats.identity_breakdown || {});
+            updateDeviceChart(overviewStats.device_types || {});
+            updateDeviceBrandChart(overviewStats.device_brands || {});
+            updateDeviceOSChart(overviewStats.device_os || {});
+            updateCountryChart(overviewStats.top_countries || []);
+            updateSubscriptionChart(subscriberDetails.subscription_trend || []);
+            updateNewsChart(newsMetrics.publishing_trend || []);
+            updateRefererChart(refererData.top_referers || []);
+
+            // Update sales charts
+            if (salesMetrics) {
+                updateSalesTimelineChart(salesMetrics.sales_timeline || []);
+                updateTopProductsChart(salesMetrics.top_products || []);
+                updateSizeDistributionChart(salesMetrics.size_breakdown || {});
+            }
+        }
+
+        function updateTimelineChart(timeline) {
+            const canvas = document.getElementById('timelineChart');
+            if (!canvas) {
+                console.error('Timeline chart canvas not found');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get 2d context for timeline chart');
+                return;
+            }
+
+            if (charts.timeline) {
+                charts.timeline.destroy();
+            }
+
+            if (!timeline.length) {
+                const container = ctx.canvas.parentNode;
+                let fallback = container.querySelector('.chart-fallback');
+                if (!fallback) {
+                    fallback = document.createElement('div');
+                    fallback.className = 'chart-fallback';
+                    container.appendChild(fallback);
+                }
+                fallback.innerHTML = '📈<br>No timeline data available';
+                fallback.style.display = 'flex';
+                ctx.canvas.style.display = 'none';
+                return;
+            }
+
+            const timelineContainer = ctx.canvas.parentNode;
+            const timelineFallback = timelineContainer.querySelector('.chart-fallback');
+            if (timelineFallback) timelineFallback.style.display = 'none';
+            ctx.canvas.style.display = 'block';
+
+            const labels = timeline.map(item => new Date(item.date).toLocaleDateString());
+            const pageViews = timeline.map(item => item.views);
+            const uniqueVisitors = timeline.map(item => item.unique_visitors);
+
+            charts.timeline = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Page Views',
+                            data: pageViews,
+                            borderColor: '#4f46e5',
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Unique Visitors',
+                            data: uniqueVisitors,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateIdentityChart(identityData) {
+            const canvas = document.getElementById('identityChart');
+            if (!canvas) {
+                console.error('Identity chart canvas not found');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get 2d context for identity chart');
+                return;
+            }
+
+            if (charts.identity) {
+                charts.identity.destroy();
+            }
+
+            if (!identityData || Object.keys(identityData).length === 0) {
+                const container = ctx.canvas.parentNode;
+                let fallback = container.querySelector('.chart-fallback');
+                if (!fallback) {
+                    fallback = document.createElement('div');
+                    fallback.className = 'chart-fallback';
+                    container.appendChild(fallback);
+                }
+                fallback.innerHTML = '🤖<br>No visitor type data';
+                fallback.style.display = 'flex';
+                ctx.canvas.style.display = 'none';
+                return;
+            }
+
+            const identityContainer = ctx.canvas.parentNode;
+            const identityFallback = identityContainer.querySelector('.chart-fallback');
+            if (identityFallback) identityFallback.style.display = 'none';
+            ctx.canvas.style.display = 'block';
+
+            const labels = Object.keys(identityData);
+            const data = Object.values(identityData);
+            const colors = ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+            charts.identity = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateDeviceChart(deviceData) {
+            const canvas = document.getElementById('deviceChart');
+            if (!canvas) {
+                console.error('Device chart canvas not found');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get 2d context for device chart');
+                return;
+            }
+
+            if (charts.device) {
+                charts.device.destroy();
+            }
+
+            if (!deviceData || Object.keys(deviceData).length === 0) {
+                const container = ctx.canvas.parentNode;
+                let fallback = container.querySelector('.chart-fallback');
+                if (!fallback) {
+                    fallback = document.createElement('div');
+                    fallback.className = 'chart-fallback';
+                    container.appendChild(fallback);
+                }
+                fallback.innerHTML = '📱<br>No device data available';
+                fallback.style.display = 'flex';
+                ctx.canvas.style.display = 'none';
+                return;
+            }
+
+            const deviceContainer = ctx.canvas.parentNode;
+            const deviceFallback = deviceContainer.querySelector('.chart-fallback');
+            if (deviceFallback) deviceFallback.style.display = 'none';
+            ctx.canvas.style.display = 'block';
+
+            const labels = Object.keys(deviceData);
+            const data = Object.values(deviceData);
+            const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444'];
+
+            charts.device = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateDeviceBrandChart(brandData) {
+            const canvas = document.getElementById('deviceBrandChart');
+            if (!canvas) {
+                console.error('Device brand chart canvas not found');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get 2d context for device brand chart');
+                return;
+            }
+
+            if (charts.deviceBrand) {
+                charts.deviceBrand.destroy();
+            }
+
+            if (!brandData || Object.keys(brandData).length === 0) {
+                // Don't destroy canvas - just show message in existing container
+                const container = ctx.canvas.parentNode;
+                let fallback = container.querySelector('.chart-fallback');
+                if (!fallback) {
+                    fallback = document.createElement('div');
+                    fallback.className = 'chart-fallback';
+                    container.appendChild(fallback);
+                }
+                fallback.innerHTML = '📱<br>No device brand data';
+                fallback.style.display = 'flex';
+                ctx.canvas.style.display = 'none';
+                return;
+            }
+
+            // Hide fallback and show canvas if we have data
+            const container = ctx.canvas.parentNode;
+            const fallback = container.querySelector('.chart-fallback');
+            if (fallback) fallback.style.display = 'none';
+            ctx.canvas.style.display = 'block';
+
+            const labels = Object.keys(brandData);
+            const data = Object.values(brandData);
+            const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+
+            charts.deviceBrand = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateDeviceOSChart(osData) {
+            const canvas = document.getElementById('deviceOSChart');
+            if (!canvas) {
+                console.error('Device OS chart canvas not found');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get 2d context for device OS chart');
+                return;
+            }
+
+            if (charts.deviceOS) {
+                charts.deviceOS.destroy();
+            }
+
+            if (!osData || Object.keys(osData).length === 0) {
+                const container = ctx.canvas.parentNode;
+                let fallback = container.querySelector('.chart-fallback');
+                if (!fallback) {
+                    fallback = document.createElement('div');
+                    fallback.className = 'chart-fallback';
+                    container.appendChild(fallback);
+                }
+                fallback.innerHTML = '💻<br>No OS data';
+                fallback.style.display = 'flex';
+                ctx.canvas.style.display = 'none';
+                return;
+            }
+
+            const container = ctx.canvas.parentNode;
+            const fallback = container.querySelector('.chart-fallback');
+            if (fallback) fallback.style.display = 'none';
+            ctx.canvas.style.display = 'block';
+
+            const labels = Object.keys(osData);
+            const data = Object.values(osData);
+            const colors = ['#10b981', '#4f46e5', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+
+            charts.deviceOS = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCountryChart(countryData) {
+            const canvas = document.getElementById('countryChart');
+            if (!canvas) {
+                console.error('Country chart canvas not found');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get 2d context for country chart');
+                return;
+            }
+
+            if (charts.country) {
+                charts.country.destroy();
+            }
+
+            if (!countryData || countryData.length === 0) {
+                const container = ctx.canvas.parentNode;
+                let fallback = container.querySelector('.chart-fallback');
+                if (!fallback) {
+                    fallback = document.createElement('div');
+                    fallback.className = 'chart-fallback';
+                    container.appendChild(fallback);
+                }
+                fallback.innerHTML = '🌍<br>No geographic data';
+                fallback.style.display = 'flex';
+                ctx.canvas.style.display = 'none';
+                return;
+            }
+
+            const countryContainer = ctx.canvas.parentNode;
+            const countryFallback = countryContainer.querySelector('.chart-fallback');
+            if (countryFallback) countryFallback.style.display = 'none';
+            ctx.canvas.style.display = 'block';
+
+            const labels = countryData.slice(0, 10).map(item => item[0]);
+            const data = countryData.slice(0, 10).map(item => item[1]);
+
+            charts.country = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Visitors',
+                        data: data,
+                        backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                        borderColor: '#4f46e5',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateSubscriptionChart(subscriptionData) {
+            const canvas = document.getElementById('subscriptionChart');
+            if (!canvas) {
+                console.error('Subscription chart canvas not found');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get 2d context for subscription chart');
+                return;
+            }
+
+            if (charts.subscription) {
+                charts.subscription.destroy();
+            }
+
+            if (!subscriptionData || subscriptionData.length === 0) {
+                const container = ctx.canvas.parentNode;
+                let fallback = container.querySelector('.chart-fallback');
+                if (!fallback) {
+                    fallback = document.createElement('div');
+                    fallback.className = 'chart-fallback';
+                    container.appendChild(fallback);
+                }
+                fallback.innerHTML = '📧<br>No subscription data';
+                fallback.style.display = 'flex';
+                ctx.canvas.style.display = 'none';
+                return;
+            }
+
+            // Hide fallback and show canvas if we have data
+            const container = ctx.canvas.parentNode;
+            const fallback = container.querySelector('.chart-fallback');
+            if (fallback) fallback.style.display = 'none';
+            ctx.canvas.style.display = 'block';
+
+            const labels = subscriptionData.map(item => new Date(item.date).toLocaleDateString());
+            const data = subscriptionData.map(item => item.count);
+
+            charts.subscription = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'New Subscribers',
+                        data: data,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateNewsChart(newsData) {
+            const canvas = document.getElementById('newsChart');
+            if (!canvas) {
+                console.error('News chart canvas not found');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get 2d context for news chart');
+                return;
+            }
+
+            if (charts.news) {
+                charts.news.destroy();
+            }
+
+            if (!newsData || newsData.length === 0) {
+                const container = ctx.canvas.parentNode;
+                let fallback = container.querySelector('.chart-fallback');
+                if (!fallback) {
+                    fallback = document.createElement('div');
+                    fallback.className = 'chart-fallback';
+                    container.appendChild(fallback);
+                }
+                fallback.innerHTML = '📰<br>No publishing data';
+                fallback.style.display = 'flex';
+                ctx.canvas.style.display = 'none';
+                return;
+            }
+
+            // Hide fallback and show canvas if we have data
+            const container = ctx.canvas.parentNode;
+            const fallback = container.querySelector('.chart-fallback');
+            if (fallback) fallback.style.display = 'none';
+            ctx.canvas.style.display = 'block';
+
+            const labels = newsData.map(item => new Date(item.date).toLocaleDateString());
+            const data = newsData.map(item => item.count);
+
+            charts.news = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Articles Published',
+                        data: data,
+                        backgroundColor: 'rgba(245, 158, 11, 0.8)',
+                        borderColor: '#f59e0b',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTrafficSourcesTable(refererData) {
+            const tableBody = document.getElementById('trafficSourcesTable');
+
+            if (!refererData || !refererData.top_referers || refererData.top_referers.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="3">No traffic source data available</td></tr>';
+                return;
+            }
+
+            // Calculate total visits for percentages
+            const totalVisits = refererData.top_referers.reduce((sum, item) => sum + item[1], 0);
+
+            const tableHTML = refererData.top_referers.map(item => {
+                const source = item[0];
+                const visits = item[1];
+                const percentage = totalVisits > 0 ? ((visits / totalVisits) * 100).toFixed(1) : '0.0';
+
+                return `
+                    <tr>
+                        <td>${source}</td>
+                        <td>${visits.toLocaleString()}</td>
+                        <td>${percentage}%</td>
+                    </tr>
+                `;
+            }).join('');
+
+            tableBody.innerHTML = tableHTML;
+        }
+
+        function updateRefererChart(refererData) {
+            const canvas = document.getElementById('refererChart');
+            if (!canvas) {
+                console.error('Referer chart canvas not found');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get 2d context for referer chart');
+                return;
+            }
+
+            if (charts.referer) {
+                charts.referer.destroy();
+            }
+
+            if (!refererData || refererData.length === 0) {
+                const container = ctx.canvas.parentNode;
+                let fallback = container.querySelector('.chart-fallback');
+                if (!fallback) {
+                    fallback = document.createElement('div');
+                    fallback.className = 'chart-fallback';
+                    container.appendChild(fallback);
+                }
+                fallback.innerHTML = '🔗<br>No referer data';
+                fallback.style.display = 'flex';
+                ctx.canvas.style.display = 'none';
+                return;
+            }
+
+            const refererContainer = ctx.canvas.parentNode;
+            const refererFallback = refererContainer.querySelector('.chart-fallback');
+            if (refererFallback) refererFallback.style.display = 'none';
+            ctx.canvas.style.display = 'block';
+
+            // Process referer data - data is now properly categorized
+            const topReferers = refererData.slice(0, 10);
+            const labels = topReferers.map(item => {
+                const label = item[0];
+                // Truncate very long labels for better display
+                return label.length > 20 ? label.substring(0, 17) + '...' : label;
+            });
+            const data = topReferers.map(item => item[1]);
+
+            // Use colors that help distinguish social media platforms
+            const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6b7280'];
+
+            charts.referer = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = refererData[context.dataIndex][0]; // Use full uncategorized label
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateSalesTimelineChart(salesTimeline) {
+            const canvas = document.getElementById('salesTimelineChart');
+            if (!canvas) {
+                console.error('Sales timeline chart canvas not found');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get 2d context for sales timeline chart');
+                return;
+            }
+
+            if (charts.salesTimeline) {
+                charts.salesTimeline.destroy();
+            }
+
+            if (!salesTimeline.length) {
+                const container = ctx.canvas.parentNode;
+                let fallback = container.querySelector('.chart-fallback');
+                if (!fallback) {
+                    fallback = document.createElement('div');
+                    fallback.className = 'chart-fallback';
+                    container.appendChild(fallback);
+                }
+                fallback.innerHTML = '💰<br>No sales data available';
+                fallback.style.display = 'flex';
+                ctx.canvas.style.display = 'none';
+                return;
+            }
+
+            // Hide fallback and show canvas if we have data
+            const salesContainer = ctx.canvas.parentNode;
+            const salesFallback = salesContainer.querySelector('.chart-fallback');
+            if (salesFallback) salesFallback.style.display = 'none';
+            ctx.canvas.style.display = 'block';
+
+            const labels = salesTimeline.map(item => new Date(item.date).toLocaleDateString());
+            const revenue = salesTimeline.map(item => item.revenue / 100); // Convert to pounds
+            const orders = salesTimeline.map(item => item.orders);
+
+            charts.salesTimeline = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Revenue (£)',
+                            data: revenue,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Orders',
+                            data: orders,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            tension: 0.4,
+                            fill: false,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Revenue (£)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Orders'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTopProductsChart(topProducts) {
+            const canvas = document.getElementById('topProductsChart');
+            if (!canvas) {
+                console.error('Top products chart canvas not found');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get 2d context for top products chart');
+                return;
+            }
+
+            if (charts.topProducts) {
+                charts.topProducts.destroy();
+            }
+
+            if (!topProducts.length) {
+                const container = ctx.canvas.parentNode;
+                let fallback = container.querySelector('.chart-fallback');
+                if (!fallback) {
+                    fallback = document.createElement('div');
+                    fallback.className = 'chart-fallback';
+                    container.appendChild(fallback);
+                }
+                fallback.innerHTML = '📦<br>No product sales data';
+                fallback.style.display = 'flex';
+                ctx.canvas.style.display = 'none';
+                return;
+            }
+
+            // Hide fallback and show canvas if we have data
+            const productsContainer = ctx.canvas.parentNode;
+            const productsFallback = productsContainer.querySelector('.chart-fallback');
+            if (productsFallback) productsFallback.style.display = 'none';
+            ctx.canvas.style.display = 'block';
+
+            const labels = topProducts.map(item => item.name);
+            const quantities = topProducts.map(item => item.quantity_sold);
+            const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+
+            charts.topProducts = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Quantity Sold',
+                        data: quantities,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderColor: colors.slice(0, labels.length),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateSizeDistributionChart(sizeBreakdown) {
+            const canvas = document.getElementById('sizeDistributionChart');
+            if (!canvas) {
+                console.error('Size distribution chart canvas not found');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get 2d context for size distribution chart');
+                return;
+            }
+
+            if (charts.sizeDistribution) {
+                charts.sizeDistribution.destroy();
+            }
+
+            if (!sizeBreakdown || Object.keys(sizeBreakdown).length === 0) {
+                const container = ctx.canvas.parentNode;
+                let fallback = container.querySelector('.chart-fallback');
+                if (!fallback) {
+                    fallback = document.createElement('div');
+                    fallback.className = 'chart-fallback';
+                    container.appendChild(fallback);
+                }
+                fallback.innerHTML = '👕<br>No size data';
+                fallback.style.display = 'flex';
+                ctx.canvas.style.display = 'none';
+                return;
+            }
+
+            // Hide fallback and show canvas if we have data
+            const sizeContainer = ctx.canvas.parentNode;
+            const sizeFallback = sizeContainer.querySelector('.chart-fallback');
+            if (sizeFallback) sizeFallback.style.display = 'none';
+            ctx.canvas.style.display = 'block';
+
+            const labels = Object.keys(sizeBreakdown);
+            const data = Object.values(sizeBreakdown);
+            const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
+
+            charts.sizeDistribution = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function formatRouteName(routeName) {
+            if (!routeName || routeName === 'N/A') return 'N/A';
+
+            // Convert technical route names to user-friendly names
+            const routeMap = {
+                'home': 'Home',
+                'news_editor': 'News Editor',
+                'new_editor': 'News Editor',
+                'admin_analytics': 'Analytics',
+                'merchandise_admin_editor': 'Merchandise Editor',
+                'admin_merchandise_editor': 'Merchandise Editor',
+                'email_preview': 'Email Preview',
+                'admin_logs': 'Logs',
+                'merchandise': 'Shop',
+                'news': 'News',
+                'cart': 'Shopping Cart',
+                'checkout': 'Checkout',
+                'success': 'Success',
+                'exit': 'Exit'
+            };
+
+            return routeMap[routeName] || routeName.charAt(0).toUpperCase() + routeName.slice(1).replace(/_/g, ' ');
+        }
+
+        // Security: HTML escape function to prevent XSS attacks
+        function escapeHtml(text) {
+            if (!text || text === null || text === undefined) return text;
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+
+        function formatPageUrl(url) {
+            if (!url || url === 'N/A') return 'N/A';
+
+            try {
+                const urlObj = new URL(url);
+                const path = urlObj.pathname;
+
+                // Convert common URL paths to friendly names
+                if (path === '/' || path === '') return 'Home';
+                if (path === '/admin/analytics' || path === '/admin/analytics/') return 'Analytics Dashboard';
+                if (path.includes('/admin/news-editor')) return 'News Editor';
+                if (path.includes('/admin/merchandise-editor')) return 'Merchandise Editor';
+                if (path.includes('/admin/email-preview')) return 'Email Preview';
+                if (path.includes('/admin/logs')) return 'Admin Logs';
+                if (path.includes('/news/')) return 'News Article';
+                if (path.includes('/news')) return 'News';
+                if (path.includes('/merchandise/')) return 'Product Page';
+                if (path.includes('/merchandise')) return 'Shop';
+                if (path.includes('/cart')) return 'Shopping Cart';
+                if (path.includes('/checkout')) return 'Checkout';
+                if (path.includes('/success')) return 'Success Page';
+
+                // Default: clean up the path
+                return path.replace(/^\//, '').replace(/\//g, ' / ').replace(/[-_]/g, ' ') || 'Home';
+            } catch (e) {
+                return url;
+            }
+        }
+
+        function updateTables(recentActivity, subscriberDetails, newsMetrics, geoData, salesMetrics) {
+            // Recent Activity
+            const activityBody = document.getElementById('recentActivity');
+            if (recentActivity && recentActivity.activities && recentActivity.activities.length > 0) {
+                activityBody.innerHTML = recentActivity.activities.map(activity => {
+                    // Format identity display
+                    const identityDisplay = activity.identity === 'human' ? 'Human' :
+                                          activity.identity === 'bot' ? 'Bot' :
+                                          activity.identity === 'likely_human' ? 'Likely Human' :
+                                          activity.identity === 'possible_human' ? 'Possible Human' :
+                                          'Unknown';
+                    const badge = activity.identity === 'human' ? 'badge-human' :
+                                 activity.identity === 'bot' ? 'badge-bot' : 'badge-unknown';
+
+                    // Format event type display
+                    const eventTypeDisplay = activity.event_type === 'page_view_client' ? 'Page View' :
+                                           activity.event_type === 'internal_link_click' ? 'Link Click' :
+                                           activity.event_type === 'page_exit' ? 'Page Exit' :
+                                           activity.event_type === 'route_change' ? 'Navigation' :
+                                           activity.event_type === 'interaction' ? 'Interaction' :
+                                           activity.event_type || 'Unknown';
+
+                    const timeFormatted = escapeHtml(new Date(activity.timestamp).toLocaleString());
+                    const deviceOS = escapeHtml(activity.device_os || 'Unknown');
+                    const deviceBrand = escapeHtml(activity.device_brand || 'Unknown');
+                    const deviceType = escapeHtml(activity.device_type || 'Unknown');
+                    const timeSpent = activity.time_spent_seconds ? escapeHtml(`${activity.time_spent_seconds}s`) : 'N/A';
+                    const location = escapeHtml(activity.location);
+
+                    // Format route/page info more cleanly
+                    let routeInfo = 'N/A';
+                    if (activity.from_route && activity.to_route &&
+                        activity.from_route !== 'N/A' && activity.to_route !== 'N/A') {
+                        const fromName = formatRouteName(activity.from_route);
+                        const toName = formatRouteName(activity.to_route);
+                        routeInfo = escapeHtml(`${fromName} → ${toName}`);
+                    } else if (activity.url && activity.url !== 'N/A') {
+                        routeInfo = escapeHtml(formatPageUrl(activity.url));
+                    }
+
+                    return `
+                        <tr>
+                            <td>${timeFormatted}</td>
+                            <td>${eventTypeDisplay}</td>
+                            <td>${location}</td>
+                            <td><span class="badge ${badge}">${identityDisplay}</span></td>
+                            <td>${deviceType}</td>
+                            <td>${deviceOS}</td>
+                            <td>${deviceBrand}</td>
+                            <td>${timeSpent}</td>
+                            <td class="route-cell">${routeInfo}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                activityBody.innerHTML = '<tr><td colspan="9">No recent activity</td></tr>';
+            }
+
+            // Recent Subscribers
+            const subscribersBody = document.getElementById('recentSubscribers');
+            if (subscriberDetails && subscriberDetails.recent_subscribers && subscriberDetails.recent_subscribers.length > 0) {
+                subscribersBody.innerHTML = subscriberDetails.recent_subscribers.map(subscriber => {
+                    const statusBadge = subscriber.is_active ? 'badge-active' : 'badge-inactive';
+                    const statusText = subscriber.is_active ? 'Active' : 'Inactive';
+                    const subscribedDate = escapeHtml(new Date(subscriber.subscribed_at).toLocaleDateString());
+                    const email = escapeHtml(subscriber.email);
+                    const source = escapeHtml(subscriber.source);
+                    return `
+                        <tr>
+                            <td>${email}</td>
+                            <td>${source}</td>
+                            <td>${subscribedDate}</td>
+                            <td><span class="badge ${statusBadge}">${statusText}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                subscribersBody.innerHTML = '<tr><td colspan="4">No subscribers data</td></tr>';
+            }
+
+            // Recent Articles
+            const articlesBody = document.getElementById('recentArticles');
+            if (newsMetrics && newsMetrics.recent_articles && newsMetrics.recent_articles.length > 0) {
+                articlesBody.innerHTML = newsMetrics.recent_articles.map(article => {
+                    const publishedDate = escapeHtml(new Date(article.created_at).toLocaleDateString());
+                    const wordCount = Math.ceil(article.content_length / 6); // Rough word count estimate
+                    const title = escapeHtml(article.title);
+                    return `
+                        <tr>
+                            <td>${title}</td>
+                            <td>${publishedDate}</td>
+                            <td>${wordCount} words</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                articlesBody.innerHTML = '<tr><td colspan="3">No articles data</td></tr>';
+            }
+
+            // Geographic Data
+            const geoBody = document.getElementById('geographicData');
+            if (geoData && geoData.geographic_data && geoData.geographic_data.length > 0) {
+                geoBody.innerHTML = geoData.geographic_data.slice(0, 15).map(location => {
+                    const country = escapeHtml(location.country);
+                    const region = escapeHtml(location.region || '-');
+                    const city = escapeHtml(location.city || '-');
+                    return `
+                        <tr>
+                            <td>${country}</td>
+                            <td>${region}</td>
+                            <td>${city}</td>
+                            <td>${location.visits}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                geoBody.innerHTML = '<tr><td colspan="4">No geographic data</td></tr>';
+            }
+
+            // Recent Sales
+            const salesBody = document.getElementById('recentSales');
+            if (salesMetrics && salesMetrics.recent_sales && salesMetrics.recent_sales.length > 0) {
+                salesBody.innerHTML = salesMetrics.recent_sales.map(sale => {
+                    const saleDate = escapeHtml(new Date(sale.date).toLocaleDateString());
+                    const amount = escapeHtml(`£${(sale.amount / 100).toFixed(2)}`);
+                    const customerName = escapeHtml(sale.customer_name || 'N/A');
+                    const customerEmail = escapeHtml(sale.customer_email);
+                    const truncatedEmail = sale.customer_email.length > 20 ?
+                        escapeHtml(sale.customer_email.substring(0, 17) + '...') : customerEmail;
+                    const items = escapeHtml(sale.items);
+                    const itemsDisplay = sale.items.length > 30 ?
+                        escapeHtml(sale.items.substring(0, 27) + '...') : items;
+                    return `
+                        <tr>
+                            <td>#${escapeHtml(sale.order_id)}</td>
+                            <td title="${customerEmail}">${customerName}<br><small>${truncatedEmail}</small></td>
+                            <td>${amount}</td>
+                            <td title="${items}">${itemsDisplay}</td>
+                            <td>${saleDate}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                salesBody.innerHTML = '<tr><td colspan="5">No sales data</td></tr>';
+            }
+        }
+
+        function updateRouteAnalytics(routeData) {
+            // Update top pages table
+            const topPagesBody = document.getElementById('topPages');
+            if (routeData && routeData.top_pages && routeData.top_pages.length > 0) {
+                topPagesBody.innerHTML = routeData.top_pages.map(page => {
+                    const avgTime = page.avg_time_spent ? `${page.avg_time_spent}s` : '0s';
+                    const escapedUrl = escapeHtml(page.url);
+
+                    // Create clickable URL if it's a full URL, otherwise just display
+                    let urlDisplay = escapedUrl;
+                    if (page.url.startsWith('http')) {
+                        urlDisplay = `<a href="${escapedUrl}" target="_blank" class="url-cell" title="${escapedUrl}">${escapedUrl}</a>`;
+                    } else {
+                        urlDisplay = `<span class="url-cell" title="${escapedUrl}">${escapedUrl}</span>`;
+                    }
+
+                    return `
+                        <tr>
+                            <td>${urlDisplay}</td>
+                            <td style="text-align: center;">${page.visits.toLocaleString()}</td>
+                            <td style="text-align: center;">${avgTime}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                topPagesBody.innerHTML = '<tr><td colspan="3">No page data available</td></tr>';
+            }
+
+            // Update route transitions table
+            const routeTransitionsBody = document.getElementById('routeTransitions');
+            if (routeData && routeData.route_transitions && routeData.route_transitions.length > 0) {
+                routeTransitionsBody.innerHTML = routeData.route_transitions.map(transition => {
+                    const fromRoute = escapeHtml(transition.from_route || 'Direct');
+                    const toRoute = escapeHtml(transition.to_route);
+                    return `
+                        <tr>
+                            <td class="route-cell">${fromRoute}</td>
+                            <td class="route-cell">${toRoute}</td>
+                            <td>${transition.count}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                routeTransitionsBody.innerHTML = '<tr><td colspan="3">No route transition data</td></tr>';
+            }
+        }
+
+        function updateTopButtonsChart(buttonData) {
+            const canvas = document.getElementById('topButtonsChart');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            if (charts.topButtons) {
+                charts.topButtons.destroy();
+            }
+
+            const labels = buttonData.map(item => item.button_name.replace('button_click_', ''));
+            const data = buttonData.map(item => item.count);
+
+            charts.topButtons = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Click Count',
+                        data: data,
+                        backgroundColor: '#4f46e5',
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.parsed.x} clicks`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: { precision: 0 }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCommerceButtonsChart(commerceData) {
+            const canvas = document.getElementById('commerceButtonsChart');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            if (charts.commerceButtons) {
+                charts.commerceButtons.destroy();
+            }
+
+            const labels = commerceData.map(item => {
+                // Clean up button names for display
+                let name = item.button_name;
+                if (name.startsWith('button_click_')) {
+                    name = name.replace('button_click_', '');
+                }
+                // Replace underscores and hyphens with spaces, capitalize
+                name = name.replace(/[-_]/g, ' ')
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+                return name;
+            });
+            const data = commerceData.map(item => item.count);
+
+            const colors = ['#10b981', '#06b6d4', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+            charts.commerceButtons = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${context.label}: ${value} clicks (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

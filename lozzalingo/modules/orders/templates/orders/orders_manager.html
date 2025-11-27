@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Management - Admin</title>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin.min.css') }}">
+</head>
+<body>
+    <div class="admin-container">
+        <header class="admin-header">
+            <div class="admin-title">
+                <h1>📦 Order Management</h1>
+                <p class="admin-welcome">Manage and track orders</p>
+            </div>
+            <div class="admin-actions">
+                <a href="{{ url_for('admin.dashboard') }}" class="admin-btn admin-btn-secondary">
+                    ← Back to Dashboard
+                </a>
+            </div>
+        </header>
+
+        <div class="admin-content">
+            <div class="orders-list" id="ordersList">
+                <p>Loading orders...</p>
+            </div>
+        </div>
+
+        <!-- Order Detail Modal -->
+        <div id="orderModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div id="orderDetails"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load orders on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadOrders();
+        });
+
+        async function loadOrders() {
+            try {
+                const response = await fetch('/admin/orders-manager/api/orders');
+                const data = await response.json();
+
+                if (data.success) {
+                    displayOrders(data.orders);
+                } else {
+                    document.getElementById('ordersList').innerHTML = '<p>Error loading orders: ' + data.error + '</p>';
+                }
+            } catch (error) {
+                document.getElementById('ordersList').innerHTML = '<p>Error loading orders: ' + error.message + '</p>';
+            }
+        }
+
+        function displayOrders(orders) {
+            if (orders.length === 0) {
+                document.getElementById('ordersList').innerHTML = '<p>No orders found.</p>';
+                return;
+            }
+
+            let html = '<table class="admin-table"><thead><tr>';
+            html += '<th>Order #</th><th>Customer</th><th>Products</th><th>Amount</th><th>Status</th><th>Date</th><th>Actions</th>';
+            html += '</tr></thead><tbody>';
+
+            orders.forEach(order => {
+                html += `<tr>
+                    <td>${order.order_number}</td>
+                    <td>${order.customer_name}<br><small>${order.customer_email}</small></td>
+                    <td>${order.products}</td>
+                    <td>${order.amount_display}</td>
+                    <td><span class="status-badge status-${order.status}">${order.status}</span></td>
+                    <td>${new Date(order.created_at).toLocaleDateString()}</td>
+                    <td><button onclick="viewOrder(${order.id})" class="admin-btn admin-btn-sm">View</button></td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('ordersList').innerHTML = html;
+        }
+
+        async function viewOrder(orderId) {
+            try {
+                const response = await fetch(`/admin/orders-manager/api/order/${orderId}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayOrderDetails(data.order);
+                    document.getElementById('orderModal').style.display = 'block';
+                } else {
+                    alert('Error loading order: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error loading order: ' + error.message);
+            }
+        }
+
+        function displayOrderDetails(order) {
+            let html = '<h2>Order ' + order.order_number + '</h2>';
+            html += '<div class="order-details-grid">';
+            html += '<div><strong>Customer:</strong> ' + order.customer_name + ' (' + order.customer_email + ')</div>';
+            html += '<div><strong>Status:</strong> ' + order.status + '</div>';
+            html += '<div><strong>Total:</strong> ' + order.amount_display + '</div>';
+            html += '<div><strong>Date:</strong> ' + new Date(order.created_at).toLocaleDateString() + '</div>';
+
+            if (order.items && order.items.length > 0) {
+                html += '</div><h3>Items:</h3><ul>';
+                order.items.forEach(item => {
+                    html += `<li>${item.product_name} ${item.size ? '(' + item.size + ')' : ''} x${item.quantity} - £${(item.price_at_time / 100).toFixed(2)}</li>`;
+                });
+                html += '</ul>';
+            }
+
+            if (order.shipping_line1) {
+                html += '<h3>Shipping Address:</h3><p>';
+                html += order.shipping_name + '<br>';
+                html += order.shipping_line1 + '<br>';
+                if (order.shipping_line2) html += order.shipping_line2 + '<br>';
+                html += order.shipping_city + ', ' + order.shipping_state + ' ' + order.shipping_postal_code + '<br>';
+                html += order.shipping_country;
+                html += '</p>';
+            }
+
+            document.getElementById('orderDetails').innerHTML = html;
+        }
+
+        // Close modal
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('close')) {
+                document.getElementById('orderModal').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

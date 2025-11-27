@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Editor - Admin</title>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/newseditor.css') }}">
+</head>
+<body>
+    {% include 'header.html' ignore missing %}
+
+    <div class="editor-container">
+        <!-- Flash messages would appear here -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="message message-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <header class="editor-header">
+            <h1>News Editor</h1>
+            <div class="header-actions">
+                <a href="{{ url_for('admin.dashboard') }}" class="back-link">Back to Dashboard</a>
+            </div>
+        </header>
+
+        <div class="editor-content">
+            <!-- Article Form -->
+            <div class="editor-form">
+                <h2 id="formTitle">Create New Article</h2>
+
+                <form id="articleForm" enctype="multipart/form-data">
+                    <input type="hidden" id="articleId">
+
+                    <div class="form-group">
+                        <label for="title">Article Title *</label>
+                        <input type="text" id="title" name="title" required
+                               placeholder="Enter article title...">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="imageFile">Upload Image</label>
+                        <input type="file" id="imageFile" name="image" accept="image/*">
+                        <small class="form-hint">Supported formats: PNG, JPG, JPEG, GIF, WEBP (max 10MB)</small>
+                        <div class="upload-progress" id="uploadProgress" style="display: none;">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <span class="progress-text" id="progressText">Uploading...</span>
+                        </div>
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="imageUrl">Or Image URL</label>
+                        <input type="text" id="imageUrl" name="image_url"
+                            placeholder="Image URL or path (e.g., /static/images/photo.jpg or https://example.com/image.jpg)">
+                        <small class="form-hint">Direct link to an image online or relative path</small>
+                    </div>
+
+                    <div class="image-preview" id="imagePreview" style="display: none;">
+                        <img id="previewImg" src="" alt="Preview">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="content">Article Content *</label>
+                        <textarea id="content" name="content" required
+                                  placeholder="Write your article content here..."></textarea>
+                        <small class="form-hint">HTML tags are supported for formatting</small>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-primary" id="publishBtn">
+                            Publish Article
+                        </button>
+                        <button type="button" class="btn-secondary" id="draftBtn">
+                            Save as Draft
+                        </button>
+                        <button type="button" class="btn-secondary" id="cancelBtn" style="display: none;">
+                            Cancel Edit
+                        </button>
+                    </div>
+                    <div id="statusIndicator" class="status-indicator" style="display: none;">
+                        Current status: <span id="currentStatus"></span>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Articles List -->
+            <div class="articles-list">
+                <h2>Manage Articles</h2>
+                <div id="articlesList">
+                    <!-- Articles will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('admin.static', filename='js/newseditor.js') }}" defer></script>
+
+</body>
+</html>

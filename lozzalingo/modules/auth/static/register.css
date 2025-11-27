@@ -1,0 +1,43 @@
+.checkbox-label::after {
+    display: none !important;
+}
+
+/* Custom checkbox styling - more specific to override form.css */
+input[type="checkbox"]#terms {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    width: 18px !important;
+    height: 18px !important;
+    padding: 0 !important; /* Remove the 15px padding from form.css */
+    border: 2px solid #2c2c2c !important;
+    background: #f7f5f0 !important;
+    position: relative;
+    cursor: pointer;
+    margin-right: 10px;
+    margin-top: 4px;
+    transition: all 0.3s ease;
+    flex-shrink: 0; /* Prevent flexbox from changing size */
+}
+
+input[type="checkbox"]#terms:focus {
+    outline: none !important;
+    border-color: #d4a574 !important;
+    box-shadow: none !important; /* Remove the box-shadow from form.css */
+    transform: none !important; /* Remove the transform from form.css */
+}
+
+input[type="checkbox"]#terms:checked {
+    background: #f7f5f0 !important;
+    border-color: #2c2c2c !important;
+}
+
+input[type="checkbox"]#terms:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #2c2c2c;
+    font-size: 14px;
+    font-weight: bold;
+}

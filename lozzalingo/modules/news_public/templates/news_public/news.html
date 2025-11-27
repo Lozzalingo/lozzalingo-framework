@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News & Updates</title>
+</head>
+<body>
+    <h1>News & Updates</h1>
+
+    {% if articles %}
+        <div class="news-list">
+            {% for article in articles %}
+            <article class="news-item">
+                {% if article.image_url %}
+                <img src="{{ article.image_url }}" alt="{{ article.title }}" loading="lazy">
+                {% endif %}
+                <h2><a href="{{ url_for('news.blog_post', slug=article.slug) }}">{{ article.title }}</a></h2>
+                <time>{{ article.created_at }}</time>
+                <div>{{ article.content[:200]|striptags }}...</div>
+            </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No articles available yet.</p>
+    {% endif %}
+</body>
+</html>

@@ -1,0 +1,170 @@
+Metadata-Version: 2.4
+Name: lozzalingo
+Version: 0.1.0
+Summary: A modular Flask admin dashboard framework with analytics, authentication, and more
+Home-page: https://github.com/yourusername/lozzalingo
+Author: Laurence Stephan
+Author-email: your.email@example.com
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Software Development :: Libraries :: Application Frameworks
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Framework :: Flask
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: Flask>=3.0.0
+Requires-Dist: Flask-SQLAlchemy>=3.0.0
+Requires-Dist: Flask-CORS>=4.0.0
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: requests>=2.28.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: pytest-flask>=1.2; extra == "dev"
+Requires-Dist: black>=22.0; extra == "dev"
+Requires-Dist: flake8>=5.0; extra == "dev"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+# Lozzalingo
+
+A modular, reusable Flask admin dashboard framework.
+
+## Features
+
+- **Analytics Module**: Track visitor behavior, device types, referrers, and more
+- **Authentication Module**: User login, session management, password changes
+- **Dashboard Module**: Unified admin interface
+- More modules coming soon!
+
+## Installation
+
+Install in editable mode for development:
+
+```bash
+pip install -e /path/to/lozzalingo-framework
+```
+
+Or install from source:
+
+```bash
+cd /path/to/lozzalingo-framework
+pip install .
+```
+
+## Quick Start
+
+### 1. Import and Register Blueprints
+
+```python
+from flask import Flask
+from lozzalingo.modules.analytics import analytics_bp
+from lozzalingo.modules.auth import auth_bp
+
+app = Flask(__name__)
+
+# Register blueprints
+app.register_blueprint(analytics_bp, url_prefix='/admin/analytics')
+app.register_blueprint(auth_bp, url_prefix='/admin')
+```
+
+### 2. Configure Your App
+
+```python
+app.config['SECRET_KEY'] = 'your-secret-key'
+app.config['USER_DB'] = 'path/to/your/database.db'
+```
+
+### 3. Run Your App
+
+```python
+if __name__ == '__main__':
+    app.run(debug=True)
+```
+
+## Module Details
+
+### Analytics Module
+
+Provides comprehensive analytics tracking:
+- Page views and unique visitors
+- Device detection (desktop, mobile, tablet)
+- Geographic location tracking
+- Referrer tracking
+- Custom event tracking
+
+**Usage:**
+```python
+from lozzalingo.modules.analytics import analytics_bp, Analytics
+
+app.register_blueprint(analytics_bp, url_prefix='/admin/analytics')
+
+# Track events in your routes
+Analytics.track_event(request, 'page_view', metadata={'page': 'home'})
+```
+
+### Auth Module
+
+Provides admin authentication:
+- Login/logout
+- Session management
+- Password change functionality
+- Admin creation
+
+**Usage:**
+```python
+from lozzalingo.modules.auth import auth_bp
+
+app.register_blueprint(auth_bp, url_prefix='/admin')
+```
+
+Access:
+- Login: `/admin/login`
+- Dashboard: `/admin/dashboard`
+- Change Password: `/admin/change-password`
+
+## Development
+
+### Project Structure
+
+```
+lozzalingo/
+├── lozzalingo/
+│   ├── __init__.py
+│   ├── core/              # Shared utilities
+│   └── modules/
+│       ├── analytics/     # Analytics module
+│       │   ├── templates/
+│       │   ├── static/
+│       │   └── *.py
+│       ├── auth/          # Authentication module
+│       │   ├── templates/
+│       │   └── *.py
+│       └── dashboard/     # Dashboard module
+├── setup.py
+└── README.md
+```
+
+### Contributing
+
+This is currently an extraction from the Mario Pinto project. More modules will be added over time.
+
+## License
+
+MIT License
+
+## Author
+
+Laurence Stephan

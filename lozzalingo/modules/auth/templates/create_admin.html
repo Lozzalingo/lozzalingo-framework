@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Admin - Mario Pinto</title>
+    <link rel="stylesheet" href="{{ url_for(auth_bp_name ~ '.static', filename='css/main.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for(auth_bp_name ~ '.static', filename='css/admin.min.css') }}"
+</head>
+<body>
+    <div class="admin-login-container">
+        <form class="admin-form admin-login-form" method="POST">
+            <h1>Create New Admin</h1>
+            <p style="text-align: center; margin-bottom: 30px; color: #666;">Add a new administrator account</p>
+
+            <!-- Flash messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="admin-message admin-message-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="admin-message admin-message-info">
+                <strong>Admin Account Info:</strong> This will create a new admin account with access to the admin dashboard. Use a secure password.
+            </div>
+
+            <div class="admin-form-group">
+                <label for="email" class="admin-form-label">Email Address</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    class="admin-form-input"
+                    required
+                    value="{{ request.form.email if request.form.email }}"
+                    placeholder="Enter admin email address"
+                >
+            </div>
+
+            <div class="admin-form-group">
+                <label for="password" class="admin-form-label">Password</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    class="admin-form-input"
+                    required
+                    minlength="6"
+                    placeholder="Enter secure password (min 6 chars)"
+                >
+            </div>
+
+            <div class="admin-form-group">
+                <label for="confirm_password" class="admin-form-label">Confirm Password</label>
+                <input
+                    type="password"
+                    id="confirm_password"
+                    name="confirm_password"
+                    class="admin-form-input"
+                    required
+                    minlength="6"
+                    placeholder="Confirm password"
+                >
+            </div>
+
+            <div class="admin-form-actions">
+                <button name="create_admin_submit" type="submit" class="admin-btn admin-btn-success">Create Admin Account</button>
+            </div>
+
+            <div class="navigation-links">
+                <a href="{{ url_for(auth_bp_name ~ '.dashboard') }}" class="admin-btn admin-btn-secondary">Back to Dashboard</a>
+                <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="admin-btn admin-btn-primary">Change Password</a>
+                <a href="{{ url_for(auth_bp_name ~ '.logout') }}" class="admin-btn admin-btn-danger">Logout</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Auto-focus first input
+        document.getElementById('email').focus();
+        
+        // Password confirmation validation
+        document.getElementById('confirm_password').addEventListener('input', function() {
+            const password = document.getElementById('password').value;
+            const confirmPassword = this.value;
+            
+            if (password !== confirmPassword) {
+                this.setCustomValidity('Passwords do not match');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+        
+        // Handle form submission
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const button = document.querySelector('.submit-btn');
+            button.textContent = 'Creating Admin...';
+            button.disabled = true;
+        });
+    </script>
+</body>
+</html>

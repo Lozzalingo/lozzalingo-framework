@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Mario Pinto</title>
+    <link rel="stylesheet" href="{{ url_for(auth_bp_name ~ '.static', filename='css/main.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for(auth_bp_name ~ '.static', filename='css/admin.min.css') }}">
+</head>
+<body>
+    {% include 'header.html' %}
+
+    <div class="admin-container">
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="admin-message admin-message-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <header class="admin-header">
+            <div class="admin-title">
+                <h1>Admin Dashboard</h1>
+                <p class="admin-welcome">Welcome, {{ session.admin_email }}</p>
+            </div>
+            <div class="admin-actions">
+                <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="admin-btn admin-btn-secondary">
+                    🔒 Change Password
+                </a>
+                <a href="{{ url_for(auth_bp_name ~ '.logout') }}" class="admin-btn admin-btn-danger">
+                    🚪 Logout
+                </a>
+            </div>
+        </header>
+
+        <div class="dashboard-grid">
+            <!-- Analytics Card -->
+            <div class="dashboard-card">
+                <div class="card-icon">📊</div>
+                <div class="card-content">
+                    <h2>Analytics</h2>
+                    <p>View website traffic, visitor statistics, and performance metrics.</p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-number" id="totalVisitors">-</span>
+                            <span class="stat-label">Total Visitors</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number" id="todayVisitors">-</span>
+                            <span class="stat-label">Today</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <a href="/admin/analytics" class="admin-btn admin-btn-primary">
+                        📈 View Analytics
+                    </a>
+                </div>
+            </div>
+
+            <!-- News Editor Card -->
+            <div class="dashboard-card">
+                <div class="card-icon">📰</div>
+                <div class="card-content">
+                    <h2>News Editor</h2>
+                    <p>Create, edit, and manage news articles and blog posts.</p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-number" id="totalArticles">-</span>
+                            <span class="stat-label">Published Articles</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number" id="recentArticles">-</span>
+                            <span class="stat-label">This Month</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <a href="/admin/news-editor" class="admin-btn admin-btn-primary">
+                        ✏️ News Editor
+                    </a>
+                </div>
+            </div>
+
+            <!-- Merchandise Editor Card -->
+            <div class="dashboard-card">
+                <div class="card-icon">🛍️</div>
+                <div class="card-content">
+                    <h2>Merchandise</h2>
+                    <p>Manage products, images, pricing, and inventory for the store.</p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-number" id="totalProducts">-</span>
+                            <span class="stat-label">Active Products</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number" id="preorderProducts">-</span>
+                            <span class="stat-label">Preorders</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <a href="/admin/merchandise-editor" class="admin-btn admin-btn-primary">
+                        🛒 Merchandise Editor
+                    </a>
+                </div>
+            </div>
+
+            <!-- Order Management Card -->
+            <div class="dashboard-card">
+                <div class="card-icon">📦</div>
+                <div class="card-content">
+                    <h2>Order Management</h2>
+                    <p>View customer orders, resend confirmation emails, and manage order status.</p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-number" id="totalOrders">-</span>
+                            <span class="stat-label">Total Orders</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number" id="recentOrders">-</span>
+                            <span class="stat-label">This Week</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <a href="/admin/orders-manager" class="admin-btn admin-btn-primary">
+                        📋 Manage Orders
+                    </a>
+                </div>
+            </div>
+
+            <!-- Customer Spotlight Card -->
+            <div class="dashboard-card">
+                <div class="card-icon">📸</div>
+                <div class="card-content">
+                    <h2>Customer Spotlight</h2>
+                    <p>Manage customer images and Instagram handles for the gallery showcase.</p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-number" id="totalSpotlights">-</span>
+                            <span class="stat-label">Active Spotlights</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number" id="spotlightsSavings">-</span>
+                            <span class="stat-label">MB Saved</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <a href="/admin/customer-spotlight-editor" class="admin-btn admin-btn-primary">
+                        ✨ Spotlight Editor
+                    </a>
+                </div>
+            </div>
+
+            <!-- Admin Management Card -->
+            <div class="dashboard-card">
+                <div class="card-icon">👥</div>
+                <div class="card-content">
+                    <h2>Admin Management</h2>
+                    <p>Manage admin users, permissions, and account settings.</p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-number" id="totalAdmins">-</span>
+                            <span class="stat-label">Admin Users</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number">1</span>
+                            <span class="stat-label">Active</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <a href="{{ url_for(auth_bp_name ~ '.create_admin') }}" class="admin-btn admin-btn-primary">
+                        ➕ Create Admin
+                    </a>
+                </div>
+            </div>
+
+            <!-- Email Logs Card -->
+            <div class="dashboard-card">
+                <div class="card-icon">📧</div>
+                <div class="card-content">
+                    <h2>Email Logs</h2>
+                    <p>Track sent emails, view delivery status, and monitor email system health.</p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-number" id="totalEmailsSent">-</span>
+                            <span class="stat-label">Emails Sent</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number" id="emailsFailed">-</span>
+                            <span class="stat-label">Failed</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <a href="{{ url_for(auth_bp_name ~ '.email_logs') }}" class="admin-btn admin-btn-primary">
+                        📬 View Email Logs
+                    </a>
+                </div>
+            </div>
+
+            <!-- Email Previews Card -->
+            <div class="dashboard-card">
+                <div class="card-icon">📨</div>
+                <div class="card-content">
+                    <h2>Email Previews</h2>
+                    <p>Preview and test email templates for newsletters, orders, and notifications.</p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-number">7</span>
+                            <span class="stat-label">Templates</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number">✓</span>
+                            <span class="stat-label">Email System</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <a href="/admin/email-preview/" class="admin-btn admin-btn-primary">
+                        👁️ View Previews
+                    </a>
+                </div>
+            </div>
+
+            <!-- Template Previews Card -->
+            <div class="dashboard-card">
+                <div class="card-icon">🎨</div>
+                <div class="card-content">
+                    <h2>Template Previews</h2>
+                    <p>Preview site templates including maintenance, error pages, and layouts.</p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-number">5</span>
+                            <span class="stat-label">Templates</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number">✓</span>
+                            <span class="stat-label">Available</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <a href="{{ url_for(auth_bp_name ~ '.template_previews') }}" class="admin-btn admin-btn-primary">
+                        👀 View Templates
+                    </a>
+                </div>
+            </div>
+
+            <!-- Application Logs Card -->
+            <div class="dashboard-card">
+                <div class="card-icon">📝</div>
+                <div class="card-content">
+                    <h2>Application Logs</h2>
+                    <p>View system logs, error tracking, and application events for debugging.</p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-number" id="recentErrors">-</span>
+                            <span class="stat-label">Recent Errors</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number" id="totalLogs">-</span>
+                            <span class="stat-label">Total Logs</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <a href="{{ url_for(auth_bp_name ~ '.logs') }}" class="admin-btn admin-btn-primary">
+                        🔍 View Logs
+                    </a>
+                </div>
+            </div>
+
+            <!-- System Status Card -->
+            <div class="dashboard-card">
+                <div class="card-icon">⚙️</div>
+                <div class="card-content">
+                    <h2>System Status</h2>
+                    <p>Monitor server health, database status, and system performance.</p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-number stat-success">✓</span>
+                            <span class="stat-label">Database</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number stat-success">✓</span>
+                            <span class="stat-label">Server</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <button name="refresh_stats" class="admin-btn admin-btn-secondary" onclick="refreshStats()">
+                        🔄 Refresh Stats
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Actions Card -->
+            <div class="dashboard-card dashboard-card-wide">
+                <div class="card-icon">⚡</div>
+                <div class="card-content">
+                    <h2>Quick Actions</h2>
+                    <p>Common admin tasks and shortcuts.</p>
+                </div>
+                <div class="quick-actions">
+                    <a href="/admin/news-editor" class="quick-action">
+                        <span class="quick-action-icon">📝</span>
+                        <span>New Article</span>
+                    </a>
+                    <a href="/admin/merchandise-editor" class="quick-action">
+                        <span class="quick-action-icon">🏷️</span>
+                        <span>New Product</span>
+                    </a>
+                    <a href="/admin/orders-manager" class="quick-action">
+                        <span class="quick-action-icon">📦</span>
+                        <span>Manage Orders</span>
+                    </a>
+                    <a href="/admin/customer-spotlight-editor" class="quick-action">
+                        <span class="quick-action-icon">📸</span>
+                        <span>Add Spotlight</span>
+                    </a>
+                    <a href="/admin/analytics" class="quick-action">
+                        <span class="quick-action-icon">📊</span>
+                        <span>View Stats</span>
+                    </a>
+                    <a href="/admin/email-preview/" class="quick-action">
+                        <span class="quick-action-icon">📧</span>
+                        <span>Email Preview</span>
+                    </a>
+                    <a href="{{ url_for(auth_bp_name ~ '.template_previews') }}" class="quick-action">
+                        <span class="quick-action-icon">🎨</span>
+                        <span>Templates</span>
+                    </a>
+                    <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="quick-action">
+                        <span class="quick-action-icon">🔐</span>
+                        <span>Security</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="admin-footer">
+            <p>&copy; <span class="current-year">{{ current_year() }}</span> Mario Pinto Admin Panel | Last login: <span id="lastLogin">{{ session.get('last_login', 'N/A') }}</span></p>
+        </footer>
+    </div>
+
+    <script>
+        // Load dashboard statistics
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardStats();
+        });
+
+        async function loadDashboardStats() {
+            try {
+                // Load analytics stats
+                fetch('/admin/api/stats')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.analytics) {
+                            document.getElementById('totalVisitors').textContent = data.analytics.total_visitors || '0';
+                            document.getElementById('todayVisitors').textContent = data.analytics.today_visitors || '0';
+                        }
+                        if (data.news) {
+                            document.getElementById('totalArticles').textContent = data.news.total_articles || '0';
+                            document.getElementById('recentArticles').textContent = data.news.recent_articles || '0';
+                        }
+                        if (data.merchandise) {
+                            document.getElementById('totalProducts').textContent = data.merchandise.total_products || '0';
+                            document.getElementById('preorderProducts').textContent = data.merchandise.preorder_products || '0';
+                        }
+                        if (data.admin) {
+                            document.getElementById('totalAdmins').textContent = data.admin.total_admins || '1';
+                        }
+                        if (data.customer_spotlight) {
+                            document.getElementById('totalSpotlights').textContent = data.customer_spotlight.total_active || '0';
+                            document.getElementById('spotlightsSavings').textContent = data.customer_spotlight.size_savings_mb || '0';
+                        }
+                        if (data.orders) {
+                            document.getElementById('totalOrders').textContent = data.orders.total_orders || '0';
+                            document.getElementById('recentOrders').textContent = data.orders.recent_orders || '0';
+                        }
+                        if (data.email) {
+                            document.getElementById('totalEmailsSent').textContent = data.email.total_sent || '0';
+                            document.getElementById('emailsFailed').textContent = data.email.total_failed || '0';
+                        }
+                    })
+                    .catch(err => console.log('Stats loading failed:', err));
+
+            } catch (error) {
+                console.log('Error loading dashboard stats:', error);
+            }
+        }
+
+        function refreshStats() {
+            const refreshBtn = document.querySelector('.admin-btn-secondary');
+            const originalText = refreshBtn.innerHTML;
+            refreshBtn.innerHTML = '🔄 Refreshing...';
+            refreshBtn.disabled = true;
+
+            setTimeout(() => {
+                loadDashboardStats();
+                refreshBtn.innerHTML = originalText;
+                refreshBtn.disabled = false;
+            }, 1000);
+        }
+
+        // Auto-refresh stats every 5 minutes
+        setInterval(loadDashboardStats, 5 * 60 * 1000);
+    </script>
+</body>
+</html>
