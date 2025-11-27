@@ -647,8 +647,10 @@ def log_interaction():
         allowed_origins = [
             'http://localhost:5001',
             'http://127.0.0.1:5001',
-            'https://mariopintomma.com',  # Add your production domain
-            'https://www.mariopintomma.com'
+            'https://mariopintomma.com',
+            'https://www.mariopintomma.com',
+            'https://crowdsauced.laurence.computer',
+            'https://aightclothing.laurence.computer'
         ]
 
         # Check if request comes from allowed origin
@@ -1011,8 +1013,10 @@ def log_enhanced_interaction():
         allowed_origins = [
             'http://localhost:5001',
             'http://127.0.0.1:5001',
-            'https://mariopintomma.com',  # Add your production domain
-            'https://www.mariopintomma.com'
+            'https://mariopintomma.com',
+            'https://www.mariopintomma.com',
+            'https://crowdsauced.laurence.computer',
+            'https://aightclothing.laurence.computer'
         ]
 
         # Check if request comes from allowed origin
