@@ -11,6 +11,7 @@ The framework provides ready-to-use modules that you can plug into your Flask ap
 - **Merchandise Module**: Product/merchandise management (plugs into admin dashboard)
 - **Auth Module**: User authentication system (email/password, OAuth, password reset)
 - **Analytics Module**: Admin analytics dashboard
+- **Email Module**: Configurable email service with Resend API (templates + preview)
 
 ## Installation
 
@@ -594,5 +595,155 @@ app.register_blueprint(merchandise_bp)
 ```
 
 Requires `app.models.merchandise` with product management functions.
+
+## Email Module
+
+Provides a configurable email service using Resend API with template preview functionality.
+
+### Features
+
+- **Configurable Branding**: All templates use configurable brand name, tagline, website URL
+- **Resend API Integration**: Uses Resend for reliable email delivery
+- **Email Templates**: Welcome, purchase confirmation, shipping, news, admin notifications
+- **Email Preview**: Admin interface to preview all templates before sending
+- **Email Logging**: All emails logged to SQLite database for tracking
+- **Pre-order Support**: Special handling for pre-order purchase confirmations
+
+### Setup
+
+```python
+from flask import Flask
+from lozzalingo.modules.email import email_preview_bp, email_service
+
+app = Flask(__name__)
+
+# Configure email settings
+app.config['RESEND_API_KEY'] = 'your-resend-api-key'
+app.config['EMAIL_ADDRESS'] = 'noreply@yourdomain.com'
+app.config['EMAIL_BRAND_NAME'] = 'Your Brand'
+app.config['EMAIL_BRAND_TAGLINE'] = 'Your tagline here'
+app.config['EMAIL_WEBSITE_URL'] = 'https://yourdomain.com'
+app.config['EMAIL_SUPPORT_EMAIL'] = 'support@yourdomain.com'
+app.config['EMAIL_ADMIN_EMAIL'] = 'admin@yourdomain.com'  # For admin notifications
+app.config['USER_DB'] = 'path/to/users.db'  # For email logs
+
+# Initialize email service
+email_service.init_app(app)
+
+# Register email preview blueprint (admin only)
+app.register_blueprint(email_preview_bp)
+
+if __name__ == '__main__':
+    app.run(debug=True)
+```
+
+### Configuration Options
+
+| Config Key | Description | Default |
+|------------|-------------|---------|
+| `RESEND_API_KEY` | Your Resend API key | Required |
+| `EMAIL_ADDRESS` | Sender email address | `onboarding@resend.dev` |
+| `EMAIL_BRAND_NAME` | Brand name in emails | `Your Brand` |
+| `EMAIL_BRAND_TAGLINE` | Brand tagline (optional) | Empty |
+| `EMAIL_WEBSITE_URL` | Website URL for links | `https://example.com` |
+| `EMAIL_SUPPORT_EMAIL` | Support contact email | `support@example.com` |
+| `EMAIL_ADMIN_EMAIL` | Admin notification email | None (disables admin notifications) |
+| `USER_DB` | SQLite database path for email logs | `users.db` |
+
+### Routes Provided
+
+| Route | Description |
+|-------|-------------|
+| `/admin/email-preview/` | Email template preview index |
+| `/admin/email-preview/welcome` | Preview welcome email |
+| `/admin/email-preview/welcome/<name>` | Preview welcome email with custom name |
+| `/admin/email-preview/purchase` | Preview purchase confirmation |
+| `/admin/email-preview/purchase-preorder` | Preview pre-order confirmation |
+| `/admin/email-preview/news` | Preview news notification |
+| `/admin/email-preview/shipping` | Preview shipping notification |
+| `/admin/email-preview/test-send` | Send test welcome email |
+| `/admin/email-preview/admin-order` | Send test admin order notification |
+| `/admin/email-preview/admin-subscriber` | Send test admin subscriber notification |
+
+### Using the Email Service
+
+```python
+from lozzalingo.modules.email import email_service
+
+# Send welcome email
+email_service.send_welcome_email('user@example.com', 'John')
+
+# Send purchase confirmation
+email_service.send_purchase_confirmation('user@example.com', {
+    'product_name': 'T-Shirt',
+    'amount': 2999,  # In pence/cents
+    'currency': 'GBP',
+    'order_id': 'ORD-001',
+    'size': 'Large',
+    'is_preorder': False
+})
+
+# Send shipping notification
+email_service.send_shipping_notification(
+    email='user@example.com',
+    customer_name='John Doe',
+    order_id=123,
+    tracking_number='TRACK123456',
+    items_text='* T-Shirt (Size: L) x1'
+)
+
+# Send news notification to subscribers
+email_service.send_news_notification(
+    subscribers=['user1@example.com', 'user2@example.com'],
+    article={
+        'title': 'Big News!',
+        'excerpt': 'We have exciting news...',
+        'slug': 'big-news',
+        'date': '2024-01-15'
+    }
+)
+
+# Admin notifications (requires EMAIL_ADMIN_EMAIL configured)
+email_service.send_admin_order_notification({...})
+email_service.send_admin_subscriber_notification({...})
+```
+
+### Email Logging
+
+The module automatically creates an `email_logs` table in the configured USER_DB:
+
+```sql
+CREATE TABLE email_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recipient TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    email_type TEXT,
+    status TEXT NOT NULL,  -- 'sent' or 'failed'
+    error_message TEXT,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Dependencies
+
+Add `resend` to your requirements.txt:
+
+```
+resend>=0.5.0
+```
+
+### Troubleshooting
+
+**Emails not sending:**
+1. Check `RESEND_API_KEY` is configured
+2. Verify `EMAIL_ADDRESS` is verified in Resend dashboard
+3. Check server logs for error messages
+4. Ensure `resend` package is installed
+
+**Admin notifications not working:**
+- Ensure `EMAIL_ADMIN_EMAIL` is configured in app.config
+
+**Preview pages showing default branding:**
+- Make sure `email_service.init_app(app)` is called before using the service
 
 
