@@ -407,6 +407,50 @@ def api_stats():
             except Exception as e:
                 print(f"Admin stats error: {e}")
 
+        # Get merchandise stats (if database exists)
+        try:
+            merchandise_db = Config.MERCHANDISE_DB if hasattr(Config, 'MERCHANDISE_DB') else Config.MERCHANDISE if hasattr(Config, 'MERCHANDISE') else None
+        except:
+            merchandise_db = os.getenv('MERCHANDISE_DB')
+
+        if merchandise_db and os.path.exists(merchandise_db):
+            try:
+                stats['merchandise'] = {
+                    'total_products': 0,
+                    'preorder_products': 0
+                }
+                with db_connect(merchandise_db) as conn:
+                    cursor = conn.cursor()
+                    # Total active products
+                    cursor.execute("SELECT COUNT(*) FROM products WHERE is_active = 1")
+                    result = cursor.fetchone()
+                    stats['merchandise']['total_products'] = result[0] if result else 0
+
+                    # Preorder products
+                    cursor.execute("SELECT COUNT(*) FROM products WHERE is_active = 1 AND is_preorder = 1")
+                    result = cursor.fetchone()
+                    stats['merchandise']['preorder_products'] = result[0] if result else 0
+
+                    # Order stats (orders table is in the same merchandise database)
+                    try:
+                        stats['orders'] = {
+                            'total_orders': 0,
+                            'recent_orders': 0
+                        }
+                        cursor.execute("SELECT COUNT(*) FROM orders")
+                        result = cursor.fetchone()
+                        stats['orders']['total_orders'] = result[0] if result else 0
+
+                        # This week's orders
+                        week_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+                        cursor.execute("SELECT COUNT(*) FROM orders WHERE DATE(created_at) >= ?", (week_ago,))
+                        result = cursor.fetchone()
+                        stats['orders']['recent_orders'] = result[0] if result else 0
+                    except Exception as e:
+                        print(f"Order stats error: {e}")
+            except Exception as e:
+                print(f"Merchandise stats error: {e}")
+
         return jsonify(stats)
 
     except Exception as e:

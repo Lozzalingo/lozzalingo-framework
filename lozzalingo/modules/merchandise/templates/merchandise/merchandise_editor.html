@@ -114,7 +114,20 @@
 
                 <!-- Products List -->
                 <div class="products-list">
-                    <h2>Existing Products</h2>
+                    <div class="list-header">
+                        <h2>Existing Products</h2>
+                        <div class="filter-controls">
+                            <input type="text" id="productSearch" class="filter-input" placeholder="Search products...">
+                            <select id="productFilter" class="filter-select">
+                                <option value="all">All Products</option>
+                                <option value="active">Active Only</option>
+                                <option value="preorder">Preorders</option>
+                                <option value="limited">Limited Edition</option>
+                                <option value="pod">Print on Demand</option>
+                            </select>
+                            <span id="productCount" class="item-count"></span>
+                        </div>
+                    </div>
                     <div class="products-grid" id="productsGrid">
                         <!-- Products will be loaded here -->
                     </div>

@@ -4,9 +4,11 @@ document.addEventListener('DOMContentLoaded', function() {
     setupForm();
     setupImagePreview();
     setupImageUpload();
+    initializeFilters();
 });
 
 let editingArticleId = null;
+let allArticles = [];  // Store all articles for filtering
 
 // Form setup
 function setupForm() {
@@ -115,6 +117,68 @@ function setupImageUpload() {
     });
 }
 
+// Filter initialization
+function initializeFilters() {
+    const searchInput = document.getElementById('articleSearch');
+    const filterSelect = document.getElementById('articleFilter');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', filterArticles);
+    }
+    if (filterSelect) {
+        filterSelect.addEventListener('change', filterArticles);
+    }
+}
+
+// Filter articles based on search and filter criteria
+function filterArticles() {
+    const searchInput = document.getElementById('articleSearch');
+    const filterSelect = document.getElementById('articleFilter');
+
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const filterType = filterSelect ? filterSelect.value : 'all';
+
+    let filtered = allArticles.filter(article => {
+        // Search filter - check title and content
+        const matchesSearch = !searchTerm ||
+            article.title.toLowerCase().includes(searchTerm) ||
+            (article.content && article.content.toLowerCase().includes(searchTerm)) ||
+            (article.slug && article.slug.toLowerCase().includes(searchTerm));
+
+        // Status filter
+        let matchesFilter = true;
+        const status = article.status || 'published';
+        switch (filterType) {
+            case 'published':
+                matchesFilter = status === 'published';
+                break;
+            case 'draft':
+                matchesFilter = status === 'draft';
+                break;
+            case 'all':
+            default:
+                matchesFilter = true;
+        }
+
+        return matchesSearch && matchesFilter;
+    });
+
+    renderArticles(filtered);
+    updateArticleCount(filtered.length, allArticles.length);
+}
+
+// Update article count display
+function updateArticleCount(shown, total) {
+    const countEl = document.getElementById('articleCount');
+    if (countEl) {
+        if (shown === total) {
+            countEl.textContent = `${total} article${total !== 1 ? 's' : ''}`;
+        } else {
+            countEl.textContent = `${shown} of ${total} article${total !== 1 ? 's' : ''}`;
+        }
+    }
+}
+
 // Image preview setup
 function setupImagePreview() {
     const imageUrlInput = document.getElementById('imageUrl');
@@ -155,7 +219,7 @@ function setupImagePreview() {
 async function loadArticles() {
     try {
         const response = await fetch('/admin/news-editor/api/articles');
-        
+
         if (!response.ok) {
             if (response.status === 401) {
                 window.location.href = '/admin/login';
@@ -163,9 +227,11 @@ async function loadArticles() {
             }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const articles = await response.json();
-        displayArticles(articles);
+        allArticles = articles;  // Store for filtering
+        renderArticles(articles);
+        updateArticleCount(articles.length, articles.length);
     } catch (error) {
         console.error('Error loading articles:', error);
         const container = document.getElementById('articlesList');
@@ -177,12 +243,18 @@ async function loadArticles() {
     }
 }
 
-// Display articles in management list
-function displayArticles(articles) {
+// Render articles in management list
+function renderArticles(articles) {
     const container = document.getElementById('articlesList');
 
     if (articles.length === 0) {
-        container.innerHTML = '<p class="articles-empty">No articles yet. Create your first article!</p>';
+        // Check if this is due to filtering or no articles at all
+        const hasFilters = (document.getElementById('articleSearch')?.value || document.getElementById('articleFilter')?.value !== 'all');
+        if (hasFilters && allArticles.length > 0) {
+            container.innerHTML = '<p class="articles-empty">No articles match your search/filter criteria.</p>';
+        } else {
+            container.innerHTML = '<p class="articles-empty">No articles yet. Create your first article!</p>';
+        }
         return;
     }
 

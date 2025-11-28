@@ -6,6 +6,7 @@
     let selectedImages = [];
     let imagesToDelete = [];
     let draggedElement = null;
+    let allProducts = [];  // Store all products for filtering
 
     // Initialize when DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
@@ -36,7 +37,67 @@
         console.log('Initializing Merchandise Editor...');
 
         initializeProductForm();
+        initializeFilters();
         loadProducts();
+    }
+
+    function initializeFilters() {
+        const searchInput = document.getElementById('productSearch');
+        const filterSelect = document.getElementById('productFilter');
+
+        if (searchInput) {
+            searchInput.addEventListener('input', filterProducts);
+        }
+        if (filterSelect) {
+            filterSelect.addEventListener('change', filterProducts);
+        }
+    }
+
+    function filterProducts() {
+        const searchInput = document.getElementById('productSearch');
+        const filterSelect = document.getElementById('productFilter');
+        const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const filterType = filterSelect ? filterSelect.value : 'all';
+
+        let filtered = allProducts.filter(product => {
+            // Text search
+            const matchesSearch = !searchTerm ||
+                product.name.toLowerCase().includes(searchTerm) ||
+                (product.description && product.description.toLowerCase().includes(searchTerm));
+
+            // Filter type
+            let matchesFilter = true;
+            switch (filterType) {
+                case 'preorder':
+                    matchesFilter = product.is_preorder;
+                    break;
+                case 'limited':
+                    matchesFilter = product.limited_edition;
+                    break;
+                case 'pod':
+                    matchesFilter = product.print_on_demand;
+                    break;
+                case 'active':
+                    matchesFilter = product.is_active;
+                    break;
+            }
+
+            return matchesSearch && matchesFilter;
+        });
+
+        renderProducts(filtered);
+        updateProductCount(filtered.length, allProducts.length);
+    }
+
+    function updateProductCount(showing, total) {
+        const countEl = document.getElementById('productCount');
+        if (countEl) {
+            if (showing === total) {
+                countEl.textContent = `${total} products`;
+            } else {
+                countEl.textContent = `Showing ${showing} of ${total}`;
+            }
+        }
     }
 
     // Success message helper function
@@ -478,7 +539,9 @@
             const data = await response.json();
 
             if (data.products) {
+                allProducts = data.products;  // Store for filtering
                 renderProducts(data.products);
+                updateProductCount(data.products.length, data.products.length);
             }
         } catch (error) {
             console.error('Error loading products:', error);

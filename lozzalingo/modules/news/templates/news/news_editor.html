@@ -91,7 +91,18 @@
 
             <!-- Articles List -->
             <div class="articles-list">
-                <h2>Manage Articles</h2>
+                <div class="list-header">
+                    <h2>Manage Articles</h2>
+                    <div class="filter-controls">
+                        <input type="text" id="articleSearch" class="filter-input" placeholder="Search articles...">
+                        <select id="articleFilter" class="filter-select">
+                            <option value="all">All Articles</option>
+                            <option value="published">Published</option>
+                            <option value="draft">Drafts</option>
+                        </select>
+                        <span id="articleCount" class="item-count"></span>
+                    </div>
+                </div>
                 <div id="articlesList">
                     <!-- Articles will be loaded here -->
                 </div>

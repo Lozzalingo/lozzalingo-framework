@@ -293,7 +293,7 @@ The auth module will automatically call this if it exists.
 
 ## Analytics Module
 
-Provides an admin dashboard for viewing site analytics.
+Provides an admin dashboard for viewing site analytics with client-side tracking.
 
 ### Setup
 
@@ -327,7 +327,85 @@ if user.get('user_level') == 'admin':
 
 | Route | Description |
 |-------|-------------|
-| Main analytics dashboard |
+| `/admin/analytics/` | Main analytics dashboard |
+| `/admin/analytics/api/log-interaction` | Client-side logging endpoint |
+
+### CRITICAL: Client-Side Setup
+
+**You MUST add the analytics scripts to ALL templates where you want tracking:**
+
+```html
+<!-- Add these scripts before </body> in your templates -->
+<script src="{{ url_for('analytics.static', filename='js/analytics.js') }}"></script>
+<script src="{{ url_for('analytics.static', filename='js/device_analytics.js') }}"></script>
+```
+
+**Common templates to include these in:**
+- Main page/form templates
+- Gallery pages
+- Profile pages
+- About/info pages
+- Any page you want tracked
+
+**Important notes:**
+- The endpoint is `analytics.static` (NOT `analytics.analytics_static`)
+- The path must include `js/` prefix: `filename='js/analytics.js'`
+- Optionally add cache-busting: `?v={{ file_version('analytics.js') }}`
+
+### CRITICAL: Allowed Origins Configuration
+
+The analytics API validates the `Origin` header for security. **You MUST add your production domains** to the allowed origins list in `lozzalingo/modules/analytics/routes.py`.
+
+Find the `allowed_origins` lists (there are TWO locations, around lines 647 and 1011):
+
+```python
+allowed_origins = [
+    'http://localhost:5001',
+    'http://127.0.0.1:5001',
+    # ADD YOUR PRODUCTION DOMAINS HERE:
+    'https://yourdomain.com',
+    'https://www.yourdomain.com',
+]
+```
+
+**If your domain is not in allowed_origins:**
+- The API will return 403 Forbidden
+- Analytics will silently fail to log
+- Check container logs for "Rejected request from origin" messages
+
+### Fingerprint Data Handling
+
+The analytics module accepts device fingerprints as either:
+- A string (legacy)
+- A dict/object (from `deviceDetails` in device_analytics.js)
+
+The module automatically handles conversion for SQLite storage. If you're extending analytics, ensure dict fingerprints are JSON-serialized before database storage:
+
+```python
+# The module handles this automatically, but if extending:
+fingerprint_str = json.dumps(fingerprint) if isinstance(fingerprint, dict) else fingerprint
+```
+
+### Troubleshooting Analytics
+
+**Analytics not recording data:**
+
+1. **Check scripts are included** - View page source and search for `analytics.js`
+2. **Check allowed_origins** - Your domain must be in the list in routes.py (TWO locations!)
+3. **Check container logs** - `docker logs <container>` for errors like:
+   - "Rejected request from origin: https://yourdomain.com"
+   - "'dict' object has no attribute 'encode'" (fingerprint issue - update module)
+   - "Error binding parameter" (dict storage issue - update module)
+4. **Check database** - Query the analytics_log table:
+   ```sql
+   SELECT timestamp, event_type, ip FROM analytics_log ORDER BY timestamp DESC LIMIT 5;
+   ```
+
+**BuildError: Could not build url for endpoint 'analytics.analytics_static':**
+- Wrong endpoint name. Use `analytics.static` not `analytics.analytics_static`
+
+**403 Forbidden on /api/log-interaction:**
+- Add your domain to allowed_origins in routes.py (both locations!)
 
 ## Using Custom Auth (Advanced)
 

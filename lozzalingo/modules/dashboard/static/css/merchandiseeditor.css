@@ -666,6 +666,66 @@
     object-fit: contain;
 }
 
+/* List Header with Filters */
+.list-header {
+    margin-bottom: 20px;
+}
+
+.list-header h2 {
+    margin-bottom: 15px;
+}
+
+.filter-controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.filter-input {
+    flex: 1;
+    min-width: 150px;
+    padding: 10px 14px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.filter-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.1);
+}
+
+.filter-input::placeholder {
+    color: #999;
+}
+
+.filter-select {
+    padding: 10px 14px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 130px;
+    background: white;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.1);
+}
+
+.item-count {
+    color: #666;
+    font-size: 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
     .editor-content {
