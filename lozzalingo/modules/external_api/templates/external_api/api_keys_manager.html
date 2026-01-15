@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Keys Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="max-w-6xl mx-auto p-6">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">API Keys</h1>
+                <p class="text-gray-600 mt-1">Manage API keys for external integrations</p>
+            </div>
+            <button onclick="showCreateModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                <i class="fas fa-plus"></i>
+                Create API Key
+            </button>
+        </div>
+
+        <!-- Documentation Card -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h3 class="font-semibold text-blue-900 mb-2"><i class="fas fa-book mr-2"></i>API Documentation</h3>
+            <p class="text-blue-800 text-sm mb-2">Use these API keys to authenticate external services. Include the key in your request headers:</p>
+            <code class="bg-blue-100 px-2 py-1 rounded text-sm text-blue-900">X-API-Key: your_api_key_here</code>
+            <div class="mt-3 text-sm text-blue-800">
+                <strong>Endpoints:</strong>
+                <ul class="list-disc list-inside ml-2 mt-1">
+                    <li><code>POST /api/external/articles</code> - Create article</li>
+                    <li><code>GET /api/external/articles</code> - List articles</li>
+                    <li><code>PUT /api/external/articles/{id}</code> - Update article</li>
+                    <li><code>DELETE /api/external/articles/{id}</code> - Delete article</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- API Keys List -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="p-4 border-b">
+                <h2 class="text-lg font-semibold">Active API Keys</h2>
+            </div>
+            <div id="api-keys-list" class="divide-y">
+                <!-- Keys will be loaded here -->
+                <div class="p-8 text-center text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading API keys...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create API Key Modal -->
+    <div id="create-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="p-6 border-b">
+                <h2 class="text-xl font-bold">Create New API Key</h2>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Key Name</label>
+                    <input type="text" id="key-name" placeholder="e.g., AI Blog Builder Integration"
+                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <p class="text-xs text-gray-500 mt-1">A descriptive name to identify this key</p>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Permissions</label>
+                    <select id="key-permissions" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="articles:write">Articles: Read & Write</option>
+                        <option value="articles:read">Articles: Read Only</option>
+                    </select>
+                </div>
+            </div>
+            <div class="p-6 border-t bg-gray-50 rounded-b-lg flex justify-end gap-3">
+                <button onclick="hideCreateModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
+                <button onclick="createApiKey()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Create Key</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Show API Key Modal (shown after creation) -->
+    <div id="show-key-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+            <div class="p-6 border-b bg-green-50">
+                <h2 class="text-xl font-bold text-green-800"><i class="fas fa-check-circle mr-2"></i>API Key Created</h2>
+            </div>
+            <div class="p-6">
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <p class="text-yellow-800 text-sm font-medium"><i class="fas fa-exclamation-triangle mr-1"></i> Important: Copy this key now!</p>
+                    <p class="text-yellow-700 text-sm">This is the only time you will see this key. Store it securely.</p>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Your API Key</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="new-api-key" readonly
+                               class="flex-1 px-4 py-2 border rounded-lg bg-gray-50 font-mono text-sm">
+                        <button onclick="copyApiKey()" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 border-t bg-gray-50 rounded-b-lg flex justify-end">
+                <button onclick="hideShowKeyModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load API keys on page load
+        document.addEventListener('DOMContentLoaded', loadApiKeys);
+
+        async function loadApiKeys() {
+            try {
+                const response = await fetch('/admin/api-keys/api/keys');
+                const keys = await response.json();
+                renderApiKeys(keys);
+            } catch (error) {
+                console.error('Error loading API keys:', error);
+                document.getElementById('api-keys-list').innerHTML = `
+                    <div class="p-8 text-center text-red-500">
+                        <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
+                        <p>Error loading API keys</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderApiKeys(keys) {
+            const container = document.getElementById('api-keys-list');
+
+            if (keys.length === 0) {
+                container.innerHTML = `
+                    <div class="p-8 text-center text-gray-500">
+                        <i class="fas fa-key text-4xl mb-3 text-gray-300"></i>
+                        <p>No API keys yet</p>
+                        <p class="text-sm mt-1">Create your first API key to get started</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = keys.map(key => `
+                <div class="p-4 flex items-center justify-between ${!key.is_active ? 'bg-gray-50 opacity-60' : ''}">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <span class="font-medium text-gray-900">${escapeHtml(key.name)}</span>
+                            ${!key.is_active ? '<span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded">Revoked</span>' : ''}
+                        </div>
+                        <div class="text-sm text-gray-500 mt-1">
+                            <code class="bg-gray-100 px-2 py-0.5 rounded">${key.key_prefix}</code>
+                            <span class="mx-2">|</span>
+                            <span>Created: ${formatDate(key.created_at)}</span>
+                            ${key.last_used_at ? `<span class="mx-2">|</span><span>Last used: ${formatDate(key.last_used_at)}</span>` : ''}
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1">
+                            Permissions: ${key.permissions}
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        ${key.is_active ? `
+                            <button onclick="revokeKey(${key.id})" class="text-yellow-600 hover:text-yellow-800 px-3 py-1 rounded hover:bg-yellow-50" title="Revoke">
+                                <i class="fas fa-ban"></i>
+                            </button>
+                        ` : ''}
+                        <button onclick="deleteKey(${key.id})" class="text-red-600 hover:text-red-800 px-3 py-1 rounded hover:bg-red-50" title="Delete permanently">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showCreateModal() {
+            document.getElementById('create-modal').classList.remove('hidden');
+            document.getElementById('create-modal').classList.add('flex');
+            document.getElementById('key-name').focus();
+        }
+
+        function hideCreateModal() {
+            document.getElementById('create-modal').classList.add('hidden');
+            document.getElementById('create-modal').classList.remove('flex');
+            document.getElementById('key-name').value = '';
+        }
+
+        function hideShowKeyModal() {
+            document.getElementById('show-key-modal').classList.add('hidden');
+            document.getElementById('show-key-modal').classList.remove('flex');
+            loadApiKeys(); // Refresh the list
+        }
+
+        async function createApiKey() {
+            const name = document.getElementById('key-name').value.trim();
+            const permissions = document.getElementById('key-permissions').value;
+
+            if (!name) {
+                alert('Please enter a name for the API key');
+                return;
+            }
+
+            try {
+                const response = await fetch('/admin/api-keys/api/keys', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, permissions })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    hideCreateModal();
+                    // Show the new key
+                    document.getElementById('new-api-key').value = result.api_key;
+                    document.getElementById('show-key-modal').classList.remove('hidden');
+                    document.getElementById('show-key-modal').classList.add('flex');
+                } else {
+                    alert(result.error || 'Error creating API key');
+                }
+            } catch (error) {
+                console.error('Error creating API key:', error);
+                alert('Error creating API key');
+            }
+        }
+
+        function copyApiKey() {
+            const keyInput = document.getElementById('new-api-key');
+            keyInput.select();
+            document.execCommand('copy');
+
+            // Show feedback
+            const btn = event.target.closest('button');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check text-green-600"></i>';
+            setTimeout(() => btn.innerHTML = originalHtml, 2000);
+        }
+
+        async function revokeKey(keyId) {
+            if (!confirm('Are you sure you want to revoke this API key? It will no longer be usable.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/admin/api-keys/api/keys/${keyId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    loadApiKeys();
+                } else {
+                    alert(result.error || 'Error revoking API key');
+                }
+            } catch (error) {
+                console.error('Error revoking API key:', error);
+                alert('Error revoking API key');
+            }
+        }
+
+        async function deleteKey(keyId) {
+            if (!confirm('Are you sure you want to permanently delete this API key? This cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/admin/api-keys/api/keys/${keyId}/permanent`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    loadApiKeys();
+                } else {
+                    alert(result.error || 'Error deleting API key');
+                }
+            } catch (error) {
+                console.error('Error deleting API key:', error);
+                alert('Error deleting API key');
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return 'Never';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+    </script>
+</body>
+</html>
