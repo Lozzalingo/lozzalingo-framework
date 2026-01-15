@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Spotlight Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: #f5f0e8;
+            color: #2a2a2a;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: normal;
+            letter-spacing: 1px;
+        }
+
+        .back-link {
+            color: #666;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            color: #2a2a2a;
+        }
+
+        /* Add Form */
+        .add-form {
+            background: white;
+            border: 1px solid #d4c5a0;
+            padding: 30px;
+            margin-bottom: 40px;
+        }
+
+        .add-form h2 {
+            font-size: 18px;
+            font-weight: normal;
+            margin-bottom: 20px;
+            color: #4a4a4a;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .form-group input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d4c5a0;
+            background: #faf8f4;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px dashed #d4c5a0;
+            background: #faf8f4;
+            cursor: pointer;
+        }
+
+        .add-btn {
+            padding: 12px 30px;
+            background: #2a2a2a;
+            color: #f5f0e8;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        .add-btn:hover {
+            background: #4a4a4a;
+        }
+
+        /* Spotlight Grid */
+        .spotlight-admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+        }
+
+        .spotlight-card {
+            background: white;
+            border: 1px solid #d4c5a0;
+            overflow: hidden;
+        }
+
+        .spotlight-card img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+        }
+
+        .spotlight-card-content {
+            padding: 20px;
+        }
+
+        .spotlight-handle {
+            font-size: 16px;
+            color: #2a2a2a;
+            margin-bottom: 10px;
+        }
+
+        .spotlight-meta {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 15px;
+        }
+
+        .spotlight-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .spotlight-actions button {
+            padding: 8px 16px;
+            font-size: 12px;
+            border: 1px solid #d4c5a0;
+            background: #faf8f4;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .spotlight-actions button:hover {
+            background: #2a2a2a;
+            color: #f5f0e8;
+            border-color: #2a2a2a;
+        }
+
+        .spotlight-actions button.delete {
+            color: #c44;
+        }
+
+        .spotlight-actions button.delete:hover {
+            background: #c44;
+            border-color: #c44;
+            color: white;
+        }
+
+        .inactive {
+            opacity: 0.5;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888;
+        }
+
+        /* Status message */
+        .status-message {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #e8f5e9;
+            border-color: #81c784;
+            color: #2e7d32;
+        }
+
+        .status-message.error {
+            background: #ffebee;
+            border-color: #e57373;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Customer Spotlight Manager</h1>
+            <a href="{{ url_for('admin.dashboard') }}" class="back-link">← Back to Dashboard</a>
+        </div>
+
+        <div id="statusMessage" class="status-message"></div>
+
+        <div class="add-form">
+            <h2>Add New Spotlight</h2>
+            <form id="addSpotlightForm" enctype="multipart/form-data">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="instagram_handle">Instagram Handle</label>
+                        <input type="text" id="instagram_handle" name="instagram_handle" placeholder="@username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="image">Customer Image</label>
+                        <input type="file" id="image" name="image" accept="image/*" required>
+                    </div>
+                    <button type="submit" class="add-btn">Add Spotlight</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="spotlightGrid" class="spotlight-admin-grid">
+            <div class="empty-state">Loading spotlights...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/admin/customer-spotlight-editor';
+
+        async function loadSpotlights() {
+            try {
+                const response = await fetch(`${API_BASE}/spotlights`);
+                const data = await response.json();
+
+                const grid = document.getElementById('spotlightGrid');
+
+                if (!data.success || data.spotlights.length === 0) {
+                    grid.innerHTML = '<div class="empty-state">No spotlights yet. Add your first customer photo above!</div>';
+                    return;
+                }
+
+                grid.innerHTML = data.spotlights.map(spotlight => `
+                    <div class="spotlight-card ${spotlight.is_active ? '' : 'inactive'}" data-id="${spotlight.id}">
+                        <img src="${spotlight.image_url}" alt="@${spotlight.instagram_handle}">
+                        <div class="spotlight-card-content">
+                            <div class="spotlight-handle">@${spotlight.instagram_handle}</div>
+                            <div class="spotlight-meta">
+                                Order: ${spotlight.sort_order} |
+                                ${spotlight.is_active ? 'Active' : 'Hidden'}
+                            </div>
+                            <div class="spotlight-actions">
+                                <button onclick="toggleActive(${spotlight.id}, ${!spotlight.is_active})">
+                                    ${spotlight.is_active ? 'Hide' : 'Show'}
+                                </button>
+                                <button onclick="moveUp(${spotlight.id})">↑ Up</button>
+                                <button onclick="moveDown(${spotlight.id})">↓ Down</button>
+                                <button class="delete" onclick="deleteSpotlight(${spotlight.id})">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('Error loading spotlights:', error);
+                document.getElementById('spotlightGrid').innerHTML =
+                    '<div class="empty-state">Error loading spotlights. Please refresh.</div>';
+            }
+        }
+
+        function showMessage(message, isError = false) {
+            const el = document.getElementById('statusMessage');
+            el.textContent = message;
+            el.className = `status-message ${isError ? 'error' : 'success'}`;
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 3000);
+        }
+
+        document.getElementById('addSpotlightForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+
+            try {
+                const response = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage(data.message);
+                    e.target.reset();
+                    loadSpotlights();
+                } else {
+                    showMessage(data.error || 'Failed to add spotlight', true);
+                }
+            } catch (error) {
+                showMessage('Error adding spotlight', true);
+            }
+        });
+
+        async function toggleActive(id, newState) {
+            try {
+                const response = await fetch(`${API_BASE}/update/${id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: newState })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    loadSpotlights();
+                } else {
+                    showMessage(data.error, true);
+                }
+            } catch (error) {
+                showMessage('Error updating spotlight', true);
+            }
+        }
+
+        async function moveUp(id) {
+            // Simple implementation - swap with previous item
+            const cards = document.querySelectorAll('.spotlight-card');
+            const orders = {};
+            let found = false;
+            let prevId = null;
+
+            cards.forEach((card, index) => {
+                const cardId = parseInt(card.dataset.id);
+                if (cardId === id && prevId !== null) {
+                    // Swap orders
+                    orders[id] = index - 1;
+                    orders[prevId] = index;
+                    found = true;
+                } else if (!found) {
+                    prevId = cardId;
+                }
+            });
+
+            if (Object.keys(orders).length > 0) {
+                await reorderSpotlights(orders);
+            }
+        }
+
+        async function moveDown(id) {
+            const cards = document.querySelectorAll('.spotlight-card');
+            const orders = {};
+            let swapNext = false;
+
+            cards.forEach((card, index) => {
+                const cardId = parseInt(card.dataset.id);
+                if (swapNext) {
+                    orders[id] = index;
+                    orders[cardId] = index - 1;
+                    swapNext = false;
+                } else if (cardId === id) {
+                    swapNext = true;
+                }
+            });
+
+            if (Object.keys(orders).length > 0) {
+                await reorderSpotlights(orders);
+            }
+        }
+
+        async function reorderSpotlights(orders) {
+            try {
+                const response = await fetch(`${API_BASE}/reorder`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orders })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    loadSpotlights();
+                }
+            } catch (error) {
+                showMessage('Error reordering', true);
+            }
+        }
+
+        async function deleteSpotlight(id) {
+            if (!confirm('Are you sure you want to delete this spotlight?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/delete/${id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showMessage('Spotlight deleted');
+                    loadSpotlights();
+                } else {
+                    showMessage(data.error, true);
+                }
+            } catch (error) {
+                showMessage('Error deleting spotlight', true);
+            }
+        }
+
+        // Load on page load
+        loadSpotlights();
+    </script>
+</body>
+</html>

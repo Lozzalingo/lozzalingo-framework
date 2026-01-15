@@ -1,0 +1,31 @@
+<section class="customer-spotlight">
+    <!-- Section header matching Crowd Sauced style -->
+    <div class="spotlight-header">
+        <h2 class="spotlight-title">Customer Spotlight</h2>
+        <p class="spotlight-subtitle">— tag us on Instagram to be featured —</p>
+    </div>
+
+    <!-- Full width gallery container -->
+    <div class="customer-gallery-container">
+        <div class="customer-gallery-scroll" id="customer-gallery-scroll">
+            <div class="customer-container" id="customer-container">
+                <!-- Loading state -->
+                <div class="loading-customer" id="loading-customer">
+                    <div class="customer-skeleton">
+                        <div class="skeleton-image"></div>
+                        <div class="skeleton-overlay">
+                            <div class="skeleton-line short"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<!-- Include Spotlight CSS -->
+<link rel="stylesheet" href="{{ url_for('customer_spotlight.static', filename='spotlight.css') }}">
+
+<!-- Include Spotlight JavaScript -->
+<script src="{{ url_for('customer_spotlight.static', filename='spotlight.js') }}"></script>
