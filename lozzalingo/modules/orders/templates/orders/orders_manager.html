@@ -4,136 +4,1606 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Order Management - Admin</title>
-    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin.min.css') }}">
+    <style>
+        body {
+            background-color: white !important;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .orders-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+        }
+
+        .orders-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .orders-title h1 {
+            color: #333;
+            margin: 0;
+            font-size: 2.5rem;
+        }
+
+        .orders-stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .orders-filters {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-group label {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        .orders-table-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .orders-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .orders-table th {
+            background: #f8f9fa;
+            padding: 15px 10px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .orders-table td {
+            padding: 15px 10px;
+            border-bottom: 1px solid #e9ecef;
+            vertical-align: top;
+            color: #000 !important;
+        }
+
+        .orders-table td * {
+            color: inherit !important;
+        }
+
+        .orders-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .order-number {
+            font-family: monospace;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .order-products {
+            max-width: 200px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .order-customer {
+            font-size: 0.9rem;
+            color: #000 !important;
+        }
+
+        .order-customer div {
+            color: #000 !important;
+        }
+
+        .customer-email {
+            color: #333 !important;
+            font-size: 0.85rem;
+        }
+
+        .order-amount {
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .order-date {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .order-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s;
+        }
+
+        .btn-resend {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-resend:hover {
+            background: #138496;
+        }
+
+        .btn-view {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-view:hover {
+            background: #545b62;
+        }
+
+        .btn-edit {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-edit:hover {
+            background: #e0a800;
+        }
+
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background: #c82333;
+        }
+
+        .btn-delete:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .btn-resend:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .no-orders {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .alert {
+            padding: 12px 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 20px;
+        }
+
+        .page-btn {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            color: #333;
+            cursor: pointer;
+            border-radius: 5px;
+            text-decoration: none;
+        }
+
+        .page-btn:hover {
+            background: #f8f9fa;
+        }
+
+        .page-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Admin Button Styles */
+        .admin-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .admin-btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .admin-btn-primary:hover {
+            background: #5a67d8;
+        }
+
+        .admin-btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .admin-btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .admin-btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .admin-btn-success:hover {
+            background: #218838;
+        }
+
+        .admin-btn-warning {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .admin-btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .badge-paid {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-shipped {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .badge-delivered {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Order Detail Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .order-detail-section {
+            margin-bottom: 20px;
+        }
+
+        .order-detail-section h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .order-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .info-label {
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 0.95rem;
+            color: #333;
+            margin-top: 2px;
+        }
+
+        .edit-input {
+            width: 100%;
+            padding: 8px 10px;
+            font-size: 0.95rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f9f9f9;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+
+        .edit-input[readonly] {
+            background: transparent;
+            border: 1px solid transparent;
+            cursor: default;
+            color: #333;
+        }
+
+        .edit-input:not([readonly]) {
+            background: #fff;
+            border: 1px solid #0066cc;
+            cursor: text;
+        }
+
+        .edit-input:focus {
+            outline: none;
+            border-color: #0066cc;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+        }
+
+        .edit-input::placeholder {
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        .edit-textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+        }
+
+        .order-items {
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .item-row:last-child {
+            border-bottom: none;
+        }
+
+        .item-details {
+            flex: 1;
+        }
+
+        .item-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .item-meta {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .item-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 5px;
+        }
+
+        .item-price {
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .item-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-tiny {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-tiny.btn-edit {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-tiny.btn-edit:hover {
+            background: #e0a800;
+        }
+
+        .btn-tiny.btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-tiny.btn-delete:hover {
+            background: #c82333;
+        }
+
+        .add-item-row {
+            text-align: center;
+            padding: 15px;
+            border-top: 2px dashed #e0e0e0;
+            margin-top: 10px;
+        }
+
+        /* Global modal form styling */
+        .modal-content .edit-input,
+        .modal-content .edit-textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            margin-top: 4px;
+            box-sizing: border-box;
+        }
+
+        .modal-content .edit-input:focus,
+        .modal-content .edit-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .modal-content .edit-input[readonly] {
+            background-color: #f8f9fa;
+            color: #666;
+        }
+
+        .modal-content .info-label {
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 500;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .modal-content .info-item {
+            margin-bottom: 15px;
+        }
+
+        .modal-content small {
+            font-size: 0.75rem;
+            color: #666;
+            display: block;
+            margin-top: 2px;
+        }
+
+        @media (max-width: 768px) {
+            .orders-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .orders-stats {
+                flex-wrap: wrap;
+            }
+
+            .filter-row {
+                flex-direction: column;
+            }
+
+            .order-info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="admin-container">
-        <header class="admin-header">
-            <div class="admin-title">
+    <div class="orders-container">
+        <!-- Flash messages -->
+        <div id="alertContainer"></div>
+
+        <header class="orders-header">
+            <div class="orders-title">
                 <h1>📦 Order Management</h1>
-                <p class="admin-welcome">Manage and track orders</p>
             </div>
-            <div class="admin-actions">
-                <a href="{{ url_for('admin.dashboard') }}" class="admin-btn admin-btn-secondary">
-                    ← Back to Dashboard
-                </a>
+            <div class="header-actions">
+                <button name="create_new_order" class="admin-btn admin-btn-primary" onclick="createNewOrder()" style="margin-right: 10px;">
+                    ➕ Create New Order
+                </button>
+                <a href="{{ url_for('admin.dashboard') }}" class="admin-btn admin-btn-secondary">← Back to Dashboard</a>
             </div>
         </header>
 
-        <div class="admin-content">
-            <div class="orders-list" id="ordersList">
-                <p>Loading orders...</p>
+        <!-- Statistics -->
+        <div class="orders-stats">
+            <div class="stat-card">
+                <span class="stat-number" id="totalOrdersCount">-</span>
+                <span class="stat-label">Total Orders</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" id="recentOrdersCount">-</span>
+                <span class="stat-label">This Week</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" id="totalRevenueCount">-</span>
+                <span class="stat-label">Total Revenue</span>
             </div>
         </div>
 
-        <!-- Order Detail Modal -->
-        <div id="orderModal" class="modal" style="display: none;">
-            <div class="modal-content">
-                <span class="close">&times;</span>
-                <div id="orderDetails"></div>
+        <!-- Fetch Etsy Orders Section -->
+        <div class="etsy-fetch-section" style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 2px solid #e0e0e0;">
+            <h3 style="margin: 0 0 15px 0; color: #333;">Fetch Etsy Orders</h3>
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <select id="etsy-shop-select" style="padding: 10px 15px; border-radius: 5px; border: 1px solid #ddd; min-width: 200px;">
+                    <option value="">Select Shop...</option>
+                    <option value="Off-Brand">Off-Brand</option>
+                    <option value="Crowd Sauced">Crowd Sauced</option>
+                    <option value="Kawaii Pop">Kawaii Pop</option>
+                    <option value="Nintrendo">Nintrendo</option>
+                    <option value="The Third Nest">The Third Nest</option>
+                </select>
+                <button onclick="fetchEtsyOrders()" style="padding: 10px 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">
+                    Fetch Orders
+                </button>
+                <span id="etsy-fetch-status" style="color: #666;"></span>
+            </div>
+        </div>
+
+        <script>
+        async function fetchEtsyOrders() {
+            const shop = document.getElementById('etsy-shop-select').value;
+            const status = document.getElementById('etsy-fetch-status');
+
+            if (!shop) {
+                status.textContent = 'Please select a shop';
+                status.style.color = '#e74c3c';
+                return;
+            }
+
+            status.textContent = 'Fetching...';
+            status.style.color = '#3498db';
+
+            try {
+                const response = await fetch('/admin/orders-manager/api/fetch-etsy-orders', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({shop_name: shop})
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    status.textContent = data.message || 'Orders fetch triggered!';
+                    status.style.color = '#27ae60';
+                } else {
+                    status.textContent = data.error || 'Failed to fetch';
+                    status.style.color = '#e74c3c';
+                }
+            } catch (e) {
+                status.textContent = 'Error: ' + e.message;
+                status.style.color = '#e74c3c';
+            }
+        }
+        </script>
+
+        <!-- Filters -->
+        <div class="orders-filters">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>Search by Email/Order Number</label>
+                    <input type="text" id="searchFilter" placeholder="Enter email or order number...">
+                </div>
+                <div class="filter-group">
+                    <label>Status</label>
+                    <select id="statusFilter">
+                        <option value="">All Statuses</option>
+                        <option value="paid">Paid</option>
+                        <option value="pending">Pending</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Date Range</label>
+                    <input type="date" id="dateFromFilter">
+                </div>
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <input type="date" id="dateToFilter">
+                </div>
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <button name="apply_order_filters" class="admin-btn admin-btn-primary" onclick="applyFilters()">🔍 Filter</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Table -->
+        <div class="orders-table-container">
+            <div id="loadingIndicator" class="loading">
+                <div class="loading-spinner"></div>
+                <p>Loading orders...</p>
+            </div>
+
+            <table class="orders-table" id="ordersTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Order #</th>
+                        <th>Customer</th>
+                        <th>Products</th>
+                        <th>Amount</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="ordersTableBody">
+                    <!-- Orders will be loaded here -->
+                </tbody>
+            </table>
+
+            <div id="noOrdersMessage" class="no-orders" style="display: none;">
+                <h3>📪 No orders found</h3>
+                <p>No orders match your current filters.</p>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="paginationContainer" style="display: none;">
+            <!-- Pagination will be generated here -->
+        </div>
+    </div>
+
+    <!-- Order Detail Modal -->
+    <div id="orderModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalOrderNumber">Order Details</h2>
+                <button name="close_order_modal" class="modal-close" onclick="closeOrderModal()">&times;</button>
+            </div>
+            <div id="modalOrderContent">
+                <!-- Order details will be loaded here -->
             </div>
         </div>
     </div>
 
     <script>
-        // Load orders on page load
+        // API base path - uses lozzalingo orders module routes
+        const API_BASE = '/admin/orders-manager';
+
+        let currentOrders = [];
+        let currentPage = 1;
+        let ordersPerPage = 20;
+
+        // Load orders when page loads
         document.addEventListener('DOMContentLoaded', function() {
             loadOrders();
+            loadStats();
         });
 
         async function loadOrders() {
             try {
-                const response = await fetch('/admin/orders-manager/api/orders');
+                showLoading(true);
+                const response = await fetch(`${API_BASE}/api/orders`);
                 const data = await response.json();
 
                 if (data.success) {
-                    displayOrders(data.orders);
+                    currentOrders = data.orders;
+                    displayOrders(currentOrders);
+                    updatePagination();
                 } else {
-                    document.getElementById('ordersList').innerHTML = '<p>Error loading orders: ' + data.error + '</p>';
+                    showAlert('Error loading orders: ' + data.error, 'error');
                 }
             } catch (error) {
-                document.getElementById('ordersList').innerHTML = '<p>Error loading orders: ' + error.message + '</p>';
+                console.error('Error loading orders:', error);
+                showAlert('Failed to load orders. Please try again.', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const totalOrders = currentOrders.length;
+                const oneWeekAgo = new Date();
+                oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+                const recentOrders = currentOrders.filter(order =>
+                    new Date(order.created_at) >= oneWeekAgo
+                ).length;
+
+                const totalRevenue = currentOrders.reduce((sum, order) =>
+                    sum + (order.total_amount || 0), 0
+                );
+
+                document.getElementById('totalOrdersCount').textContent = totalOrders;
+                document.getElementById('recentOrdersCount').textContent = recentOrders;
+                document.getElementById('totalRevenueCount').textContent = `£${(totalRevenue / 100).toFixed(2)}`;
+            } catch (error) {
+                console.error('Error loading stats:', error);
             }
         }
 
         function displayOrders(orders) {
+            const tbody = document.getElementById('ordersTableBody');
+            const table = document.getElementById('ordersTable');
+            const noOrdersMsg = document.getElementById('noOrdersMessage');
+
             if (orders.length === 0) {
-                document.getElementById('ordersList').innerHTML = '<p>No orders found.</p>';
+                table.style.display = 'none';
+                noOrdersMsg.style.display = 'block';
                 return;
             }
 
-            let html = '<table class="admin-table"><thead><tr>';
-            html += '<th>Order #</th><th>Customer</th><th>Products</th><th>Amount</th><th>Status</th><th>Date</th><th>Actions</th>';
-            html += '</tr></thead><tbody>';
+            table.style.display = 'table';
+            noOrdersMsg.style.display = 'none';
 
-            orders.forEach(order => {
-                html += `<tr>
-                    <td>${order.order_number}</td>
-                    <td>${order.customer_name}<br><small>${order.customer_email}</small></td>
-                    <td>${order.products}</td>
-                    <td>${order.amount_display}</td>
-                    <td><span class="status-badge status-${order.status}">${order.status}</span></td>
-                    <td>${new Date(order.created_at).toLocaleDateString()}</td>
-                    <td><button onclick="viewOrder(${order.id})" class="admin-btn admin-btn-sm">View</button></td>
-                </tr>`;
-            });
+            const startIndex = (currentPage - 1) * ordersPerPage;
+            const endIndex = startIndex + ordersPerPage;
+            const paginatedOrders = orders.slice(startIndex, endIndex);
 
-            html += '</tbody></table>';
-            document.getElementById('ordersList').innerHTML = html;
+            tbody.innerHTML = paginatedOrders.map(order => `
+                <tr>
+                    <td>
+                        <span class="order-number">${order.order_number}</span>
+                    </td>
+                    <td class="order-customer">
+                        <div>${order.customer_name || 'N/A'}</div>
+                        <div class="customer-email">${order.customer_email}</div>
+                    </td>
+                    <td class="order-products">${order.products}</td>
+                    <td class="order-amount">${order.amount_display}</td>
+                    <td class="order-date">${formatDate(order.created_at)}</td>
+                    <td>
+                        <span class="badge badge-${order.status}">${order.status}</span>
+                    </td>
+                    <td class="order-actions">
+                        <button name="resend_order_confirmation" class="btn-small btn-resend"
+                                onclick="resendConfirmation(${order.id}, this)"
+                                title="Resend confirmation email">
+                            📧 Resend
+                        </button>
+                        <button name="view_order_details" class="btn-small btn-view"
+                                onclick="viewOrderDetails(${order.id})"
+                                title="View order details">
+                            👁️ View
+                        </button>
+                        <button name="edit_order_details" class="btn-small btn-edit"
+                                onclick="editOrderDetails(${order.id})"
+                                title="Edit order details">
+                            ✏️ Edit
+                        </button>
+                        <button name="delete_order" class="btn-small btn-delete"
+                                onclick="deleteOrder(${order.id}, '${order.order_number}', this)"
+                                title="Delete order">
+                            🗑️ Delete
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            loadStats();
         }
 
-        async function viewOrder(orderId) {
+        function updatePagination() {
+            const container = document.getElementById('paginationContainer');
+            const totalPages = Math.ceil(currentOrders.length / ordersPerPage);
+
+            if (totalPages <= 1) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'flex';
+
+            let paginationHTML = '';
+
+            paginationHTML += `
+                <button name="previous_page" class="page-btn" ${currentPage === 1 ? 'disabled' : ''}
+                        onclick="changePage(${currentPage - 1})">
+                    ← Previous
+                </button>
+            `;
+
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === currentPage || i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                    paginationHTML += `
+                        <button name="page_${i}" class="page-btn ${i === currentPage ? 'active' : ''}"
+                                onclick="changePage(${i})">
+                            ${i}
+                        </button>
+                    `;
+                } else if (i === currentPage - 3 || i === currentPage + 3) {
+                    paginationHTML += '<span class="page-btn">...</span>';
+                }
+            }
+
+            paginationHTML += `
+                <button name="next_page" class="page-btn" ${currentPage === totalPages ? 'disabled' : ''}
+                        onclick="changePage(${currentPage + 1})">
+                    Next →
+                </button>
+            `;
+
+            container.innerHTML = paginationHTML;
+        }
+
+        function changePage(page) {
+            const totalPages = Math.ceil(currentOrders.length / ordersPerPage);
+            if (page >= 1 && page <= totalPages) {
+                currentPage = page;
+                displayOrders(currentOrders);
+                updatePagination();
+            }
+        }
+
+        async function resendConfirmation(orderId, button) {
+            const originalText = button.innerHTML;
+            button.innerHTML = '⏳ Sending...';
+            button.disabled = true;
+
             try {
-                const response = await fetch(`/admin/orders-manager/api/order/${orderId}`);
+                const response = await fetch(`${API_BASE}/api/resend-confirmation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_id: orderId })
+                });
+
                 const data = await response.json();
 
                 if (data.success) {
-                    displayOrderDetails(data.order);
-                    document.getElementById('orderModal').style.display = 'block';
+                    showAlert(data.message, 'success');
+                    button.innerHTML = '✅ Sent';
+                    setTimeout(() => { button.innerHTML = originalText; button.disabled = false; }, 3000);
                 } else {
-                    alert('Error loading order: ' + data.error);
+                    showAlert('Error: ' + data.error, 'error');
+                    button.innerHTML = originalText;
+                    button.disabled = false;
                 }
             } catch (error) {
-                alert('Error loading order: ' + error.message);
+                console.error('Error resending confirmation:', error);
+                showAlert('Failed to resend confirmation email.', 'error');
+                button.innerHTML = originalText;
+                button.disabled = false;
             }
         }
 
-        function displayOrderDetails(order) {
-            let html = '<h2>Order ' + order.order_number + '</h2>';
-            html += '<div class="order-details-grid">';
-            html += '<div><strong>Customer:</strong> ' + order.customer_name + ' (' + order.customer_email + ')</div>';
-            html += '<div><strong>Status:</strong> ' + order.status + '</div>';
-            html += '<div><strong>Total:</strong> ' + order.amount_display + '</div>';
-            html += '<div><strong>Date:</strong> ' + new Date(order.created_at).toLocaleDateString() + '</div>';
+        async function viewOrderDetails(orderId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/order/${orderId}`);
+                const data = await response.json();
 
-            if (order.items && order.items.length > 0) {
-                html += '</div><h3>Items:</h3><ul>';
-                order.items.forEach(item => {
-                    html += `<li>${item.product_name} ${item.size ? '(' + item.size + ')' : ''} x${item.quantity} - £${(item.price_at_time / 100).toFixed(2)}</li>`;
+                if (data.success) {
+                    showOrderModal(data.order);
+                } else {
+                    showAlert('Error loading order details: ' + data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error loading order details:', error);
+                showAlert('Failed to load order details.', 'error');
+            }
+        }
+
+        function showOrderModal(order) {
+            document.getElementById('modalOrderNumber').textContent = `Order ${order.order_number}`;
+
+            const content = document.getElementById('modalOrderContent');
+            content.innerHTML = `
+                <div class="order-detail-section">
+                    <h3>📋 Order Information</h3>
+                    <div class="order-info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Order Number</div>
+                            <div class="info-value">${order.order_number}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Status</div>
+                            <div class="info-value">${order.status}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Total Amount</div>
+                            <div class="info-value">${order.amount_display}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Order Date</div>
+                            <div class="info-value">${formatDate(order.created_at)}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="order-detail-section">
+                    <h3>👤 Customer Information</h3>
+                    <div class="order-info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Name</div>
+                            <input type="text" class="edit-input" id="edit-customer-name" value="${order.customer_name || ''}" readonly />
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Email</div>
+                            <input type="email" class="edit-input" id="edit-customer-email" value="${order.customer_email || ''}" readonly />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="order-detail-section">
+                    <h3>📍 Shipping Address</h3>
+                    <div class="order-info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Recipient Name</div>
+                            <input type="text" class="edit-input" id="edit-shipping-name" value="${order.shipping_name || ''}" readonly />
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Address Line 1</div>
+                            <input type="text" class="edit-input" id="edit-shipping-line1" value="${order.shipping_line1 || ''}" readonly />
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Address Line 2</div>
+                            <input type="text" class="edit-input" id="edit-shipping-line2" value="${order.shipping_line2 || ''}" readonly />
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">City</div>
+                            <input type="text" class="edit-input" id="edit-shipping-city" value="${order.shipping_city || ''}" readonly />
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">State/County</div>
+                            <input type="text" class="edit-input" id="edit-shipping-state" value="${order.shipping_state || ''}" readonly />
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Postal Code</div>
+                            <input type="text" class="edit-input" id="edit-shipping-postal-code" value="${order.shipping_postal_code || ''}" readonly />
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Country</div>
+                            <input type="text" class="edit-input" id="edit-shipping-country" value="${order.shipping_country || ''}" readonly />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="order-detail-section">
+                    <h3>📦 Order Items</h3>
+                    <div class="order-items">
+                        ${order.items && order.items.length > 0 ? order.items.map(item => `
+                            <div class="item-row" id="item-${item.id}">
+                                <div class="item-details">
+                                    <div class="item-name">${item.product_name}</div>
+                                    <div class="item-meta">
+                                        Quantity: ${item.quantity}
+                                        ${item.size ? ` | Size: ${item.size}` : ''}
+                                        | Unit Price: £${(item.price_at_time / 100).toFixed(2)}
+                                    </div>
+                                </div>
+                                <div class="item-actions">
+                                    <div class="item-price">£${(item.subtotal / 100).toFixed(2)}</div>
+                                    <div class="item-buttons">
+                                        <button name="edit_order_item" class="btn-tiny btn-edit" onclick="editOrderItem(${item.id}, ${order.id})" title="Edit item">✏️</button>
+                                        <button name="delete_order_item" class="btn-tiny btn-delete" onclick="deleteOrderItem(${item.id}, ${order.id})" title="Delete item">🗑️</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('') : '<div class="item-row"><div class="item-details">No items found</div></div>'}
+                        <div class="add-item-row">
+                            <button name="add_order_item" class="admin-btn admin-btn-primary btn-small" onclick="addOrderItem(${order.id})">
+                                ➕ Add Product
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="order-detail-section">
+                    <h3>🚚 Fulfillment & Shipping</h3>
+                    <div class="order-info-grid">
+                        <div class="info-item">
+                            <div class="info-label">InkThreadable Order ID</div>
+                            <input type="text" class="edit-input" id="edit-inkthreadable-id" value="${order.inkthreadable_id || ''}" placeholder="Enter InkThreadable ID" readonly />
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Fulfillment Status</div>
+                            <input type="text" class="edit-input" id="edit-inkthreadable-status" value="${order.inkthreadable_status || ''}" placeholder="e.g., Received, Processing, Shipped" readonly />
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Carrier</div>
+                            <input type="text" class="edit-input" id="edit-carrier" value="${order.carrier || ''}" placeholder="e.g., UK Royal Mail 24 Tracked" readonly />
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Tracking Number</div>
+                            <input type="text" class="edit-input" id="edit-tracking-number" value="${order.tracking_number || ''}" placeholder="Enter tracking number" readonly />
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Shipped Date</div>
+                            <input type="datetime-local" class="edit-input" id="edit-shipped-at" value="${order.shipped_at ? order.shipped_at.substring(0, 16) : ''}" readonly />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="order-detail-section">
+                    <h3>⚡ Quick Actions</h3>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="admin-btn admin-btn-success" id="edit-order-btn"
+                                onclick="toggleEditMode(${order.id})"
+                                style="background: #0066cc;">
+                            ✏️ Edit Order
+                        </button>
+                        <button class="admin-btn admin-btn-success" id="save-order-btn"
+                                onclick="saveOrderChanges(${order.id}, this)"
+                                style="background: #28a745; display: none;">
+                            💾 Save Changes
+                        </button>
+                        <button class="admin-btn admin-btn-secondary" id="cancel-edit-btn"
+                                onclick="cancelEditMode()"
+                                style="display: none;">
+                            ❌ Cancel
+                        </button>
+                        <button name="resend_confirmation_modal" class="admin-btn admin-btn-primary"
+                                onclick="resendConfirmationFromModal(${order.id}, this)">
+                            📧 Resend Confirmation Email
+                        </button>
+                        <button name="resend_inkthreadable" class="admin-btn admin-btn-success"
+                                onclick="resendToInkThreadable(${order.id}, this)"
+                                style="background: #28a745;">
+                            📦 Resend to InkThreadable
+                        </button>
+                        <button name="check_shipping_status" class="admin-btn admin-btn-warning"
+                                onclick="checkShippingStatus(${order.id}, this)"
+                                style="background: #ffc107; color: #000;">
+                            🚚 Check Shipping Status
+                        </button>
+                        <button name="close_order_modal_footer" class="admin-btn admin-btn-secondary"
+                                onclick="closeOrderModal()">
+                            🔙 Close
+                        </button>
+                    </div>
+                </div>
+
+                ${order.stripe_session_id ? `
+                    <div class="order-detail-section">
+                        <h3>🔧 Technical Details</h3>
+                        <div class="info-item">
+                            <div class="info-label">Stripe Session ID</div>
+                            <div class="info-value" style="font-family: monospace; font-size: 0.8rem;">
+                                ${order.stripe_session_id}
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+
+            document.getElementById('orderModal').style.display = 'flex';
+        }
+
+        function closeOrderModal() {
+            document.getElementById('orderModal').style.display = 'none';
+        }
+
+        async function resendConfirmationFromModal(orderId, button) {
+            const originalText = button.innerHTML;
+            button.innerHTML = '⏳ Sending...';
+            button.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/resend-confirmation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_id: orderId })
                 });
-                html += '</ul>';
-            }
 
-            if (order.shipping_line1) {
-                html += '<h3>Shipping Address:</h3><p>';
-                html += order.shipping_name + '<br>';
-                html += order.shipping_line1 + '<br>';
-                if (order.shipping_line2) html += order.shipping_line2 + '<br>';
-                html += order.shipping_city + ', ' + order.shipping_state + ' ' + order.shipping_postal_code + '<br>';
-                html += order.shipping_country;
-                html += '</p>';
-            }
+                const data = await response.json();
 
-            document.getElementById('orderDetails').innerHTML = html;
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    button.innerHTML = '✅ Email Sent Successfully';
+                    setTimeout(() => { button.innerHTML = originalText; button.disabled = false; }, 3000);
+                } else {
+                    showAlert('Error: ' + data.error, 'error');
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error resending confirmation:', error);
+                showAlert('Failed to resend confirmation email.', 'error');
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
         }
 
-        // Close modal
-        document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('close')) {
-                document.getElementById('orderModal').style.display = 'none';
+        async function resendToInkThreadable(orderId, button) {
+            const originalText = button.innerHTML;
+            button.innerHTML = '⏳ Sending to InkThreadable...';
+            button.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/resend-to-inkthreadable`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_id: orderId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    button.innerHTML = '✅ Sent to InkThreadable';
+                    setTimeout(() => { loadOrders(); closeOrderModal(); }, 2000);
+                } else {
+                    showAlert('Error: ' + data.error, 'error');
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error sending to InkThreadable:', error);
+                showAlert('Failed to send order to InkThreadable.', 'error');
+                button.innerHTML = originalText;
+                button.disabled = false;
             }
+        }
+
+        async function checkShippingStatus(orderId, button) {
+            const originalText = button.innerHTML;
+            button.innerHTML = '⏳ Checking Status...';
+            button.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/check-shipping-status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_id: orderId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    button.innerHTML = '✅ Status Updated';
+                    setTimeout(() => { loadOrders(); closeOrderModal(); }, 2000);
+                } else {
+                    showAlert('Error: ' + data.error, 'error');
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error checking shipping status:', error);
+                showAlert('Failed to check shipping status.', 'error');
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        }
+
+        function toggleEditMode(orderId) {
+            const inputs = document.querySelectorAll('.edit-input');
+            inputs.forEach(input => { input.removeAttribute('readonly'); });
+            document.getElementById('edit-order-btn').style.display = 'none';
+            document.getElementById('save-order-btn').style.display = 'inline-block';
+            document.getElementById('cancel-edit-btn').style.display = 'inline-block';
+        }
+
+        function cancelEditMode() {
+            closeOrderModal();
+        }
+
+        async function saveOrderChanges(orderId, button) {
+            const originalText = button.innerHTML;
+            button.innerHTML = '⏳ Saving...';
+            button.disabled = true;
+
+            try {
+                const updateData = {
+                    order_id: orderId,
+                    customer_name: document.getElementById('edit-customer-name').value,
+                    customer_email: document.getElementById('edit-customer-email').value,
+                    shipping_name: document.getElementById('edit-shipping-name').value,
+                    shipping_line1: document.getElementById('edit-shipping-line1').value,
+                    shipping_line2: document.getElementById('edit-shipping-line2').value,
+                    shipping_city: document.getElementById('edit-shipping-city').value,
+                    shipping_state: document.getElementById('edit-shipping-state').value,
+                    shipping_postal_code: document.getElementById('edit-shipping-postal-code').value,
+                    shipping_country: document.getElementById('edit-shipping-country').value,
+                    inkthreadable_id: document.getElementById('edit-inkthreadable-id').value,
+                    inkthreadable_status: document.getElementById('edit-inkthreadable-status').value,
+                    carrier: document.getElementById('edit-carrier').value,
+                    tracking_number: document.getElementById('edit-tracking-number').value,
+                    shipped_at: document.getElementById('edit-shipped-at').value || null
+                };
+
+                const response = await fetch(`${API_BASE}/api/update-order`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('✅ Order updated successfully!', 'success');
+                    button.innerHTML = '✅ Saved';
+                    setTimeout(() => { loadOrders(); closeOrderModal(); }, 1500);
+                } else {
+                    showAlert('Error: ' + data.error, 'error');
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error saving order changes:', error);
+                showAlert('Failed to save changes.', 'error');
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        }
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchFilter').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const dateFromFilter = document.getElementById('dateFromFilter').value;
+            const dateToFilter = document.getElementById('dateToFilter').value;
+
+            let filteredOrders = currentOrders.filter(order => {
+                const searchMatch = !searchTerm ||
+                    order.customer_email.toLowerCase().includes(searchTerm) ||
+                    order.order_number.toLowerCase().includes(searchTerm) ||
+                    (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm));
+                const statusMatch = !statusFilter || order.status === statusFilter;
+                const orderDate = new Date(order.created_at).toISOString().split('T')[0];
+                const dateFromMatch = !dateFromFilter || orderDate >= dateFromFilter;
+                const dateToMatch = !dateToFilter || orderDate <= dateToFilter;
+                return searchMatch && statusMatch && dateFromMatch && dateToMatch;
+            });
+
+            currentPage = 1;
+            displayOrders(filteredOrders);
+            updatePagination();
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingIndicator').style.display = show ? 'block' : 'none';
+            document.getElementById('ordersTable').style.display = show ? 'none' : 'table';
+        }
+
+        function showAlert(message, type) {
+            const container = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            container.appendChild(alert);
+            setTimeout(() => { alert.remove(); }, 5000);
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-GB', {
+                day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        document.getElementById('searchFilter').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') { applyFilters(); }
         });
+
+        document.getElementById('orderModal').addEventListener('click', function(e) {
+            if (e.target === this) { closeOrderModal(); }
+        });
+
+        async function editOrderDetails(orderId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/order/${orderId}`);
+                const data = await response.json();
+                if (data.success) { showEditOrderModal(data.order); }
+                else { showAlert('Error loading order details: ' + data.error, 'error'); }
+            } catch (error) {
+                console.error('Error loading order for edit:', error);
+                showAlert('Failed to load order details for editing.', 'error');
+            }
+        }
+
+        function showEditOrderModal(order) {
+            const content = `
+                <div class="order-detail-section">
+                    <h3>✏️ Edit Order Information</h3>
+                    <form id="editOrderForm">
+                        <div class="order-info-grid">
+                            <div class="info-item">
+                                <label class="info-label">Customer Name</label>
+                                <input type="text" name="customer_name" value="${order.customer_name || ''}" class="edit-input" required>
+                            </div>
+                            <div class="info-item">
+                                <label class="info-label">Customer Email</label>
+                                <input type="email" name="customer_email" value="${order.customer_email}" class="edit-input" required>
+                            </div>
+                            <div class="info-item">
+                                <label class="info-label">Status</label>
+                                <select name="status" class="edit-input" required>
+                                    <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
+                                    <option value="paid" ${order.status === 'paid' ? 'selected' : ''}>Paid</option>
+                                    <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>Shipped</option>
+                                    <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>Delivered</option>
+                                    <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="order-detail-section">
+                    <h3>📍 Shipping Address</h3>
+                    <div class="order-info-grid">
+                        <div class="info-item"><label class="info-label">Recipient Name</label><input type="text" id="edit-shipping-name" value="${order.shipping_name || ''}" class="edit-input" /></div>
+                        <div class="info-item"><label class="info-label">Address Line 1</label><input type="text" id="edit-shipping-line1" value="${order.shipping_line1 || ''}" class="edit-input" /></div>
+                        <div class="info-item"><label class="info-label">Address Line 2</label><input type="text" id="edit-shipping-line2" value="${order.shipping_line2 || ''}" class="edit-input" /></div>
+                        <div class="info-item"><label class="info-label">City</label><input type="text" id="edit-shipping-city" value="${order.shipping_city || ''}" class="edit-input" /></div>
+                        <div class="info-item"><label class="info-label">State/County</label><input type="text" id="edit-shipping-state" value="${order.shipping_state || ''}" class="edit-input" /></div>
+                        <div class="info-item"><label class="info-label">Postal Code</label><input type="text" id="edit-shipping-postal-code" value="${order.shipping_postal_code || ''}" class="edit-input" /></div>
+                        <div class="info-item"><label class="info-label">Country</label><input type="text" id="edit-shipping-country" value="${order.shipping_country || ''}" class="edit-input" /></div>
+                    </div>
+                </div>
+                <div class="order-detail-section">
+                    <h3>🚚 Fulfillment & Shipping</h3>
+                    <div class="order-info-grid">
+                        <div class="info-item"><label class="info-label">InkThreadable Order ID</label><input type="text" id="edit-inkthreadable-id" value="${order.inkthreadable_id || ''}" class="edit-input" placeholder="Enter InkThreadable ID" /></div>
+                        <div class="info-item"><label class="info-label">Fulfillment Status</label><input type="text" id="edit-inkthreadable-status" value="${order.inkthreadable_status || ''}" class="edit-input" placeholder="e.g., Received, Processing, Shipped" /></div>
+                        <div class="info-item"><label class="info-label">Carrier</label><input type="text" id="edit-carrier" value="${order.carrier || ''}" class="edit-input" placeholder="e.g., UK Royal Mail 24 Tracked" /></div>
+                        <div class="info-item"><label class="info-label">Tracking Number</label><input type="text" id="edit-tracking-number" value="${order.tracking_number || ''}" class="edit-input" placeholder="Enter tracking number" /></div>
+                        <div class="info-item"><label class="info-label">Shipped Date</label><input type="datetime-local" id="edit-shipped-at" value="${order.shipped_at ? order.shipped_at.substring(0, 16) : ''}" class="edit-input" /></div>
+                    </div>
+                </div>
+                <div class="order-detail-section">
+                    <div style="margin-top: 20px;">
+                        <button name="save_all_order_changes" type="button" class="admin-btn admin-btn-primary" onclick="saveAllOrderChanges(${order.id}, this)">💾 Save All Changes</button>
+                        <button name="view_mode" type="button" class="admin-btn admin-btn-secondary" onclick="viewOrderDetails(${order.id})">👁️ View Mode</button>
+                        <button name="cancel_edit" type="button" class="admin-btn admin-btn-secondary" onclick="closeOrderModal()">❌ Cancel</button>
+                    </div>
+                </div>
+                <div class="order-detail-section">
+                    <h3>📦 Order Items</h3>
+                    <div class="order-items">
+                        ${order.items && order.items.length > 0 ? order.items.map(item => `
+                            <div class="item-row" id="edit-item-${item.id}">
+                                <div class="item-details">
+                                    <div class="item-name">${item.product_name}</div>
+                                    <div class="item-meta">Quantity: ${item.quantity}${item.size ? ` | Size: ${item.size}` : ''} | Unit Price: £${(item.price_at_time / 100).toFixed(2)}</div>
+                                </div>
+                                <div class="item-actions">
+                                    <div class="item-price">£${(item.subtotal / 100).toFixed(2)}</div>
+                                    <div class="item-buttons">
+                                        <button name="edit_order_item" class="btn-tiny btn-edit" onclick="editOrderItem(${item.id}, ${order.id})" title="Edit item">✏️</button>
+                                        <button name="delete_order_item" class="btn-tiny btn-delete" onclick="deleteOrderItem(${item.id}, ${order.id})" title="Delete item">🗑️</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('') : '<div class="item-row"><div class="item-details">No items found</div></div>'}
+                        <div class="add-item-row"><button name="add_order_item" class="admin-btn admin-btn-primary btn-small" onclick="addOrderItem(${order.id})">➕ Add Product</button></div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modalOrderNumber').textContent = `Edit Order ${order.order_number}`;
+            document.getElementById('modalOrderContent').innerHTML = content;
+            document.getElementById('orderModal').style.display = 'flex';
+        }
+
+        async function saveAllOrderChanges(orderId, button) {
+            const originalText = button.innerHTML;
+            button.innerHTML = '⏳ Saving...';
+            button.disabled = true;
+            try {
+                const form = document.getElementById('editOrderForm');
+                const formData = new FormData(form);
+                const updateData = {
+                    order_id: orderId,
+                    customer_name: formData.get('customer_name'),
+                    customer_email: formData.get('customer_email'),
+                    status: formData.get('status'),
+                    shipping_name: document.getElementById('edit-shipping-name').value,
+                    shipping_line1: document.getElementById('edit-shipping-line1').value,
+                    shipping_line2: document.getElementById('edit-shipping-line2').value,
+                    shipping_city: document.getElementById('edit-shipping-city').value,
+                    shipping_state: document.getElementById('edit-shipping-state').value,
+                    shipping_postal_code: document.getElementById('edit-shipping-postal-code').value,
+                    shipping_country: document.getElementById('edit-shipping-country').value,
+                    inkthreadable_id: document.getElementById('edit-inkthreadable-id').value,
+                    inkthreadable_status: document.getElementById('edit-inkthreadable-status').value,
+                    carrier: document.getElementById('edit-carrier').value,
+                    tracking_number: document.getElementById('edit-tracking-number').value,
+                    shipped_at: document.getElementById('edit-shipped-at').value || null
+                };
+                const response = await fetch(`${API_BASE}/api/update-order`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updateData) });
+                const data = await response.json();
+                if (data.success) { showAlert('✅ Order updated successfully!', 'success'); button.innerHTML = '✅ Saved'; setTimeout(() => { loadOrders(); closeOrderModal(); }, 1500); }
+                else { showAlert('Error: ' + data.error, 'error'); button.innerHTML = originalText; button.disabled = false; }
+            } catch (error) { console.error('Error saving order changes:', error); showAlert('Failed to save changes.', 'error'); button.innerHTML = originalText; button.disabled = false; }
+        }
+
+        async function deleteOrder(orderId, orderNumber, button) {
+            if (!confirm(`⚠️ DELETE ORDER CONFIRMATION ⚠️\n\nThis will permanently delete:\n\n• Order: ${orderNumber}\n• All order items\n• All order data\n\n❌ This action CANNOT be undone!\n\nAre you sure?`)) return;
+            const originalText = button.innerHTML; button.innerHTML = '⏳ Deleting...'; button.disabled = true;
+            try {
+                const response = await fetch(`${API_BASE}/api/delete-order`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order_id: orderId }) });
+                const data = await response.json();
+                if (data.success) { showAlert(`✅ ${data.message}`, 'success'); const row = button.closest('tr'); if (row) { row.style.transition = 'opacity 0.3s ease'; row.style.opacity = '0'; setTimeout(() => { loadOrders(); }, 300); } else { loadOrders(); } }
+                else { showAlert('❌ Error deleting order: ' + data.error, 'error'); button.innerHTML = originalText; button.disabled = false; }
+            } catch (error) { console.error('Error deleting order:', error); showAlert('❌ Failed to delete order.', 'error'); button.innerHTML = originalText; button.disabled = false; }
+        }
+
+        async function createNewOrder() {
+            try {
+                const response = await fetch(`${API_BASE}/api/products`);
+                const data = await response.json();
+                if (!data.success) { showAlert('Error loading products: ' + data.error, 'error'); return; }
+                const productOptions = data.products.map(p => `<option value="${p.id}" data-price="${p.price}">${p.name} - ${p.price_display}</option>`).join('');
+                const content = `<div class="order-detail-section"><h3>➕ Create New Order</h3><form id="createOrderForm"><div class="order-info-grid"><div class="info-item"><label class="info-label">Customer Name *</label><input type="text" name="customer_name" class="edit-input" required></div><div class="info-item"><label class="info-label">Customer Email *</label><input type="email" name="customer_email" class="edit-input" required></div><div class="info-item"><label class="info-label">Status</label><select name="status" class="edit-input"><option value="paid">Paid</option><option value="pending">Pending</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option></select></div><div class="info-item"><label class="info-label">Order Total</label><div class="edit-input" style="background: #f8f9fa; padding: 8px; font-weight: bold;" id="newOrderTotal">£0.00</div><small style="color: #666;">Calculated from products below</small></div></div><div class="info-item" style="margin-top: 15px;"><label class="info-label">Shipping Address *</label><textarea name="shipping_address" class="edit-textarea" rows="4" required placeholder="Enter full shipping address..."></textarea></div></form></div><div class="order-detail-section"><h3>📦 Add Products to Order</h3><div class="order-items" id="newOrderItems"></div><div class="add-item-row"><button name="add_new_order_product" class="admin-btn admin-btn-primary btn-small" onclick="addNewOrderProduct()">➕ Add Product</button></div></div><div class="order-detail-section"><div style="display: flex; gap: 10px;"><button name="finalize_new_order" type="button" class="admin-btn admin-btn-primary" onclick="finalizeNewOrder()">💾 Create Order</button><button name="cancel_new_order" type="button" class="admin-btn admin-btn-secondary" onclick="closeOrderModal()">❌ Cancel</button></div></div><div id="productSelectModal" class="modal-overlay" style="display: none;"><div class="modal-content" style="max-width: 500px;"><div class="modal-header"><h3>Add Product to Order</h3><button name="close_product_select" class="modal-close" onclick="closeProductSelectModal()">&times;</button></div><form id="addProductForm" onsubmit="addProductToNewOrder(event)"><div class="order-info-grid"><div class="info-item"><label class="info-label">Product *</label><select name="product_id" class="edit-input" required onchange="updateProductPrice()"><option value="">Select a product...</option>${productOptions}</select></div><div class="info-item"><label class="info-label">Quantity *</label><input type="number" name="quantity" class="edit-input" min="1" value="1" required onchange="updateProductPrice()"></div><div class="info-item"><label class="info-label">Size</label><select name="size" class="edit-input"><option value="">No size</option><option value="XS">XS</option><option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="2XL">2XL</option><option value="3XL">3XL</option><option value="4XL">4XL</option><option value="5XL">5XL</option></select></div><div class="info-item"><label class="info-label">Colour</label><select name="color" class="edit-input"><option value="">No colour</option><option value="Black">Black</option><option value="White">White</option><option value="Steel Blue">Steel Blue</option><option value="Kelly Green">Kelly Green</option><option value="True Royal">True Royal</option><option value="Red">Red</option><option value="Orange">Orange</option><option value="Purple">Purple</option><option value="Yellow">Yellow</option><option value="Navy">Navy</option><option value="Heather Ice Blue">Heather Ice Blue</option><option value="Pink">Pink</option><option value="Asphalt">Asphalt</option><option value="Forest">Forest</option><option value="Heather Navy">Heather Navy</option><option value="Soft Pink">Soft Pink</option><option value="Prism Mint">Prism Mint</option><option value="Heather Mint">Heather Mint</option><option value="Athletic Heather">Athletic Heather</option><option value="Prism Sunset">Prism Sunset</option><option value="Mauve">Mauve</option><option value="Mustard">Mustard</option><option value="Military Green">Military Green</option><option value="Natural">Natural</option></select></div><div class="info-item"><label class="info-label">Price (£)</label><input type="number" name="price" class="edit-input" step="0.01" min="0" required readonly><small style="color: #666;">Auto-filled from product</small></div></div><div style="margin-top: 20px;"><button name="add_to_new_order" type="submit" class="admin-btn admin-btn-primary">➕ Add to Order</button><button name="cancel_add_product" type="button" class="admin-btn admin-btn-secondary" onclick="closeProductSelectModal()">❌ Cancel</button></div></form></div></div>`;
+                document.getElementById('modalOrderNumber').textContent = 'Create New Order';
+                document.getElementById('modalOrderContent').innerHTML = content;
+                document.getElementById('orderModal').style.display = 'flex';
+                window.newOrderItems = [];
+                updateNewOrderItemsDisplay();
+                updateNewOrderTotal();
+            } catch (error) { console.error('Error loading create order form:', error); showAlert('Failed to load create order form.', 'error'); }
+        }
+
+        function addNewOrderProduct() { document.getElementById('productSelectModal').style.display = 'flex'; }
+        function closeProductSelectModal() { document.getElementById('productSelectModal').style.display = 'none'; document.getElementById('addProductForm').reset(); }
+        function updateProductPrice() { const form = document.getElementById('addProductForm'); const sel = form.querySelector('select[name="product_id"]'); const qty = form.querySelector('input[name="quantity"]'); const price = form.querySelector('input[name="price"]'); if (sel.value) { const opt = sel.options[sel.selectedIndex]; price.value = ((parseFloat(opt.dataset.price) / 100) * (parseInt(qty.value) || 1)).toFixed(2); } else { price.value = ''; } }
+        function addProductToNewOrder(event) { event.preventDefault(); const formData = new FormData(event.target); const sel = event.target.querySelector('select[name="product_id"]'); const opt = sel.options[sel.selectedIndex]; if (!opt.value) { showAlert('Please select a product', 'error'); return; } window.newOrderItems.push({ id: Date.now(), product_id: parseInt(opt.value), product_name: opt.text.split(' - ')[0], quantity: parseInt(formData.get('quantity')), size: formData.get('size') || null, color: formData.get('color') || null, price_at_time: Math.round(parseFloat(formData.get('price')) * 100), subtotal: Math.round(parseFloat(formData.get('price')) * 100) }); updateNewOrderItemsDisplay(); updateNewOrderTotal(); closeProductSelectModal(); showAlert('Product added to order', 'success'); }
+        function updateNewOrderItemsDisplay() { const container = document.getElementById('newOrderItems'); if (window.newOrderItems.length === 0) { container.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">No products added yet</div>'; return; } container.innerHTML = window.newOrderItems.map(item => `<div class="item-row" id="new-item-${item.id}"><div class="item-details"><div class="item-name">${item.product_name}</div><div class="item-meta">Quantity: ${item.quantity}${item.size ? ` | Size: ${item.size}` : ''}${item.color ? ` | Colour: ${item.color}` : ''} | Unit Price: £${(item.price_at_time / item.quantity / 100).toFixed(2)}</div></div><div class="item-actions"><div class="item-price">£${(item.subtotal / 100).toFixed(2)}</div><div class="item-buttons"><button name="remove_new_order_item" class="btn-tiny btn-delete" onclick="removeNewOrderItem(${item.id})" title="Remove item">🗑️</button></div></div></div>`).join(''); }
+        function removeNewOrderItem(itemId) { window.newOrderItems = window.newOrderItems.filter(item => item.id !== itemId); updateNewOrderItemsDisplay(); updateNewOrderTotal(); }
+        function updateNewOrderTotal() { const total = window.newOrderItems.reduce((sum, item) => sum + item.subtotal, 0); document.getElementById('newOrderTotal').textContent = `£${(total / 100).toFixed(2)}`; }
+        async function finalizeNewOrder() { const form = document.getElementById('createOrderForm'); const formData = new FormData(form); if (window.newOrderItems.length === 0) { showAlert('Please add at least one product to the order', 'error'); return; } const total = window.newOrderItems.reduce((sum, item) => sum + item.subtotal, 0); const orderData = { customer_name: formData.get('customer_name'), customer_email: formData.get('customer_email'), shipping_address: formData.get('shipping_address'), status: formData.get('status'), total_amount: total }; try { const orderResponse = await fetch(`${API_BASE}/api/create-order`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) }); const orderResult = await orderResponse.json(); if (orderResult.success) { for (const item of window.newOrderItems) { await fetch(`${API_BASE}/api/add-order-item`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order_id: orderResult.order_id, product_id: item.product_id, quantity: item.quantity, size: item.size, color: item.color }) }); } showAlert('✅ Order created successfully with all products!', 'success'); closeOrderModal(); loadOrders(); } else { showAlert('❌ Error creating order: ' + orderResult.error, 'error'); } } catch (error) { console.error('Error creating order:', error); showAlert('❌ Failed to create order.', 'error'); } }
+
+        async function addOrderItem(orderId) { try { const response = await fetch(`${API_BASE}/api/products`); const data = await response.json(); if (data.success) { const productOptions = data.products.map(p => `<option value="${p.id}">${p.name} - ${p.price_display}</option>`).join(''); document.getElementById('modalOrderNumber').textContent = 'Add Product to Order'; document.getElementById('modalOrderContent').innerHTML = `<div class="order-detail-section"><h3>➕ Add Product to Order</h3><form id="addItemForm" onsubmit="saveOrderItem(event, ${orderId})"><div class="order-info-grid"><div class="info-item"><label class="info-label">Product *</label><select name="product_id" class="edit-input" required><option value="">Select a product...</option>${productOptions}</select></div><div class="info-item"><label class="info-label">Quantity *</label><input type="number" name="quantity" class="edit-input" min="1" value="1" required></div><div class="info-item"><label class="info-label">Size</label><select name="size" class="edit-input"><option value="">No size</option><option value="XS">XS</option><option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="2XL">2XL</option><option value="3XL">3XL</option><option value="4XL">4XL</option><option value="5XL">5XL</option></select></div><div class="info-item"><label class="info-label">Colour</label><select name="color" class="edit-input"><option value="">No colour</option><option value="Black">Black</option><option value="White">White</option><option value="Steel Blue">Steel Blue</option><option value="Kelly Green">Kelly Green</option><option value="True Royal">True Royal</option><option value="Red">Red</option><option value="Orange">Orange</option><option value="Purple">Purple</option><option value="Yellow">Yellow</option><option value="Navy">Navy</option><option value="Heather Ice Blue">Heather Ice Blue</option><option value="Pink">Pink</option><option value="Asphalt">Asphalt</option><option value="Forest">Forest</option><option value="Heather Navy">Heather Navy</option><option value="Soft Pink">Soft Pink</option><option value="Prism Mint">Prism Mint</option><option value="Heather Mint">Heather Mint</option><option value="Athletic Heather">Athletic Heather</option><option value="Prism Sunset">Prism Sunset</option><option value="Mauve">Mauve</option><option value="Mustard">Mustard</option><option value="Military Green">Military Green</option><option value="Natural">Natural</option></select></div></div><div style="margin-top: 20px;"><button name="submit_add_product" type="submit" class="admin-btn admin-btn-primary">➕ Add Product</button><button name="cancel_add_product_edit" type="button" class="admin-btn admin-btn-secondary" onclick="viewOrderDetails(${orderId})">❌ Cancel</button></div></form></div>`; } else { showAlert('Error loading products: ' + data.error, 'error'); } } catch (error) { console.error('Error loading products:', error); showAlert('Failed to load products.', 'error'); } }
+        async function saveOrderItem(event, orderId) { event.preventDefault(); const formData = new FormData(event.target); try { const response = await fetch(`${API_BASE}/api/add-order-item`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order_id: orderId, product_id: parseInt(formData.get('product_id')), quantity: parseInt(formData.get('quantity')), size: formData.get('size') || null, color: formData.get('color') || null }) }); const data = await response.json(); if (data.success) { showAlert('✅ Product added successfully!', 'success'); viewOrderDetails(orderId); loadOrders(); } else { showAlert('❌ Error adding product: ' + data.error, 'error'); } } catch (error) { console.error('Error adding product:', error); showAlert('❌ Failed to add product.', 'error'); } }
+        async function editOrderItem(itemId, orderId) { try { const orderResponse = await fetch(`${API_BASE}/api/order/${orderId}`); const orderData = await orderResponse.json(); const item = orderData.order.items.find(i => i.id === itemId); if (!item) { showAlert('Item not found', 'error'); return; } document.getElementById('modalOrderNumber').textContent = 'Edit Order Item'; document.getElementById('modalOrderContent').innerHTML = `<div class="order-detail-section"><h3>✏️ Edit Order Item</h3><form id="editItemForm" onsubmit="updateOrderItem(event, ${itemId}, ${orderId})"><div class="order-info-grid"><div class="info-item"><label class="info-label">Product</label><input type="text" value="${item.product_name}" class="edit-input" readonly></div><div class="info-item"><label class="info-label">Quantity *</label><input type="number" name="quantity" value="${item.quantity}" class="edit-input" min="1" required></div><div class="info-item"><label class="info-label">Size</label><select name="size" class="edit-input"><option value="" ${!item.size ? 'selected' : ''}>No size</option><option value="XS" ${item.size === 'XS' ? 'selected' : ''}>XS</option><option value="S" ${item.size === 'S' ? 'selected' : ''}>S</option><option value="M" ${item.size === 'M' ? 'selected' : ''}>M</option><option value="L" ${item.size === 'L' ? 'selected' : ''}>L</option><option value="XL" ${item.size === 'XL' ? 'selected' : ''}>XL</option><option value="2XL" ${item.size === '2XL' ? 'selected' : ''}>2XL</option><option value="3XL" ${item.size === '3XL' ? 'selected' : ''}>3XL</option><option value="4XL" ${item.size === '4XL' ? 'selected' : ''}>4XL</option><option value="5XL" ${item.size === '5XL' ? 'selected' : ''}>5XL</option></select></div><div class="info-item"><label class="info-label">Colour</label><select name="color" class="edit-input"><option value="" ${!item.color ? 'selected' : ''}>No colour</option><option value="Black" ${item.color === 'Black' ? 'selected' : ''}>Black</option><option value="White" ${item.color === 'White' ? 'selected' : ''}>White</option><option value="Steel Blue" ${item.color === 'Steel Blue' ? 'selected' : ''}>Steel Blue</option><option value="Kelly Green" ${item.color === 'Kelly Green' ? 'selected' : ''}>Kelly Green</option><option value="True Royal" ${item.color === 'True Royal' ? 'selected' : ''}>True Royal</option><option value="Red" ${item.color === 'Red' ? 'selected' : ''}>Red</option><option value="Orange" ${item.color === 'Orange' ? 'selected' : ''}>Orange</option><option value="Purple" ${item.color === 'Purple' ? 'selected' : ''}>Purple</option><option value="Yellow" ${item.color === 'Yellow' ? 'selected' : ''}>Yellow</option><option value="Navy" ${item.color === 'Navy' ? 'selected' : ''}>Navy</option><option value="Heather Ice Blue" ${item.color === 'Heather Ice Blue' ? 'selected' : ''}>Heather Ice Blue</option><option value="Pink" ${item.color === 'Pink' ? 'selected' : ''}>Pink</option><option value="Asphalt" ${item.color === 'Asphalt' ? 'selected' : ''}>Asphalt</option><option value="Forest" ${item.color === 'Forest' ? 'selected' : ''}>Forest</option><option value="Heather Navy" ${item.color === 'Heather Navy' ? 'selected' : ''}>Heather Navy</option><option value="Soft Pink" ${item.color === 'Soft Pink' ? 'selected' : ''}>Soft Pink</option><option value="Prism Mint" ${item.color === 'Prism Mint' ? 'selected' : ''}>Prism Mint</option><option value="Heather Mint" ${item.color === 'Heather Mint' ? 'selected' : ''}>Heather Mint</option><option value="Athletic Heather" ${item.color === 'Athletic Heather' ? 'selected' : ''}>Athletic Heather</option><option value="Prism Sunset" ${item.color === 'Prism Sunset' ? 'selected' : ''}>Prism Sunset</option><option value="Mauve" ${item.color === 'Mauve' ? 'selected' : ''}>Mauve</option><option value="Mustard" ${item.color === 'Mustard' ? 'selected' : ''}>Mustard</option><option value="Military Green" ${item.color === 'Military Green' ? 'selected' : ''}>Military Green</option><option value="Natural" ${item.color === 'Natural' ? 'selected' : ''}>Natural</option></select></div><div class="info-item"><label class="info-label">Price (£) *</label><input type="number" name="price_at_time" value="${(item.price_at_time / 100).toFixed(2)}" class="edit-input" step="0.01" min="0" required></div></div><div style="margin-top: 20px;"><button name="update_order_item" type="submit" class="admin-btn admin-btn-primary">💾 Update Item</button><button name="cancel_update_item" type="button" class="admin-btn admin-btn-secondary" onclick="viewOrderDetails(${orderId})">❌ Cancel</button></div></form></div>`; } catch (error) { console.error('Error loading item details:', error); showAlert('Failed to load item details.', 'error'); } }
+        async function updateOrderItem(event, itemId, orderId) { event.preventDefault(); const formData = new FormData(event.target); try { const response = await fetch(`${API_BASE}/api/update-order-item`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: itemId, order_id: orderId, quantity: parseInt(formData.get('quantity')), size: formData.get('size') || null, color: formData.get('color') || null, price_at_time: Math.round(parseFloat(formData.get('price_at_time')) * 100) }) }); const data = await response.json(); if (data.success) { showAlert('✅ Item updated successfully!', 'success'); viewOrderDetails(orderId); loadOrders(); } else { showAlert('❌ Error updating item: ' + data.error, 'error'); } } catch (error) { console.error('Error updating item:', error); showAlert('❌ Failed to update item.', 'error'); } }
+        async function deleteOrderItem(itemId, orderId) { if (!confirm('⚠️ Delete this item from the order?\n\nThis action cannot be undone and will update the order total.')) return; try { const response = await fetch(`${API_BASE}/api/delete-order-item`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: itemId, order_id: orderId }) }); const data = await response.json(); if (data.success) { showAlert('✅ Item deleted successfully!', 'success'); const itemRow = document.getElementById(`item-${itemId}`); if (itemRow) { itemRow.style.transition = 'opacity 0.3s ease'; itemRow.style.opacity = '0'; setTimeout(() => { viewOrderDetails(orderId); loadOrders(); }, 300); } else { viewOrderDetails(orderId); loadOrders(); } } else { showAlert('❌ Error deleting item: ' + data.error, 'error'); } } catch (error) { console.error('Error deleting item:', error); showAlert('❌ Failed to delete item.', 'error'); } }
+
+        // Make functions globally accessible
+        window.viewOrderDetails = viewOrderDetails; window.editOrderDetails = editOrderDetails; window.deleteOrder = deleteOrder; window.createNewOrder = createNewOrder; window.addOrderItem = addOrderItem; window.editOrderItem = editOrderItem; window.deleteOrderItem = deleteOrderItem; window.saveOrderItem = saveOrderItem; window.updateOrderItem = updateOrderItem; window.saveAllOrderChanges = saveAllOrderChanges; window.addNewOrderProduct = addNewOrderProduct; window.closeProductSelectModal = closeProductSelectModal; window.updateProductPrice = updateProductPrice; window.addProductToNewOrder = addProductToNewOrder; window.removeNewOrderItem = removeNewOrderItem; window.finalizeNewOrder = finalizeNewOrder; window.toggleEditMode = toggleEditMode; window.cancelEditMode = cancelEditMode; window.saveOrderChanges = saveOrderChanges; window.changePage = changePage; window.applyFilters = applyFilters; window.closeOrderModal = closeOrderModal; window.resendConfirmation = resendConfirmation; window.resendConfirmationFromModal = resendConfirmationFromModal; window.resendToInkThreadable = resendToInkThreadable; window.checkShippingStatus = checkShippingStatus;
     </script>
 </body>
 </html>

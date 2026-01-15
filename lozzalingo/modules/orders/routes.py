@@ -33,13 +33,15 @@ def api_orders():
             merchandise_db = os.getenv('MERCHANDISE_DB', 'merchandise.db')
 
         if not merchandise_db:
-            return jsonify({'success': False, 'error': 'Merchandise database not configured'}), 500
+            # No merchandise database configured - return empty list
+            return jsonify({'success': True, 'orders': [], 'message': 'Merchandise database not configured'})
 
         # Try to import Order models
         try:
             from app.models.merchandise import get_merchandise_db, Order, OrderItem, Product
         except ImportError:
-            return jsonify({'success': False, 'error': 'Order models not available'}), 500
+            # No merchandise models available - return empty list
+            return jsonify({'success': True, 'orders': [], 'message': 'Order models not configured'})
 
         # Get recent orders (last 50)
         conn = get_merchandise_db()
@@ -139,6 +141,7 @@ def api_order_details(order_id):
                     'product_name': product.name,
                     'quantity': item.quantity,
                     'size': item.size,
+                    'color': item.color,
                     'price_at_time': item.price_at_time,
                     'subtotal': item.price_at_time * item.quantity
                 })
@@ -162,9 +165,9 @@ def api_order_details(order_id):
             'shipping_state': order.shipping_state or '',
             'shipping_postal_code': order.shipping_postal_code or '',
             'shipping_country': order.shipping_country or '',
-            # Fulfillment tracking info
-            'fulfillment_id': getattr(order, 'fulfillment_id', '') or '',
-            'fulfillment_status': getattr(order, 'fulfillment_status', '') or '',
+            # Fulfillment tracking info (InkThreadable)
+            'inkthreadable_id': getattr(order, 'inkthreadable_id', '') or '',
+            'inkthreadable_status': getattr(order, 'inkthreadable_status', '') or '',
             'carrier': getattr(order, 'carrier', '') or '',
             'tracking_number': getattr(order, 'tracking_number', '') or '',
             'shipped_at': getattr(order, 'shipped_at', '') or ''
@@ -228,6 +231,12 @@ def api_update_order():
         if 'total_amount' in data:
             update_fields.append('total_amount = ?')
             values.append(int(data['total_amount']))
+
+        # InkThreadable / Fulfillment fields
+        for field in ['inkthreadable_id', 'inkthreadable_status', 'carrier', 'tracking_number', 'shipped_at']:
+            if field in data:
+                update_fields.append(f'{field} = ?')
+                values.append(data[field] if data[field] else None)
 
         if not update_fields:
             return jsonify({'success': False, 'error': 'No fields to update'}), 400
@@ -296,4 +305,516 @@ def api_delete_order():
 
     except Exception as e:
         print(f"Error deleting order: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@orders_bp.route('/api/products')
+def api_products():
+    """List available products for adding to orders"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from app.models.merchandise import Product
+
+        products = Product.get_all_active()
+        product_list = [{
+            'id': p.id,
+            'name': p.name,
+            'price': p.price,
+            'price_display': f"£{p.price / 100:.2f}"
+        } for p in products]
+
+        return jsonify({
+            'success': True,
+            'products': product_list
+        })
+
+    except Exception as e:
+        print(f"Error listing products: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@orders_bp.route('/api/create-order', methods=['POST'])
+def api_create_order():
+    """Create a new order manually"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from app.models.merchandise import get_merchandise_db
+
+        data = request.get_json()
+
+        customer_name = data.get('customer_name')
+        customer_email = data.get('customer_email')
+        total_amount = data.get('total_amount', 0)
+        status = data.get('status', 'paid')
+        shipping_address = data.get('shipping_address', '')
+
+        if not customer_email:
+            return jsonify({'success': False, 'error': 'Customer email required'}), 400
+
+        conn = get_merchandise_db()
+        cursor = conn.cursor()
+
+        # Parse shipping address into fields (simple split by newline)
+        address_lines = shipping_address.split('\n') if shipping_address else []
+        shipping_line1 = address_lines[0] if len(address_lines) > 0 else ''
+        shipping_line2 = address_lines[1] if len(address_lines) > 1 else ''
+        shipping_city = address_lines[2] if len(address_lines) > 2 else ''
+        shipping_postal = address_lines[3] if len(address_lines) > 3 else ''
+        shipping_country = address_lines[4] if len(address_lines) > 4 else ''
+
+        cursor.execute('''
+            INSERT INTO orders (customer_email, customer_name, total_amount, status,
+                               shipping_name, shipping_line1, shipping_line2, shipping_city,
+                               shipping_postal_code, shipping_country)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (customer_email, customer_name, total_amount, status,
+              customer_name, shipping_line1, shipping_line2, shipping_city,
+              shipping_postal, shipping_country))
+
+        order_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'order_id': order_id,
+            'message': f'Order created successfully'
+        })
+
+    except Exception as e:
+        print(f"Error creating order: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@orders_bp.route('/api/add-order-item', methods=['POST'])
+def api_add_order_item():
+    """Add an item to an existing order"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from app.models.merchandise import get_merchandise_db, Product
+
+        data = request.get_json()
+
+        order_id = data.get('order_id')
+        product_id = data.get('product_id')
+        quantity = data.get('quantity', 1)
+        size = data.get('size')
+        color = data.get('color')
+
+        if not order_id or not product_id:
+            return jsonify({'success': False, 'error': 'Order ID and Product ID required'}), 400
+
+        # Get product price
+        product = Product.get_by_id(product_id)
+        if not product:
+            return jsonify({'success': False, 'error': 'Product not found'}), 404
+
+        price_at_time = product.price
+
+        conn = get_merchandise_db()
+        cursor = conn.cursor()
+
+        # Insert order item
+        cursor.execute('''
+            INSERT INTO order_items (order_id, product_id, quantity, price_at_time, size, color)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (order_id, product_id, quantity, price_at_time, size, color))
+
+        # Update order total
+        cursor.execute('''
+            UPDATE orders SET total_amount = (
+                SELECT COALESCE(SUM(price_at_time * quantity), 0)
+                FROM order_items WHERE order_id = ?
+            ), updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (order_id, order_id))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Item added successfully'
+        })
+
+    except Exception as e:
+        print(f"Error adding order item: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@orders_bp.route('/api/update-order-item', methods=['POST'])
+def api_update_order_item():
+    """Update an order item"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from app.models.merchandise import get_merchandise_db
+
+        data = request.get_json()
+
+        item_id = data.get('item_id')
+        order_id = data.get('order_id')
+        quantity = data.get('quantity')
+        size = data.get('size')
+        color = data.get('color')
+        price_at_time = data.get('price_at_time')
+
+        if not item_id:
+            return jsonify({'success': False, 'error': 'Item ID required'}), 400
+
+        conn = get_merchandise_db()
+        cursor = conn.cursor()
+
+        # Update the item
+        cursor.execute('''
+            UPDATE order_items
+            SET quantity = ?, size = ?, color = ?, price_at_time = ?
+            WHERE id = ?
+        ''', (quantity, size, color, price_at_time, item_id))
+
+        # Update order total
+        if order_id:
+            cursor.execute('''
+                UPDATE orders SET total_amount = (
+                    SELECT COALESCE(SUM(price_at_time * quantity), 0)
+                    FROM order_items WHERE order_id = ?
+                ), updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (order_id, order_id))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Item updated successfully'
+        })
+
+    except Exception as e:
+        print(f"Error updating order item: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@orders_bp.route('/api/delete-order-item', methods=['POST'])
+def api_delete_order_item():
+    """Delete an order item"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from app.models.merchandise import get_merchandise_db
+
+        data = request.get_json()
+
+        item_id = data.get('item_id')
+        order_id = data.get('order_id')
+
+        if not item_id:
+            return jsonify({'success': False, 'error': 'Item ID required'}), 400
+
+        conn = get_merchandise_db()
+        cursor = conn.cursor()
+
+        # Delete the item
+        cursor.execute('DELETE FROM order_items WHERE id = ?', (item_id,))
+
+        # Update order total
+        if order_id:
+            cursor.execute('''
+                UPDATE orders SET total_amount = (
+                    SELECT COALESCE(SUM(price_at_time * quantity), 0)
+                    FROM order_items WHERE order_id = ?
+                ), updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (order_id, order_id))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Item deleted successfully'
+        })
+
+    except Exception as e:
+        print(f"Error deleting order item: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@orders_bp.route('/api/resend-confirmation', methods=['POST'])
+def api_resend_confirmation():
+    """Resend order confirmation email"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from app.models.merchandise import Order, OrderItem, Product
+
+        data = request.get_json()
+        order_id = data.get('order_id')
+
+        if not order_id:
+            return jsonify({'success': False, 'error': 'Order ID required'}), 400
+
+        order = Order.get_by_id(order_id)
+        if not order:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+
+        if not order.customer_email:
+            return jsonify({'success': False, 'error': 'Order has no customer email'}), 400
+
+        # Try to send confirmation email using crowd_sauced email service
+        try:
+            from email_service import EmailService
+
+            # Get order items
+            order_items = OrderItem.get_by_order_id(order_id)
+
+            # Build email items list
+            email_items = []
+            for item in order_items:
+                product = Product.get_by_id(item.product_id)
+                email_items.append({
+                    'name': product.name if product else 'Unknown Product',
+                    'size': item.size or 'N/A',
+                    'color': item.color or 'N/A',
+                    'quantity': item.quantity or 1,
+                    'price': item.price_at_time or 0
+                })
+
+            # Send confirmation email
+            email_sent = EmailService.send_clothing_order_confirmation(
+                to_email=order.customer_email,
+                order_id=order.id,
+                items=email_items,
+                total_amount=order.total_amount or 0,
+                shipping_info={'country': order.shipping_country or 'GB', 'cost': 0}
+            )
+
+            if email_sent:
+                return jsonify({
+                    'success': True,
+                    'message': f'Confirmation email sent to {order.customer_email}'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Email service returned failure - check server logs for details'
+                }), 500
+
+        except ImportError as ie:
+            print(f"Import error: {ie}")
+            return jsonify({
+                'success': False,
+                'error': 'Email service not configured'
+            }), 500
+        except Exception as e:
+            print(f"Email error: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'Failed to send email: {str(e)}'
+            }), 500
+
+    except Exception as e:
+        print(f"Error resending confirmation: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@orders_bp.route('/api/resend-to-inkthreadable', methods=['POST'])
+def api_resend_to_inkthreadable():
+    """Resend order to InkThreadable for fulfillment"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from app.models.merchandise import Order, get_merchandise_db
+
+        data = request.get_json()
+        order_id = data.get('order_id')
+
+        if not order_id:
+            return jsonify({'success': False, 'error': 'Order ID required'}), 400
+
+        order = Order.get_by_id(order_id)
+        if not order:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+
+        # Try to send to InkThreadable
+        try:
+            from utils.inkthreadable import submit_order_to_inkthreadable
+            result = submit_order_to_inkthreadable(order)
+
+            if result and result.get('success'):
+                # Update the order with InkThreadable ID
+                inkthreadable_id = result.get('order_id')
+                if inkthreadable_id:
+                    conn = get_merchandise_db()
+                    cursor = conn.cursor()
+                    cursor.execute('''
+                        UPDATE orders SET inkthreadable_id = ?, inkthreadable_status = 'Submitted',
+                        updated_at = CURRENT_TIMESTAMP WHERE id = ?
+                    ''', (inkthreadable_id, order_id))
+                    conn.commit()
+                    conn.close()
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Order sent to InkThreadable (ID: {inkthreadable_id})'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': result.get('error', 'Unknown error from InkThreadable')
+                }), 500
+
+        except ImportError:
+            return jsonify({
+                'success': False,
+                'error': 'InkThreadable integration not configured'
+            }), 500
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to send to InkThreadable: {str(e)}'
+            }), 500
+
+    except Exception as e:
+        print(f"Error resending to InkThreadable: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@orders_bp.route('/api/check-shipping-status', methods=['POST'])
+def api_check_shipping_status():
+    """Check and update shipping status from InkThreadable"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from app.models.merchandise import Order, get_merchandise_db
+
+        data = request.get_json()
+        order_id = data.get('order_id')
+
+        if not order_id:
+            return jsonify({'success': False, 'error': 'Order ID required'}), 400
+
+        order = Order.get_by_id(order_id)
+        if not order:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+
+        inkthreadable_id = getattr(order, 'inkthreadable_id', None)
+        if not inkthreadable_id:
+            return jsonify({
+                'success': False,
+                'error': 'No InkThreadable order ID found for this order'
+            }), 400
+
+        # Try to check status from InkThreadable
+        try:
+            from utils.inkthreadable import get_order_status
+            status_result = get_order_status(inkthreadable_id)
+
+            if status_result and status_result.get('success'):
+                # Update order with new status info
+                conn = get_merchandise_db()
+                cursor = conn.cursor()
+
+                updates = []
+                values = []
+
+                if status_result.get('status'):
+                    updates.append('inkthreadable_status = ?')
+                    values.append(status_result['status'])
+
+                if status_result.get('carrier'):
+                    updates.append('carrier = ?')
+                    values.append(status_result['carrier'])
+
+                if status_result.get('tracking_number'):
+                    updates.append('tracking_number = ?')
+                    values.append(status_result['tracking_number'])
+
+                if status_result.get('shipped_at'):
+                    updates.append('shipped_at = ?')
+                    values.append(status_result['shipped_at'])
+
+                if updates:
+                    updates.append('updated_at = CURRENT_TIMESTAMP')
+                    values.append(order_id)
+                    query = f"UPDATE orders SET {', '.join(updates)} WHERE id = ?"
+                    cursor.execute(query, values)
+                    conn.commit()
+
+                conn.close()
+
+                return jsonify({
+                    'success': True,
+                    'message': f"Shipping status updated: {status_result.get('status', 'Unknown')}"
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': status_result.get('error', 'Could not retrieve status')
+                }), 500
+
+        except ImportError:
+            return jsonify({
+                'success': False,
+                'error': 'InkThreadable integration not configured'
+            }), 500
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to check shipping status: {str(e)}'
+            }), 500
+
+    except Exception as e:
+        print(f"Error checking shipping status: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@orders_bp.route('/api/fetch-etsy-orders', methods=['POST'])
+def api_fetch_etsy_orders():
+    """Trigger Make.com to fetch Etsy orders for a shop"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        data = request.get_json() or {}
+        shop_name = data.get('shop_name')
+
+        if not shop_name:
+            return jsonify({'success': False, 'error': 'shop_name required'}), 400
+
+        # Import from main app
+        try:
+            from utils.etsy_orders import fetch_etsy_orders, ETSY_SHOPS
+        except ImportError:
+            return jsonify({
+                'success': False,
+                'error': 'Etsy orders module not configured'
+            }), 500
+
+        if shop_name not in ETSY_SHOPS:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid shop. Valid shops: {ETSY_SHOPS}'
+            }), 400
+
+        result = fetch_etsy_orders(shop_name)
+
+        if result.get('success'):
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 500
+
+    except Exception as e:
+        print(f"Error fetching Etsy orders: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
