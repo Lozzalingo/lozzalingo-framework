@@ -28,9 +28,11 @@ def api_orders():
         try:
             from config import Config
             merchandise_db = Config.MERCHANDISE_DB if hasattr(Config, 'MERCHANDISE_DB') else None
+            items_db = Config.ITEMS_DB if hasattr(Config, 'ITEMS_DB') else None
         except ImportError:
             import os
             merchandise_db = os.getenv('MERCHANDISE_DB', 'merchandise.db')
+            items_db = os.getenv('ITEMS_DB', 'clothing_items.db')
 
         if not merchandise_db:
             # No merchandise database configured - return empty list
@@ -48,7 +50,7 @@ def api_orders():
         cursor = conn.cursor()
 
         cursor.execute('''
-            SELECT id, stripe_session_id, customer_email, customer_name,
+            SELECT id, receipt_id, stripe_session_id, customer_email, customer_name,
                    total_amount, status, created_at,
                    shipping_name, shipping_line1, shipping_line2, shipping_city,
                    shipping_state, shipping_postal_code, shipping_country
@@ -59,7 +61,7 @@ def api_orders():
 
         orders = []
         for row in cursor.fetchall():
-            order_id, session_id, email, name, amount, status, created_at, \
+            order_id, receipt_id, session_id, email, name, amount, status, created_at, \
             ship_name, ship_line1, ship_line2, ship_city, ship_state, ship_postal, ship_country = row
 
             # Format shipping address for display
@@ -73,9 +75,10 @@ def api_orders():
             ]
             shipping = '\n'.join(part for part in shipping_parts if part)
 
-            # Get order items for this order
+            # Get order items for this order (site orders)
             order_items = OrderItem.get_by_order_id(order_id)
             product_names = []
+            shop_name = None
 
             for item in order_items:
                 product = Product.get_by_id(item.product_id)
@@ -87,17 +90,42 @@ def api_orders():
                         item_name += f" x{item.quantity}"
                     product_names.append(item_name)
 
+            # If no product names found, check order_items table (Etsy orders)
+            if not product_names and receipt_id and items_db:
+                try:
+                    import sqlite3
+                    items_conn = sqlite3.connect(items_db)
+                    items_cursor = items_conn.cursor()
+                    items_cursor.execute('''
+                        SELECT shop, title, quantity, sku FROM order_items
+                        WHERE receipt_id = ?
+                    ''', (str(receipt_id),))
+                    etsy_items = items_cursor.fetchall()
+                    items_conn.close()
+
+                    for etsy_item in etsy_items:
+                        shop, title, qty, sku = etsy_item
+                        shop_name = shop
+                        item_name = title or "Unknown Product"
+                        if qty and int(qty) > 1:
+                            item_name += f" x{qty}"
+                        product_names.append(item_name)
+                except Exception as e:
+                    print(f"Error fetching Etsy order details: {e}")
+
             orders.append({
                 'id': order_id,
                 'order_number': f"ORD-{str(order_id).zfill(6)}",
+                'receipt_id': receipt_id,
                 'session_id': session_id,
                 'customer_email': email,
                 'customer_name': name,
                 'total_amount': amount,
-                'amount_display': f"£{amount / 100:.2f}",
+                'amount_display': f"£{amount / 100:.2f}" if amount else "£0.00",
                 'status': status,
                 'created_at': created_at,
-                'products': ", ".join(product_names) if product_names else "Unknown"
+                'products': ", ".join(product_names) if product_names else "Unknown",
+                'shop': shop_name
             })
 
         conn.close()
