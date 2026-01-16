@@ -930,18 +930,19 @@ def api_send_etsy_shipping_update():
                 sku = getattr(product, 'sku', None)
                 shop = getattr(product, 'shop_name', None)
 
-        # Get listing_id from design_engine.db partners table
-        listing_id = None
-        try:
-            partners_conn = sqlite3.connect(DB.DESIGN_ENGINE if hasattr(DB, 'DESIGN_ENGINE') else 'databases/design_engine.db')
-            partners_cursor = partners_conn.cursor()
-            partners_cursor.execute("SELECT listing_id FROM partners WHERE product_id = ?", (product_id,))
-            partner_row = partners_cursor.fetchone()
-            partners_conn.close()
-            if partner_row:
-                listing_id = partner_row[0]
-        except Exception as e:
-            print(f"Warning: Could not get listing_id from partners table: {e}")
+        # Get listing_id - first from order, then fall back to partners table
+        listing_id = getattr(order, 'listing_id', None)
+        if not listing_id:
+            try:
+                partners_conn = sqlite3.connect(DB.DESIGN_ENGINE if hasattr(DB, 'DESIGN_ENGINE') else 'databases/design_engine.db')
+                partners_cursor = partners_conn.cursor()
+                partners_cursor.execute("SELECT listing_id FROM partners WHERE product_id = ?", (product_id,))
+                partner_row = partners_cursor.fetchone()
+                partners_conn.close()
+                if partner_row:
+                    listing_id = partner_row[0]
+            except Exception as e:
+                print(f"Warning: Could not get listing_id from partners table: {e}")
 
         # Send shipping update
         from lozzalingo.modules.inkthreadable import inkthreadable_service
