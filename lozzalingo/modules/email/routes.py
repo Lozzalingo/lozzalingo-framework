@@ -240,7 +240,7 @@ def preview_index():
                     <div class="card-header">
                         <span class="card-icon">&#128231;</span>
                         <h3 class="card-title">Purchase Confirmation</h3>
-                        <p class="card-desc">Regular order confirmation template</p>
+                        <p class="card-desc">Aight Clothing order confirmation</p>
                     </div>
                     <div class="card-footer">Template Preview</div>
                 </a>
@@ -249,7 +249,7 @@ def preview_index():
                     <div class="card-header">
                         <span class="card-icon">&#9200;</span>
                         <h3 class="card-title">Pre-Order Confirmation</h3>
-                        <p class="card-desc">Pre-order confirmation with shipping info</p>
+                        <p class="card-desc">Aight Clothing pre-order confirmation</p>
                     </div>
                     <div class="card-footer">Template Preview</div>
                 </a>
@@ -289,6 +289,33 @@ def preview_index():
                     </div>
                     <div class="card-footer">Sends Live Email</div>
                 </a>
+
+                <a href="/admin/email-preview/credit-purchase" class="preview-card">
+                    <div class="card-header">
+                        <span class="card-icon">&#128176;</span>
+                        <h3 class="card-title">Credit Purchase</h3>
+                        <p class="card-desc">Crowd Sauced credit purchase confirmation</p>
+                    </div>
+                    <div class="card-footer">Template Preview</div>
+                </a>
+
+                <a href="/admin/email-preview/subscription" class="preview-card">
+                    <div class="card-header">
+                        <span class="card-icon">&#11088;</span>
+                        <h3 class="card-title">Subscription Confirmation</h3>
+                        <p class="card-desc">Crowd Sauced Premium subscription</p>
+                    </div>
+                    <div class="card-footer">Template Preview</div>
+                </a>
+
+                <a href="/admin/email-preview/subscription-renewal" class="preview-card">
+                    <div class="card-header">
+                        <span class="card-icon">&#128260;</span>
+                        <h3 class="card-title">Subscription Renewal</h3>
+                        <p class="card-desc">Monthly subscription renewal email</p>
+                    </div>
+                    <div class="card-footer">Template Preview</div>
+                </a>
             </div>
         </div>
     </body>
@@ -309,11 +336,9 @@ def preview_welcome(name="Friend"):
 @email_preview_bp.route('/purchase')
 @require_admin
 def preview_purchase():
-    """Preview purchase confirmation email template (regular order)"""
-    email_service = get_email_service()
-
+    """Preview purchase confirmation email template (Aight Clothing order)"""
     sample_order = {
-        'product_name': f'{email_service.brand_name} Official T-Shirt',
+        'product_name': 'Aight Clothing Official T-Shirt',
         'amount': 2999,
         'currency': 'GBP',
         'order_id': f'ORD-{datetime.now().year}-001',
@@ -321,18 +346,149 @@ def preview_purchase():
         'is_preorder': False
     }
 
-    html_content = email_service._get_purchase_template(sample_order)
+    # Use Aight Clothing branding
+    product_name = sample_order.get('product_name', 'N/A')
+    amount = sample_order.get('amount', 0) / 100
+    currency_symbol = '£'
+    order_id = sample_order.get('order_id', 'N/A')
+    size = sample_order.get('size', '')
+
+    html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation - Aight Clothing</title>
+    <!--[if mso]>
+    <style type="text/css">
+        body, table, td {{font-family: Arial, sans-serif !important;}}
+    </style>
+    <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="background-color: #ffffff; max-width: 600px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);">
+
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: #1a1a1a; padding: 32px 40px; text-align: center;">
+                            <h1 style="margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: #666666;">Order Confirmation</h1>
+                            <p style="margin: 16px 0 0 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; color: #ffffff;">AI-GHT CLOTHING</p>
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 700; color: #1a1a1a; letter-spacing: -0.5px;">Thank you for your order.</h2>
+                            <p style="margin: 0 0 32px 0; font-size: 15px; color: #666666; line-height: 1.6;">We've received your order and will begin processing it shortly.</p>
+
+                            <!-- Order Details Box -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #fafafa; border: 1px solid #e5e5e5; border-radius: 8px; margin-bottom: 32px;">
+                                <tr>
+                                    <td style="padding: 24px;">
+                                        <p style="margin: 0 0 16px 0; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #999999;">Order Details</p>
+
+                                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                            <tr>
+                                                <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
+                                                    <span style="font-size: 13px; color: #666666;">Order ID</span>
+                                                </td>
+                                                <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5; text-align: right;">
+                                                    <span style="font-size: 13px; font-weight: 600; color: #1a1a1a; font-family: monospace;">{order_id}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
+                                                    <span style="font-size: 13px; color: #666666;">Product</span>
+                                                </td>
+                                                <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5; text-align: right;">
+                                                    <span style="font-size: 13px; font-weight: 500; color: #1a1a1a;">{product_name}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
+                                                    <span style="font-size: 13px; color: #666666;">Size</span>
+                                                </td>
+                                                <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5; text-align: right;">
+                                                    <span style="font-size: 13px; font-weight: 500; color: #1a1a1a;">{size}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 16px 0 0 0;">
+                                                    <span style="font-size: 14px; font-weight: 600; color: #1a1a1a;">Total</span>
+                                                </td>
+                                                <td style="padding: 16px 0 0 0; text-align: right;">
+                                                    <span style="font-size: 20px; font-weight: 700; color: #1a1a1a;">{currency_symbol}{amount:.2f}</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Shipping Info -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #1a1a1a; border-radius: 8px; margin-bottom: 32px;">
+                                <tr>
+                                    <td style="padding: 24px;">
+                                        <p style="margin: 0 0 12px 0; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #666666;">What Happens Next</p>
+                                        <p style="margin: 0 0 8px 0; font-size: 14px; color: #ffffff; line-height: 1.6;"><strong style="color: #999999;">1.</strong> Your order is being processed</p>
+                                        <p style="margin: 0 0 8px 0; font-size: 14px; color: #ffffff; line-height: 1.6;"><strong style="color: #999999;">2.</strong> Production takes 4-7 business days</p>
+                                        <p style="margin: 0; font-size: 14px; color: #ffffff; line-height: 1.6;"><strong style="color: #999999;">3.</strong> We'll email you tracking info when shipped</p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- CTA Button -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center">
+                                        <a href="https://aightclothing.laurence.computer" style="display: inline-block; background-color: #1a1a1a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 16px 32px; border-radius: 6px;">Continue Shopping</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #fafafa; padding: 32px 40px; border-top: 1px solid #e5e5e5;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center">
+                                        <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: #1a1a1a;">AI-GHT CLOTHING</p>
+                                        <p style="margin: 0 0 16px 0; font-size: 12px; color: #999999;">Unique AI-designed apparel</p>
+                                        <p style="margin: 0; font-size: 12px; color: #999999;">
+                                            <a href="https://aightclothing.laurence.computer" style="color: #666666; text-decoration: none;">Website</a>
+                                            <span style="margin: 0 8px; color: #cccccc;">|</span>
+                                            <a href="mailto:aight@send.laurence.computer" style="color: #666666; text-decoration: none;">Support</a>
+                                        </p>
+                                        <p style="margin: 16px 0 0 0; font-size: 11px; color: #cccccc;">&copy; {datetime.now().year} Aight Clothing. All rights reserved.</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    """
     return render_template_string(html_content)
 
 
 @email_preview_bp.route('/purchase-preorder')
 @require_admin
 def preview_purchase_preorder():
-    """Preview purchase confirmation email template (pre-order)"""
-    email_service = get_email_service()
-
+    """Preview purchase confirmation email template (Aight Clothing pre-order)"""
     sample_order = {
-        'product_name': f'{email_service.brand_name} Limited Edition T-Shirt',
+        'product_name': 'Aight Clothing Limited Edition T-Shirt',
         'amount': 3499,
         'currency': 'GBP',
         'order_id': f'ORD-{datetime.now().year}-002',
@@ -340,7 +496,157 @@ def preview_purchase_preorder():
         'is_preorder': True
     }
 
-    html_content = email_service._get_purchase_template(sample_order)
+    # Use Aight Clothing branding
+    product_name = sample_order.get('product_name', 'N/A')
+    amount = sample_order.get('amount', 0) / 100
+    currency_symbol = '£'
+    order_id = sample_order.get('order_id', 'N/A')
+    size = sample_order.get('size', '')
+
+    html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pre-Order Confirmation - Aight Clothing</title>
+    <!--[if mso]>
+    <style type="text/css">
+        body, table, td {{font-family: Arial, sans-serif !important;}}
+    </style>
+    <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="background-color: #ffffff; max-width: 600px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);">
+
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: #1a1a1a; padding: 32px 40px; text-align: center;">
+                            <h1 style="margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: #666666;">Pre-Order Confirmation</h1>
+                            <p style="margin: 16px 0 0 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; color: #ffffff;">AI-GHT CLOTHING</p>
+                        </td>
+                    </tr>
+
+                    <!-- Status Bar -->
+                    <tr>
+                        <td style="background-color: #f59e0b; padding: 12px 40px; text-align: center;">
+                            <p style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: #ffffff;">Pre-Order Confirmed</p>
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 700; color: #1a1a1a; letter-spacing: -0.5px;">Thank you for your pre-order.</h2>
+                            <p style="margin: 0 0 32px 0; font-size: 15px; color: #666666; line-height: 1.6;">You've secured your item. We'll notify you when it's ready to ship.</p>
+
+                            <!-- Pre-Order Notice -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; margin-bottom: 24px;">
+                                <tr>
+                                    <td style="padding: 20px 24px;">
+                                        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #92400e;">Pre-Order Item</p>
+                                        <p style="margin: 0; font-size: 13px; color: #a16207; line-height: 1.5;">This item is currently in production. We'll email you with shipping updates and tracking info once your order is on its way.</p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Order Details Box -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #fafafa; border: 1px solid #e5e5e5; border-radius: 8px; margin-bottom: 32px;">
+                                <tr>
+                                    <td style="padding: 24px;">
+                                        <p style="margin: 0 0 16px 0; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #999999;">Order Details</p>
+
+                                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                            <tr>
+                                                <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
+                                                    <span style="font-size: 13px; color: #666666;">Order ID</span>
+                                                </td>
+                                                <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5; text-align: right;">
+                                                    <span style="font-size: 13px; font-weight: 600; color: #1a1a1a; font-family: monospace;">{order_id}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
+                                                    <span style="font-size: 13px; color: #666666;">Product</span>
+                                                </td>
+                                                <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5; text-align: right;">
+                                                    <span style="font-size: 13px; font-weight: 500; color: #1a1a1a;">{product_name}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
+                                                    <span style="font-size: 13px; color: #666666;">Size</span>
+                                                </td>
+                                                <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5; text-align: right;">
+                                                    <span style="font-size: 13px; font-weight: 500; color: #1a1a1a;">{size}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 16px 0 0 0;">
+                                                    <span style="font-size: 14px; font-weight: 600; color: #1a1a1a;">Total</span>
+                                                </td>
+                                                <td style="padding: 16px 0 0 0; text-align: right;">
+                                                    <span style="font-size: 20px; font-weight: 700; color: #1a1a1a;">{currency_symbol}{amount:.2f}</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Timeline -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #1a1a1a; border-radius: 8px; margin-bottom: 32px;">
+                                <tr>
+                                    <td style="padding: 24px;">
+                                        <p style="margin: 0 0 12px 0; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #666666;">What Happens Next</p>
+                                        <p style="margin: 0 0 8px 0; font-size: 14px; color: #ffffff; line-height: 1.6;"><strong style="color: #f59e0b;">1.</strong> Your pre-order is secured</p>
+                                        <p style="margin: 0 0 8px 0; font-size: 14px; color: #ffffff; line-height: 1.6;"><strong style="color: #f59e0b;">2.</strong> We'll email updates on production status</p>
+                                        <p style="margin: 0; font-size: 14px; color: #ffffff; line-height: 1.6;"><strong style="color: #f59e0b;">3.</strong> You'll get tracking info when shipped</p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- CTA Button -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center">
+                                        <a href="https://aightclothing.laurence.computer" style="display: inline-block; background-color: #1a1a1a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 16px 32px; border-radius: 6px;">Continue Shopping</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #fafafa; padding: 32px 40px; border-top: 1px solid #e5e5e5;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center">
+                                        <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: #1a1a1a;">AI-GHT CLOTHING</p>
+                                        <p style="margin: 0 0 16px 0; font-size: 12px; color: #999999;">Unique AI-designed apparel</p>
+                                        <p style="margin: 0; font-size: 12px; color: #999999;">
+                                            <a href="https://aightclothing.laurence.computer" style="color: #666666; text-decoration: none;">Website</a>
+                                            <span style="margin: 0 8px; color: #cccccc;">|</span>
+                                            <a href="mailto:aight@send.laurence.computer" style="color: #666666; text-decoration: none;">Support</a>
+                                        </p>
+                                        <p style="margin: 16px 0 0 0; font-size: 11px; color: #cccccc;">&copy; {datetime.now().year} Aight Clothing. All rights reserved.</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    """
     return render_template_string(html_content)
 
 
@@ -481,3 +787,402 @@ def preview_admin_subscriber():
     </ul>
     <p><a href="/admin/email-preview/">&larr; Back to Email Previews</a></p>
     '''
+
+
+# ================================
+# CROWD SAUCED SPECIFIC EMAILS
+# ================================
+
+@email_preview_bp.route('/credit-purchase')
+@require_admin
+def preview_credit_purchase():
+    """Preview credit purchase confirmation email (Crowd Sauced)"""
+    from datetime import datetime
+    credits_purchased = 50
+    amount_paid = 2249
+    new_balance = 75
+    amount_display = f"£{amount_paid / 100:.2f}"
+
+    html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credit Purchase Confirmation - Crowd Sauced</title>
+    <!--[if mso]>
+    <style type="text/css">
+        body, table, td {{font-family: Georgia, serif !important;}}
+    </style>
+    <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; background-color: #f7f5f0; font-family: Georgia, 'Times New Roman', serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f7f5f0;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="background-color: #ffffff; max-width: 600px; border: 3px solid #2c2c2c;">
+
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: #2c2c2c; padding: 32px 40px; text-align: center;">
+                            <h1 style="margin: 0; font-size: 11px; font-weight: 400; letter-spacing: 3px; text-transform: uppercase; color: #d4a574;">Credit Purchase</h1>
+                            <p style="margin: 12px 0 0 0; font-size: 28px; font-weight: 700; letter-spacing: 1px; color: #f7f5f0; font-family: Georgia, serif;">CROWD SAUCED</p>
+                        </td>
+                    </tr>
+
+                    <!-- Decorative Line -->
+                    <tr>
+                        <td style="background-color: #d4a574; height: 4px;"></td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 700; color: #2c2c2c; font-family: Georgia, serif;">Thank you for your purchase!</h2>
+                            <p style="margin: 0 0 32px 0; font-size: 15px; color: #6b6b6b; line-height: 1.7;">Your credits have been added to your account and are ready to use.</p>
+
+                            <!-- Credits Display -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 32px;">
+                                <tr>
+                                    <td align="center" style="padding: 24px; background-color: #f7f5f0; border: 2px dashed #d4a574;">
+                                        <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #6b6b6b;">New Balance</p>
+                                        <p style="margin: 0; font-size: 48px; font-weight: 700; color: #2c2c2c; font-family: Georgia, serif;">{new_balance}</p>
+                                        <p style="margin: 8px 0 0 0; font-size: 14px; color: #d4a574; text-transform: uppercase; letter-spacing: 1px;">credits</p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Order Details Box -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f7f5f0; border-left: 4px solid #2c2c2c; margin-bottom: 32px;">
+                                <tr>
+                                    <td style="padding: 24px;">
+                                        <p style="margin: 0 0 16px 0; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #6b6b6b;">Purchase Details</p>
+
+                                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                            <tr>
+                                                <td style="padding: 10px 0; border-bottom: 1px solid #e0d5c0;">
+                                                    <span style="font-size: 14px; color: #6b6b6b;">Credits Purchased</span>
+                                                </td>
+                                                <td style="padding: 10px 0; border-bottom: 1px solid #e0d5c0; text-align: right;">
+                                                    <span style="font-size: 14px; font-weight: 600; color: #2c2c2c;">{credits_purchased}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 14px 0 0 0;">
+                                                    <span style="font-size: 14px; font-weight: 600; color: #2c2c2c;">Amount Paid</span>
+                                                </td>
+                                                <td style="padding: 14px 0 0 0; text-align: right;">
+                                                    <span style="font-size: 20px; font-weight: 700; color: #2c2c2c;">{amount_display}</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 0 0 32px 0; font-size: 15px; color: #6b6b6b; line-height: 1.7; text-align: center;">You can now use your credits to create unique AI-generated t-shirt designs!</p>
+
+                            <!-- CTA Button -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center">
+                                        <a href="https://crowdsauced.laurence.computer" style="display: inline-block; background-color: #2c2c2c; color: #f7f5f0; text-decoration: none; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 16px 32px; border: 2px solid #2c2c2c;">Start Creating</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f7f5f0; padding: 32px 40px; border-top: 3px solid #2c2c2c;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center">
+                                        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 700; color: #2c2c2c; font-family: Georgia, serif;">CROWD SAUCED</p>
+                                        <p style="margin: 0 0 16px 0; font-size: 12px; color: #6b6b6b; font-style: italic;">AI-powered design studio</p>
+                                        <p style="margin: 0; font-size: 12px; color: #6b6b6b;">
+                                            <a href="https://crowdsauced.laurence.computer" style="color: #2c2c2c; text-decoration: none;">Website</a>
+                                            <span style="margin: 0 8px; color: #d4a574;">&#9670;</span>
+                                            <a href="mailto:crowdsauced@send.laurence.computer" style="color: #2c2c2c; text-decoration: none;">Support</a>
+                                        </p>
+                                        <p style="margin: 16px 0 0 0; font-size: 11px; color: #999999;">&copy; {datetime.now().year} Crowd Sauced. All rights reserved.</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    """
+    return render_template_string(html_body)
+
+
+@email_preview_bp.route('/subscription')
+@require_admin
+def preview_subscription():
+    """Preview subscription confirmation email (Crowd Sauced Premium)"""
+    from datetime import datetime
+    credits_granted = 25
+
+    html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Confirmation - Crowd Sauced Premium</title>
+    <!--[if mso]>
+    <style type="text/css">
+        body, table, td {{font-family: Georgia, serif !important;}}
+    </style>
+    <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; background-color: #f7f5f0; font-family: Georgia, 'Times New Roman', serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f7f5f0;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="background-color: #ffffff; max-width: 600px; border: 3px solid #2c2c2c;">
+
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: #2c2c2c; padding: 32px 40px; text-align: center;">
+                            <h1 style="margin: 0; font-size: 11px; font-weight: 400; letter-spacing: 3px; text-transform: uppercase; color: #d4a574;">Welcome to Premium</h1>
+                            <p style="margin: 12px 0 0 0; font-size: 28px; font-weight: 700; letter-spacing: 1px; color: #f7f5f0; font-family: Georgia, serif;">CROWD SAUCED</p>
+                        </td>
+                    </tr>
+
+                    <!-- Decorative Line -->
+                    <tr>
+                        <td style="background-color: #d4a574; height: 4px;"></td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 700; color: #2c2c2c; font-family: Georgia, serif;">Your subscription is active!</h2>
+                            <p style="margin: 0 0 32px 0; font-size: 15px; color: #6b6b6b; line-height: 1.7;">Thank you for joining Crowd Sauced Premium. Your monthly credits have been added.</p>
+
+                            <!-- Credits Display -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 32px;">
+                                <tr>
+                                    <td align="center" style="padding: 24px; background-color: #f7f5f0; border: 2px dashed #d4a574;">
+                                        <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #6b6b6b;">Credits Added</p>
+                                        <p style="margin: 0; font-size: 48px; font-weight: 700; color: #2c2c2c; font-family: Georgia, serif;">{credits_granted}</p>
+                                        <p style="margin: 8px 0 0 0; font-size: 14px; color: #d4a574; text-transform: uppercase; letter-spacing: 1px;">credits</p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Subscription Details Box -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f7f5f0; border-left: 4px solid #2c2c2c; margin-bottom: 32px;">
+                                <tr>
+                                    <td style="padding: 24px;">
+                                        <p style="margin: 0 0 16px 0; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #6b6b6b;">Subscription Details</p>
+
+                                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                            <tr>
+                                                <td style="padding: 10px 0; border-bottom: 1px solid #e0d5c0;">
+                                                    <span style="font-size: 14px; color: #6b6b6b;">Plan</span>
+                                                </td>
+                                                <td style="padding: 10px 0; border-bottom: 1px solid #e0d5c0; text-align: right;">
+                                                    <span style="font-size: 14px; font-weight: 600; color: #2c2c2c;">Monthly Premium</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 14px 0 0 0;">
+                                                    <span style="font-size: 14px; font-weight: 600; color: #2c2c2c;">Price</span>
+                                                </td>
+                                                <td style="padding: 14px 0 0 0; text-align: right;">
+                                                    <span style="font-size: 20px; font-weight: 700; color: #2c2c2c;">£9.99<span style="font-size: 14px; font-weight: 400; color: #6b6b6b;">/month</span></span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Benefits -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #2c2c2c; margin-bottom: 32px;">
+                                <tr>
+                                    <td style="padding: 24px;">
+                                        <p style="margin: 0 0 16px 0; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #d4a574;">Your Premium Benefits</p>
+                                        <p style="margin: 0 0 8px 0; font-size: 14px; color: #f7f5f0; line-height: 1.6;"><span style="color: #d4a574;">&#9670;</span>&nbsp;&nbsp;25 credits every month</p>
+                                        <p style="margin: 0 0 8px 0; font-size: 14px; color: #f7f5f0; line-height: 1.6;"><span style="color: #d4a574;">&#9670;</span>&nbsp;&nbsp;Priority design generation</p>
+                                        <p style="margin: 0 0 8px 0; font-size: 14px; color: #f7f5f0; line-height: 1.6;"><span style="color: #d4a574;">&#9670;</span>&nbsp;&nbsp;Exclusive premium designs</p>
+                                        <p style="margin: 0; font-size: 14px; color: #f7f5f0; line-height: 1.6;"><span style="color: #d4a574;">&#9670;</span>&nbsp;&nbsp;Cancel anytime</p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- CTA Button -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center">
+                                        <a href="https://crowdsauced.laurence.computer" style="display: inline-block; background-color: #2c2c2c; color: #f7f5f0; text-decoration: none; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 16px 32px; border: 2px solid #2c2c2c;">Start Creating</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f7f5f0; padding: 32px 40px; border-top: 3px solid #2c2c2c;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center">
+                                        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 700; color: #2c2c2c; font-family: Georgia, serif;">CROWD SAUCED</p>
+                                        <p style="margin: 0 0 16px 0; font-size: 12px; color: #6b6b6b; font-style: italic;">AI-powered design studio</p>
+                                        <p style="margin: 0; font-size: 12px; color: #6b6b6b;">
+                                            <a href="https://crowdsauced.laurence.computer" style="color: #2c2c2c; text-decoration: none;">Website</a>
+                                            <span style="margin: 0 8px; color: #d4a574;">&#9670;</span>
+                                            <a href="mailto:crowdsauced@send.laurence.computer" style="color: #2c2c2c; text-decoration: none;">Support</a>
+                                        </p>
+                                        <p style="margin: 16px 0 0 0; font-size: 11px; color: #999999;">&copy; {datetime.now().year} Crowd Sauced. All rights reserved.</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    """
+    return render_template_string(html_body)
+
+
+@email_preview_bp.route('/subscription-renewal')
+@require_admin
+def preview_subscription_renewal():
+    """Preview subscription renewal email (Crowd Sauced Premium)"""
+    from datetime import datetime
+    credits_granted = 25
+
+    html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Renewal - Crowd Sauced Premium</title>
+    <!--[if mso]>
+    <style type="text/css">
+        body, table, td {{font-family: Georgia, serif !important;}}
+    </style>
+    <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; background-color: #f7f5f0; font-family: Georgia, 'Times New Roman', serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f7f5f0;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="background-color: #ffffff; max-width: 600px; border: 3px solid #2c2c2c;">
+
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: #2c2c2c; padding: 32px 40px; text-align: center;">
+                            <h1 style="margin: 0; font-size: 11px; font-weight: 400; letter-spacing: 3px; text-transform: uppercase; color: #d4a574;">Monthly Renewal</h1>
+                            <p style="margin: 12px 0 0 0; font-size: 28px; font-weight: 700; letter-spacing: 1px; color: #f7f5f0; font-family: Georgia, serif;">CROWD SAUCED</p>
+                        </td>
+                    </tr>
+
+                    <!-- Decorative Line -->
+                    <tr>
+                        <td style="background-color: #d4a574; height: 4px;"></td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 700; color: #2c2c2c; font-family: Georgia, serif;">Your credits have been refreshed!</h2>
+                            <p style="margin: 0 0 32px 0; font-size: 15px; color: #6b6b6b; line-height: 1.7;">Your monthly subscription has renewed and your credits are ready to use.</p>
+
+                            <!-- Credits Display -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 32px;">
+                                <tr>
+                                    <td align="center" style="padding: 24px; background-color: #f7f5f0; border: 2px dashed #d4a574;">
+                                        <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #6b6b6b;">Credits Added</p>
+                                        <p style="margin: 0; font-size: 48px; font-weight: 700; color: #2c2c2c; font-family: Georgia, serif;">{credits_granted}</p>
+                                        <p style="margin: 8px 0 0 0; font-size: 14px; color: #d4a574; text-transform: uppercase; letter-spacing: 1px;">credits</p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Renewal Details Box -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f7f5f0; border-left: 4px solid #2c2c2c; margin-bottom: 32px;">
+                                <tr>
+                                    <td style="padding: 24px;">
+                                        <p style="margin: 0 0 16px 0; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #6b6b6b;">Renewal Details</p>
+
+                                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                            <tr>
+                                                <td style="padding: 10px 0; border-bottom: 1px solid #e0d5c0;">
+                                                    <span style="font-size: 14px; color: #6b6b6b;">Plan</span>
+                                                </td>
+                                                <td style="padding: 10px 0; border-bottom: 1px solid #e0d5c0; text-align: right;">
+                                                    <span style="font-size: 14px; font-weight: 600; color: #2c2c2c;">Monthly Premium</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 14px 0 0 0;">
+                                                    <span style="font-size: 14px; font-weight: 600; color: #2c2c2c;">Amount Charged</span>
+                                                </td>
+                                                <td style="padding: 14px 0 0 0; text-align: right;">
+                                                    <span style="font-size: 20px; font-weight: 700; color: #2c2c2c;">£9.99</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 0 0 32px 0; font-size: 15px; color: #6b6b6b; line-height: 1.7; text-align: center;">Your credits are ready. Create more unique AI-generated t-shirt designs!</p>
+
+                            <!-- CTA Button -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center">
+                                        <a href="https://crowdsauced.laurence.computer" style="display: inline-block; background-color: #2c2c2c; color: #f7f5f0; text-decoration: none; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 16px 32px; border: 2px solid #2c2c2c;">Start Creating</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f7f5f0; padding: 32px 40px; border-top: 3px solid #2c2c2c;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center">
+                                        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 700; color: #2c2c2c; font-family: Georgia, serif;">CROWD SAUCED</p>
+                                        <p style="margin: 0 0 16px 0; font-size: 12px; color: #6b6b6b; font-style: italic;">AI-powered design studio</p>
+                                        <p style="margin: 0; font-size: 12px; color: #6b6b6b;">
+                                            <a href="https://crowdsauced.laurence.computer" style="color: #2c2c2c; text-decoration: none;">Website</a>
+                                            <span style="margin: 0 8px; color: #d4a574;">&#9670;</span>
+                                            <a href="mailto:crowdsauced@send.laurence.computer" style="color: #2c2c2c; text-decoration: none;">Support</a>
+                                        </p>
+                                        <p style="margin: 16px 0 0 0; font-size: 11px; color: #999999;">&copy; {datetime.now().year} Crowd Sauced. All rights reserved.</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    """
+    return render_template_string(html_body)

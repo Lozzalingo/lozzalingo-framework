@@ -451,6 +451,39 @@ def api_stats():
             except Exception as e:
                 print(f"Merchandise stats error: {e}")
 
+        # Get customer spotlight stats (uses user_db)
+        if user_db and os.path.exists(user_db):
+            try:
+                with db_connect(user_db) as conn:
+                    cursor = conn.cursor()
+                    # Check if table exists
+                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='customer_spotlight'")
+                    if cursor.fetchone():
+                        stats['customer_spotlight'] = {
+                            'total_active': 0,
+                            'size_savings_mb': 0
+                        }
+                        # Count active spotlights
+                        cursor.execute("SELECT COUNT(*) FROM customer_spotlight WHERE is_active = 1")
+                        result = cursor.fetchone()
+                        stats['customer_spotlight']['total_active'] = result[0] if result else 0
+
+                        # Calculate size savings (original - optimized)
+                        cursor.execute("""
+                            SELECT SUM(file_size), SUM(optimized_file_size)
+                            FROM customer_spotlight
+                            WHERE file_size IS NOT NULL
+                        """)
+                        result = cursor.fetchone()
+                        if result and result[0]:
+                            original_size = result[0] or 0
+                            optimized_size = result[1] or original_size
+                            savings_bytes = original_size - optimized_size
+                            savings_mb = round(savings_bytes / (1024 * 1024), 2)
+                            stats['customer_spotlight']['size_savings_mb'] = max(0, savings_mb)
+            except Exception as e:
+                print(f"Customer spotlight stats error: {e}")
+
         return jsonify(stats)
 
     except Exception as e:

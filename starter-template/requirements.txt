@@ -1,0 +1,25 @@
+# Lozzalingo Starter Template Requirements
+# =========================================
+
+# The framework (install from local path or PyPI when published)
+# For local development, use:
+#   pip install -e /path/to/lozzalingo-framework
+# Or uncomment below when published to PyPI:
+# lozzalingo>=0.2.0
+
+# Core dependencies (these are also in lozzalingo, but listed for clarity)
+Flask>=3.0.0
+Flask-SQLAlchemy>=3.0.0
+Flask-CORS>=4.0.0
+python-dotenv>=1.0.0
+requests>=2.28.0
+PyYAML>=6.0.0
+
+# Optional: For email functionality
+resend>=0.5.0
+
+# Optional: For OAuth
+authlib>=1.2.0
+
+# Optional: For production deployment
+gunicorn>=21.0.0

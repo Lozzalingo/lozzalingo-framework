@@ -12,6 +12,7 @@ The framework provides ready-to-use modules that you can plug into your Flask ap
 - **Auth Module**: User authentication system (email/password, OAuth, password reset)
 - **Analytics Module**: Admin analytics dashboard
 - **Email Module**: Configurable email service with Resend API (templates + preview)
+- **Customer Spotlight Module**: Instagram-style customer gallery with infinite scroll
 
 ## Installation
 
@@ -745,5 +746,185 @@ resend>=0.5.0
 
 **Preview pages showing default branding:**
 - Make sure `email_service.init_app(app)` is called before using the service
+
+
+## Customer Spotlight Module
+
+Instagram-style customer gallery showcasing user-submitted photos. Features an infinite-scroll horizontal carousel and admin management interface.
+
+### Features
+
+- **Horizontal Infinite Scroll**: Seamless looping carousel of customer photos
+- **Admin Management**: Add, edit, delete spotlight entries
+- **Image Upload**: Upload customer photos with Instagram handle
+- **Public API**: JSON endpoint for fetching spotlight data
+- **Responsive Design**: Works on mobile and desktop
+- **Generic Styling**: Base styles that can be overridden per-project
+
+### Setup
+
+```python
+from flask import Flask
+from lozzalingo.modules.customer_spotlight import customer_spotlight_bp
+
+app = Flask(__name__)
+
+# Register the blueprint
+app.register_blueprint(customer_spotlight_bp)
+
+if __name__ == '__main__':
+    app.run(debug=True)
+```
+
+### Routes Provided
+
+| Route | Description |
+|-------|-------------|
+| `/api/customer-spotlight` | Public API - returns spotlight entries as JSON |
+| `/admin/customer-spotlight-editor` | Admin interface to manage spotlights |
+| `/admin/customer-spotlight-editor/add` | Add new spotlight entry |
+| `/admin/customer-spotlight-editor/edit/<id>` | Edit spotlight entry |
+| `/admin/customer-spotlight-editor/delete/<id>` | Delete spotlight entry |
+
+### Configuration
+
+```python
+# Optional: Configure the database path
+app.config['CUSTOMER_SPOTLIGHT_DB'] = 'path/to/spotlight.db'
+
+# Optional: Configure upload folder for images
+app.config['CUSTOMER_SPOTLIGHT_UPLOAD_FOLDER'] = 'path/to/uploads'
+```
+
+### Including in Templates
+
+Add the spotlight section to your page:
+
+```html
+<!-- Include the spotlight section template -->
+<div id="customer-spotlight">
+    {% include 'customer_spotlight/spotlight_section.html' %}
+</div>
+```
+
+The template automatically includes the required CSS and JavaScript.
+
+### Custom Styling (Per-Project Override)
+
+The module provides **generic base styles** that work out of the box. To customize the look for your brand:
+
+1. **Create a project-specific override CSS file** (e.g., `your-project/static/css/spotlight.css`)
+
+2. **Use CSS variables for theming** (if your project has a theme.css):
+
+```css
+/* your-project/static/css/spotlight.css */
+.spotlight-title {
+    font-family: var(--font-display);
+    color: var(--color-text);
+    text-shadow: 1px 1px 0 var(--color-accent);
+}
+
+.customer-item {
+    border: var(--border-width) solid var(--color-border);
+}
+
+.customer-item:hover {
+    box-shadow: var(--shadow-hover);
+}
+
+.customer-overlay {
+    background: var(--color-overlay);
+    color: var(--color-text-inverse);
+}
+
+.customer-handle::before {
+    color: var(--color-accent);
+}
+```
+
+3. **Include the override CSS after the framework CSS**:
+
+```html
+<head>
+    <!-- Framework base styles load automatically from the template -->
+
+    <!-- Your project's theme variables -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+
+    <!-- Your project's spotlight override (loads last to override base) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/spotlight.css') }}">
+</head>
+```
+
+### Database Schema
+
+The module creates a `customer_spotlight` table:
+
+```sql
+CREATE TABLE customer_spotlight (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    instagram_handle TEXT NOT NULL,
+    image_path TEXT NOT NULL,
+    display_order INTEGER DEFAULT 0,
+    is_active INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### API Response Format
+
+`GET /api/customer-spotlight` returns:
+
+```json
+{
+    "spotlights": [
+        {
+            "id": 1,
+            "instagram_handle": "username",
+            "image_url": "/customer-spotlight/images/photo.jpg",
+            "display_order": 1
+        }
+    ],
+    "total": 10
+}
+```
+
+### JavaScript Integration
+
+The included `spotlight.js` handles:
+- Fetching data from the API
+- Rendering spotlight cards
+- Infinite scroll animation
+- Loading states and error handling
+
+To customize behavior, you can override the JavaScript:
+
+```javascript
+// After including spotlight.js, customize settings
+if (window.CustomerSpotlight) {
+    CustomerSpotlight.config.scrollSpeed = 30; // pixels per second
+    CustomerSpotlight.config.cardWidth = 220;  // card width in pixels
+}
+```
+
+### Troubleshooting
+
+**Spotlight not showing:**
+1. Check that the blueprint is registered
+2. Verify the database has entries (check `/admin/customer-spotlight-editor`)
+3. Check browser console for JavaScript errors
+4. Verify the API endpoint returns data: `curl http://localhost:5001/api/customer-spotlight`
+
+**Styling looks wrong:**
+- The module ships with generic gray/neutral styles
+- Create a project-specific CSS override file
+- Ensure your override CSS loads AFTER the framework base styles
+- Use CSS variables from your theme.css for consistent branding
+
+**Images not loading:**
+- Check the `CUSTOMER_SPOTLIGHT_UPLOAD_FOLDER` config
+- Verify image files exist in the upload directory
+- Check file permissions
 
 

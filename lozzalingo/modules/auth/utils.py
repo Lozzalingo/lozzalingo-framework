@@ -1,15 +1,29 @@
-from authlib.integrations.flask_client import OAuth
-from flask import flash, redirect, url_for, session
+"""
+Auth Utilities
+==============
+
+Utility functions for authentication including OAuth support.
+"""
+
+from flask import flash, redirect, url_for, session, current_app
 import os
+
+# Optional import for authlib (OAuth support)
+try:
+    from authlib.integrations.flask_client import OAuth
+    HAS_AUTHLIB = True
+except ImportError:
+    HAS_AUTHLIB = False
+    OAuth = None
 
 # Optional import for app-specific config
 try:
-    from config import Config
+    from lozzalingo.core import Config
 except ImportError:
     Config = None
 
-# OAuth configuration
-oauth = OAuth()
+# OAuth configuration - only if authlib is installed
+oauth = OAuth() if HAS_AUTHLIB else None
 
 def validate_password_strength(password):
     """Validate password meets security requirements"""
@@ -24,29 +38,45 @@ def validate_password_strength(password):
 
 def configure_oauth(app):
     """Configure OAuth providers"""
+    if not HAS_AUTHLIB or oauth is None:
+        print("[AUTH] OAuth not available - authlib not installed")
+        return None, None
+
     oauth.init_app(app)
-    
+
+    google = None
+    github = None
+
     # Google OAuth - using explicit endpoints instead of discovery
-    google = oauth.register(
-        name='google',
-        client_id=Config.GOOGLE_CLIENT_ID,
-        client_secret=Config.GOOGLE_CLIENT_SECRET,
-        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-        client_kwargs={
-            'scope': 'openid email profile'
-        }
-    )
+    google_client_id = app.config.get('GOOGLE_CLIENT_ID') or os.getenv('GOOGLE_CLIENT_ID')
+    google_client_secret = app.config.get('GOOGLE_CLIENT_SECRET') or os.getenv('GOOGLE_CLIENT_SECRET')
+
+    if google_client_id and google_client_secret:
+        google = oauth.register(
+            name='google',
+            client_id=google_client_id,
+            client_secret=google_client_secret,
+            server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+            client_kwargs={
+                'scope': 'openid email profile'
+            }
+        )
+
     # GitHub OAuth
-    github = oauth.register(
-        name='github',
-        client_id=os.getenv('GITHUB_CLIENT_ID'),
-        client_secret=os.getenv('GITHUB_CLIENT_SECRET'),
-        token_url='https://github.com/login/oauth/access_token',
-        authorize_url='https://github.com/login/oauth/authorize',
-        api_base_url='https://api.github.com/',
-        client_kwargs={'scope': 'user:email'},
-    )
-    
+    github_client_id = app.config.get('GITHUB_CLIENT_ID') or os.getenv('GITHUB_CLIENT_ID')
+    github_client_secret = app.config.get('GITHUB_CLIENT_SECRET') or os.getenv('GITHUB_CLIENT_SECRET')
+
+    if github_client_id and github_client_secret:
+        github = oauth.register(
+            name='github',
+            client_id=github_client_id,
+            client_secret=github_client_secret,
+            token_url='https://github.com/login/oauth/access_token',
+            authorize_url='https://github.com/login/oauth/authorize',
+            api_base_url='https://api.github.com/',
+            client_kwargs={'scope': 'user:email'},
+        )
+
     return google, github
 
 # Helper function to check if user is authenticated

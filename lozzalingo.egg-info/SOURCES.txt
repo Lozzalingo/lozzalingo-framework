@@ -24,10 +24,20 @@ lozzalingo/modules/analytics/static/css/analytics.css
 lozzalingo/modules/analytics/static/css/analytics.min.css
 lozzalingo/modules/analytics/static/js/analytics.js
 lozzalingo/modules/analytics/static/js/analytics.min.js
+lozzalingo/modules/analytics/static/js/device_analytics.js
+lozzalingo/modules/analytics/static/js/device_analytics.min.js
 lozzalingo/modules/analytics/templates/analytics.html
 lozzalingo/modules/analytics/templates/analyticsold.html
 lozzalingo/modules/auth/__init__.py
+lozzalingo/modules/auth/database.py
+lozzalingo/modules/auth/email.py
 lozzalingo/modules/auth/routes.py
+lozzalingo/modules/auth/utils.py
+lozzalingo/modules/auth/static/auth-shared.css
+lozzalingo/modules/auth/static/password-reset.js
+lozzalingo/modules/auth/static/register.css
+lozzalingo/modules/auth/static/register.js
+lozzalingo/modules/auth/static/signin.js
 lozzalingo/modules/auth/static/css/admin.css
 lozzalingo/modules/auth/static/css/admin.min.css
 lozzalingo/modules/auth/static/css/main.min.css
@@ -35,5 +45,68 @@ lozzalingo/modules/auth/templates/change_password.html
 lozzalingo/modules/auth/templates/create_admin.html
 lozzalingo/modules/auth/templates/dashboard.html
 lozzalingo/modules/auth/templates/login.html
+lozzalingo/modules/auth/templates/auth/forgot-password.html
+lozzalingo/modules/auth/templates/auth/password-reset.html
+lozzalingo/modules/auth/templates/auth/register.html
+lozzalingo/modules/auth/templates/auth/sign-in.html
+lozzalingo/modules/customer_spotlight/__init__.py
+lozzalingo/modules/customer_spotlight/routes.py
+lozzalingo/modules/customer_spotlight/static/spotlight.css
+lozzalingo/modules/customer_spotlight/static/spotlight.js
+lozzalingo/modules/customer_spotlight/static/images/01b2bb7033e4467d9cb5f904ad6867c4_Pej.png
+lozzalingo/modules/customer_spotlight/static/images/0ca866f285014948af6c2f4dfb3188c6_WhatsApp_Image_2025-09-24_at_14.34.56.jpeg
+lozzalingo/modules/customer_spotlight/static/images/16b5b9cf9fc74e0bb1dbfbdd9139cfbe_WhatsApp_2.png
+lozzalingo/modules/customer_spotlight/static/images/322f50eefa8f4320b6850fdbb2965db1_WhatsApp_Image_2025-09-22_at_17.37.46.jpeg
+lozzalingo/modules/customer_spotlight/static/images/69dbeda7e0974a8685fe6c4fa70d772d_IMG_7987.jpg
+lozzalingo/modules/customer_spotlight/static/images/IMG_7987.jpg
+lozzalingo/modules/customer_spotlight/static/images/WhatsApp 2.png
+lozzalingo/modules/customer_spotlight/static/images/WhatsApp Image 2025-07-03 at 13.33.55.jpeg
+lozzalingo/modules/customer_spotlight/static/images/WhatsApp Image 2025-09-05 at 15.02.08.png
+lozzalingo/modules/customer_spotlight/static/images/WhatsApp Image 2025-09-22 at 17.37.46.jpeg
+lozzalingo/modules/customer_spotlight/static/images/WhatsApp Image 2025-09-24 at 14.34.56.jpeg
+lozzalingo/modules/customer_spotlight/static/images/WhatsApp Image 2025-11-23 at 16.02.45.png
+lozzalingo/modules/customer_spotlight/static/images/WhatsApp Image 2025-11-23 at 16.02.51.jpeg
+lozzalingo/modules/customer_spotlight/static/images/bbe7be38d8624a6baa00396fbfbd2bea_WhatsApp_Image_2025-11-23_at_16.02.45.png
+lozzalingo/modules/customer_spotlight/static/images/bdd18dfb961b4f8a8e41c4023f5d4942_Close.png
+lozzalingo/modules/customer_spotlight/static/images/e0b13c06f1b14449880f0900627d19bb_WhatsApp_Image_2025-07-03_at_13.33.55.jpeg
+lozzalingo/modules/customer_spotlight/static/images/f0b1f89b6a1a4c32a1a1a97d16ed981b_WhatsApp_Image_2025-11-23_at_16.02.51.jpeg
+lozzalingo/modules/customer_spotlight/templates/customer_spotlight/admin.html
+lozzalingo/modules/customer_spotlight/templates/customer_spotlight/spotlight_section.html
 lozzalingo/modules/dashboard/__init__.py
+lozzalingo/modules/dashboard/routes.py
+lozzalingo/modules/dashboard/static/css/admin.css
+lozzalingo/modules/dashboard/static/css/admin.min.css
+lozzalingo/modules/dashboard/static/css/main.css
+lozzalingo/modules/dashboard/static/css/main.min.css
+lozzalingo/modules/dashboard/static/css/merchandiseeditor.css
+lozzalingo/modules/dashboard/static/css/newseditor.css
+lozzalingo/modules/dashboard/static/js/merchandiseeditor.js
+lozzalingo/modules/dashboard/static/js/newseditor.js
 lozzalingo/modules/dashboard/templates/dashboard.html
+lozzalingo/modules/dashboard/templates/dashboard/change_password.html
+lozzalingo/modules/dashboard/templates/dashboard/create_admin.html
+lozzalingo/modules/dashboard/templates/dashboard/dashboard.html
+lozzalingo/modules/dashboard/templates/dashboard/login.html
+lozzalingo/modules/email/__init__.py
+lozzalingo/modules/email/email_service.py
+lozzalingo/modules/email/routes.py
+lozzalingo/modules/external_api/__init__.py
+lozzalingo/modules/external_api/routes.py
+lozzalingo/modules/external_api/templates/external_api/api_keys_manager.html
+lozzalingo/modules/merchandise/__init__.py
+lozzalingo/modules/merchandise/routes.py
+lozzalingo/modules/merchandise/templates/merchandise/merchandise_editor.html
+lozzalingo/modules/news/__init__.py
+lozzalingo/modules/news/routes.py
+lozzalingo/modules/news/static/.DS_Store
+lozzalingo/modules/news/static/css/newseditor.css
+lozzalingo/modules/news/static/js/newseditor.js
+lozzalingo/modules/news/templates/news/news_editor.html
+lozzalingo/modules/news_public/__init__.py
+lozzalingo/modules/news_public/routes.py
+lozzalingo/modules/news_public/templates/news_public/blog.html
+lozzalingo/modules/news_public/templates/news_public/blog_post.html
+lozzalingo/modules/news_public/templates/news_public/news.html
+lozzalingo/modules/orders/__init__.py
+lozzalingo/modules/orders/routes.py
+lozzalingo/modules/orders/templates/orders/orders_manager.html

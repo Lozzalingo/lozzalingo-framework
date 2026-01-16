@@ -3,13 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
+    <title>Admin Dashboard - {{ brand_name if brand_name else 'Lozzalingo' }}</title>
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin.min.css') }}">
 </head>
 <body>
-    {% include 'header.html' %}
-
     <div class="admin-container">
         <!-- Flash messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -188,6 +186,56 @@
                 </div>
             </div>
 
+            <!-- Site Settings Card -->
+            {% if endpoint_exists('settings.settings_page') %}
+            <div class="dashboard-card">
+                <div class="card-icon">⚙️</div>
+                <div class="card-content">
+                    <h2>Site Settings</h2>
+                    <p>Configure API keys, payment settings, email, and site configuration.</p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-number">🔐</span>
+                            <span class="stat-label">Encrypted</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number">5</span>
+                            <span class="stat-label">Categories</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <a href="{{ url_for('settings.settings_page') }}" class="admin-btn admin-btn-primary">
+                        ⚙️ Configure Settings
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- API Keys Card -->
+            <div class="dashboard-card">
+                <div class="card-icon">🔑</div>
+                <div class="card-content">
+                    <h2>API Keys</h2>
+                    <p>Manage API keys for external integrations and third-party services.</p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-number" id="totalApiKeys">-</span>
+                            <span class="stat-label">Active Keys</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number">🔒</span>
+                            <span class="stat-label">Secure</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <a href="/admin/api-keys" class="admin-btn admin-btn-primary">
+                        🔐 Manage API Keys
+                    </a>
+                </div>
+            </div>
+
             <!-- Email Logs Card -->
             {% if endpoint_exists('admin.email_logs') %}
             <div class="dashboard-card">
@@ -346,6 +394,10 @@
                         <span class="quick-action-icon">📧</span>
                         <span>Email Preview</span>
                     </a>
+                    <a href="/admin/api-keys" class="quick-action">
+                        <span class="quick-action-icon">🔑</span>
+                        <span>API Keys</span>
+                    </a>
                     {% if endpoint_exists('admin.template_previews') %}
                     <a href="{{ url_for('admin.template_previews') }}" class="quick-action">
                         <span class="quick-action-icon">🎨</span>
@@ -364,7 +416,7 @@
 
         <!-- Footer -->
         <footer class="admin-footer">
-            <p>&copy; <span class="current-year">{{ current_year() }}</span> Mario Pinto Admin Panel | Last login: <span id="lastLogin">{{ session.get('last_login', 'N/A') }}</span></p>
+            <p>&copy; <span class="current-year">{{ current_year() }}</span> {{ brand_name if brand_name else 'Lozzalingo' }} Admin Panel | Last login: <span id="lastLogin">{{ session.get('last_login', 'N/A') }}</span></p>
         </footer>
     </div>
 

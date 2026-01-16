@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}{{ brand_name }} - Home{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-content">
+        <h1>Welcome to {{ brand_name }}</h1>
+        <p class="hero-subtitle">Your site is up and running with Lozzalingo Framework</p>
+        <div class="hero-buttons">
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-primary">Admin Dashboard</a>
+            <a href="{{ url_for('about') }}" class="btn btn-secondary">Learn More</a>
+        </div>
+    </div>
+</section>
+
+<section class="features">
+    <div class="container">
+        <h2>What's Included</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>Analytics</h3>
+                <p>Track page views, user behavior, devices, and referrers automatically.</p>
+                <a href="/admin/analytics">View Analytics</a>
+            </div>
+            <div class="feature-card">
+                <h3>Admin Dashboard</h3>
+                <p>Manage your site with a beautiful admin interface.</p>
+                <a href="/admin/dashboard">Open Dashboard</a>
+            </div>
+            <div class="feature-card">
+                <h3>User Authentication</h3>
+                <p>User registration, login, password reset, and OAuth support.</p>
+                <a href="/login">User Login</a>
+            </div>
+            <div class="feature-card">
+                <h3>News/Blog</h3>
+                <p>Create and publish articles with a built-in editor.</p>
+                <a href="/news/">View News</a>
+            </div>
+            <div class="feature-card">
+                <h3>Email Service</h3>
+                <p>Send transactional emails with pre-built templates.</p>
+                <a href="/admin/email-preview/">Preview Emails</a>
+            </div>
+            <div class="feature-card">
+                <h3>Customer Spotlight</h3>
+                <p>Showcase customer photos in an Instagram-style gallery.</p>
+                <a href="/admin/customer-spotlight-editor">Manage Spotlight</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="getting-started">
+    <div class="container">
+        <h2>Getting Started</h2>
+        <ol class="steps">
+            <li>
+                <strong>Create an admin account:</strong>
+                Visit <a href="/admin/create-admin">/admin/create-admin</a> to set up your first admin user.
+            </li>
+            <li>
+                <strong>Login to admin:</strong>
+                Go to <a href="/admin/login">/admin/login</a> and sign in with your admin credentials.
+            </li>
+            <li>
+                <strong>Explore the dashboard:</strong>
+                The <a href="/admin/dashboard">admin dashboard</a> shows all available modules.
+            </li>
+            <li>
+                <strong>Customize this template:</strong>
+                Edit <code>templates/</code> and <code>static/css/style.css</code> to match your brand.
+            </li>
+        </ol>
+    </div>
+</section>
+{% endblock %}

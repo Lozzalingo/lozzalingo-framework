@@ -16,6 +16,19 @@ A modular, reusable Flask admin dashboard framework.
 - **News Public Module**: Public-facing blog/news display with template override support
   - Framework provides: Backend routes, database queries, content formatting
   - Projects provide: Custom styled templates matching site design
+- **Customer Spotlight Module**: Instagram-style customer gallery with infinite scroll
+  - Horizontal carousel showcasing customer photos
+  - Admin interface for managing spotlight entries
+  - Generic base styles with per-project override support
+- **Email Module**: Configurable email service with Resend API
+  - Welcome, purchase, shipping, news notification templates
+  - Admin preview interface for all templates
+  - Configurable branding (name, tagline, colors)
+- **External API Module**: API key authenticated endpoints for external integrations
+  - API key generation and management
+  - Token-based authentication for external requests
+  - Blog post creation/management via external API
+  - Admin interface for managing API keys
 
 More modules coming soon!
 
@@ -158,6 +171,106 @@ Access:
 - News listing: `/news/`
 - Individual posts: `/news/<slug>`
 - API: `/news/api/articles`
+
+### Customer Spotlight Module
+
+Instagram-style customer photo gallery with infinite-scroll horizontal carousel:
+- Public API endpoint for fetching spotlight data
+- Admin interface for managing entries
+- Generic base styles (override per-project for custom branding)
+- Responsive design for mobile and desktop
+
+**Usage:**
+```python
+from lozzalingo.modules.customer_spotlight import customer_spotlight_bp
+
+app.register_blueprint(customer_spotlight_bp)
+```
+
+**Include in templates:**
+```html
+<div id="customer-spotlight">
+    {% include 'customer_spotlight/spotlight_section.html' %}
+</div>
+```
+
+**Custom styling:** Create a project-specific `spotlight.css` that overrides the generic base styles. See INTEGRATION.md for detailed styling instructions.
+
+Access:
+- Public API: `/api/customer-spotlight`
+- Admin Editor: `/admin/customer-spotlight-editor`
+
+### Email Module
+
+Configurable email service using Resend API with template preview:
+- Welcome, purchase confirmation, shipping, news notification templates
+- Admin preview interface for all email templates
+- Configurable branding (brand name, tagline, website URL)
+- Email logging to SQLite database
+
+**Usage:**
+```python
+from lozzalingo.modules.email import email_preview_bp, email_service
+
+app.config['RESEND_API_KEY'] = 'your-api-key'
+app.config['EMAIL_ADDRESS'] = 'noreply@yourdomain.com'
+app.config['EMAIL_BRAND_NAME'] = 'Your Brand'
+
+email_service.init_app(app)
+app.register_blueprint(email_preview_bp)
+```
+
+Access:
+- Email Preview: `/admin/email-preview/`
+
+### External API Module
+
+API key authenticated endpoints for external integrations (e.g., publishing blog posts from an external CMS):
+- API key generation with secure hashing
+- Token-based authentication via `X-API-Key` header
+- Full CRUD operations on articles
+- Admin interface for key management
+
+**Usage:**
+```python
+from lozzalingo.modules.external_api import external_api_bp, external_api_admin_bp
+
+# Public API (API key auth)
+app.register_blueprint(external_api_bp)  # Registers at /api/external
+
+# Admin interface for managing API keys
+app.register_blueprint(external_api_admin_bp)  # Registers at /admin/api-keys
+```
+
+**External API Endpoints:**
+```
+POST   /api/external/articles      - Create new article
+GET    /api/external/articles      - List all articles
+GET    /api/external/articles/<id> - Get single article
+PUT    /api/external/articles/<id> - Update article
+DELETE /api/external/articles/<id> - Delete article
+```
+
+**Authentication:**
+Include your API key in the request header:
+```
+X-API-Key: lzl_your_api_key_here
+```
+
+**Example Request (Create Article):**
+```bash
+curl -X POST https://your-site.com/api/external/articles \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: lzl_your_api_key_here" \
+  -d '{
+    "title": "My Article Title",
+    "content": "<p>Article content here...</p>",
+    "status": "published"
+  }'
+```
+
+Access:
+- API Keys Manager: `/admin/api-keys`
 
 ## Development
 

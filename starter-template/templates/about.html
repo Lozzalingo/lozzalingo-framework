@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}About - {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="container">
+        <h1>About {{ brand_name }}</h1>
+        <p>Built with the Lozzalingo Framework</p>
+    </div>
+</section>
+
+<section class="about-content">
+    <div class="container">
+        <div class="about-section">
+            <h2>What is Lozzalingo?</h2>
+            <p>
+                Lozzalingo is a batteries-included Flask framework that lets you build
+                websites quickly with built-in analytics, authentication, admin dashboard,
+                and more - all working out of the box.
+            </p>
+        </div>
+
+        <div class="about-section">
+            <h2>Features</h2>
+            <ul class="feature-list">
+                <li><strong>Analytics:</strong> Automatic page view tracking, device detection, referrer analysis</li>
+                <li><strong>Admin Dashboard:</strong> Beautiful admin interface with modular design</li>
+                <li><strong>User Authentication:</strong> Email/password login, OAuth (Google, GitHub), password reset</li>
+                <li><strong>News/Blog:</strong> Create and publish articles with draft/publish workflow</li>
+                <li><strong>Email Service:</strong> Transactional emails via Resend API with templates</li>
+                <li><strong>Customer Spotlight:</strong> Instagram-style customer photo gallery</li>
+                <li><strong>Merchandise:</strong> Product management system</li>
+                <li><strong>Orders:</strong> Order management interface</li>
+                <li><strong>External API:</strong> API key authentication for external integrations</li>
+            </ul>
+        </div>
+
+        <div class="about-section">
+            <h2>Quick Start</h2>
+            <pre><code>from flask import Flask
+from lozzalingo import Lozzalingo
+
+app = Flask(__name__)
+lozzalingo = Lozzalingo(app)
+
+# That's it! All modules are now available.</code></pre>
+        </div>
+
+        <div class="about-section">
+            <h2>Configuration</h2>
+            <p>
+                Customize your site using <code>lozzalingo.yaml</code>:
+            </p>
+            <pre><code>site:
+  name: "My Site"
+  tagline: "Welcome to my site"
+
+features:
+  analytics: true
+  auth: true
+  news: true
+  email: true</code></pre>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -441,6 +441,121 @@ class InkThreadableService:
 
         return updated_count
 
+    def send_etsy_shipping_update(self, order_data: Dict[str, Any],
+                                   webhook_url: str,
+                                   callback_url: str) -> Dict[str, Any]:
+        """
+        Send shipping update to Make.com webhook for Etsy order
+
+        Args:
+            order_data: Dict containing order details (receipt_id, shop, sku, listing_id,
+                       inkthreadable_id, carrier, tracking_number, shipped_at)
+            webhook_url: Make.com webhook URL
+            callback_url: Callback URL (ngrok or production URL)
+
+        Returns:
+            Dict with success status and message
+        """
+        payload = {
+            "route": "shipping_update",
+            "cloudflared_link": callback_url,
+            "shop_name": order_data.get('shop') or order_data.get('shop_name'),
+            "sku": order_data.get('sku'),
+            "listing_id": order_data.get('listing_id'),
+            "receipt_id": order_data.get('receipt_id'),
+            "_id": order_data.get('inkthreadable_id'),
+            "inkthreadable_id": order_data.get('inkthreadable_id'),
+            "carrier": order_data.get('carrier'),
+            "tracking_number": order_data.get('tracking_number'),
+            "shipped_at": order_data.get('shipped_at')
+        }
+
+        try:
+            response = requests.post(webhook_url, json=payload, timeout=30)
+            if response.status_code == 200:
+                return {
+                    'success': True,
+                    'message': f"Shipping update sent for receipt {order_data.get('receipt_id')}"
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': f"Make.com returned {response.status_code}: {response.text}"
+                }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def process_etsy_shipping_webhooks(self, get_db_func, get_items_db_func,
+                                        webhook_url: str, callback_url: str) -> int:
+        """
+        Process shipping webhooks for all shipped Etsy orders that haven't been updated
+
+        Args:
+            get_db_func: Function to get merchandise database connection
+            get_items_db_func: Function to get order_items database connection
+            webhook_url: Make.com webhook URL
+            callback_url: Callback URL (ngrok or production)
+
+        Returns:
+            Count of orders processed
+        """
+        # Get shipped orders that haven't had Etsy update sent
+        conn = get_items_db_func()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT sku, listing_id, receipt_id, inkthreadable_id, carrier,
+                   tracking_number, shipped_at, shop
+            FROM order_items
+            WHERE etsy_shipping_updated IS NULL
+            AND shipped_at IS NOT NULL
+            AND shipped_at != ''
+        """)
+
+        pending_orders = cursor.fetchall()
+        conn.close()
+
+        print(f"Found {len(pending_orders)} orders ready for Etsy shipping update")
+
+        processed_count = 0
+
+        for order_row in pending_orders:
+            sku, listing_id, receipt_id, inkthreadable_id, carrier, tracking_number, shipped_at, shop = order_row
+
+            order_data = {
+                'sku': sku,
+                'listing_id': listing_id,
+                'receipt_id': receipt_id,
+                'inkthreadable_id': inkthreadable_id,
+                'carrier': carrier,
+                'tracking_number': tracking_number,
+                'shipped_at': shipped_at,
+                'shop': shop
+            }
+
+            result = self.send_etsy_shipping_update(order_data, webhook_url, callback_url)
+
+            if result.get('success'):
+                # Mark as updated in database
+                conn = get_items_db_func()
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE order_items
+                    SET etsy_shipping_updated = CURRENT_TIMESTAMP
+                    WHERE receipt_id = ?
+                """, (receipt_id,))
+                conn.commit()
+                conn.close()
+                processed_count += 1
+                print(f"Sent Etsy shipping update for receipt {receipt_id}")
+            else:
+                print(f"Failed to send Etsy update for {receipt_id}: {result.get('error')}")
+
+        return processed_count
+
 
 # Global instance (can be configured per-app)
 inkthreadable_service = InkThreadableService()

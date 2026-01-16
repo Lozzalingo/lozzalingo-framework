@@ -2,7 +2,7 @@ import sqlite3
 import hashlib
 import secrets
 from datetime import datetime
-from config import Config
+from lozzalingo.core import Config
 
 class SignInDatabase:
     @staticmethod

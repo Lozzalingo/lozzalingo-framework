@@ -860,3 +860,107 @@ def api_fetch_etsy_orders():
     except Exception as e:
         print(f"Error fetching Etsy orders: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@orders_bp.route('/api/send-etsy-shipping-update', methods=['POST'])
+def api_send_etsy_shipping_update():
+    """Send shipping update to Etsy via Make.com webhook"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        import os
+        from dotenv import load_dotenv
+        load_dotenv(override=True)
+
+        data = request.get_json() or {}
+        order_id = data.get('order_id')
+        receipt_id = data.get('receipt_id')
+
+        if not order_id and not receipt_id:
+            return jsonify({'success': False, 'error': 'order_id or receipt_id required'}), 400
+
+        # Get webhook URL and callback URL
+        webhook_url = os.getenv('MAKE_ORDER_WEBHOOK_URL')
+        if not webhook_url:
+            return jsonify({'success': False, 'error': 'MAKE_ORDER_WEBHOOK_URL not configured'}), 500
+
+        # Determine callback URL
+        environment = os.getenv('ENVIRONMENT', 'development')
+        if environment == 'production' or os.getenv('USE_NGROK', 'true').lower() == 'false':
+            callback_url = os.getenv('PRODUCTION_BASE_URL')
+        else:
+            callback_url = os.getenv('NGROK_TUNNEL_URL')
+
+        if not callback_url:
+            return jsonify({'success': False, 'error': 'Could not determine callback URL'}), 500
+
+        # Get order data from both databases
+        from app.models.merchandise import Order, get_merchandise_db
+        from db_schema import DB
+
+        import sqlite3
+
+        # Get order from merchandise.db
+        if order_id:
+            order = Order.get_by_id(order_id)
+            if not order:
+                return jsonify({'success': False, 'error': 'Order not found'}), 404
+            receipt_id = getattr(order, 'receipt_id', None)
+
+        # Get additional data from order_items (clothing_items.db)
+        items_conn = sqlite3.connect(DB.ITEMS)
+        items_cursor = items_conn.cursor()
+        items_cursor.execute("""
+            SELECT sku, listing_id, shop, carrier, tracking_number, shipped_at, inkthreadable_id
+            FROM order_items
+            WHERE receipt_id = ?
+        """, (str(receipt_id),))
+        item_row = items_cursor.fetchone()
+        items_conn.close()
+
+        if not item_row:
+            return jsonify({'success': False, 'error': 'Order items not found'}), 404
+
+        sku, listing_id, shop, carrier, tracking_number, shipped_at, inkthreadable_id = item_row
+
+        if not shipped_at:
+            return jsonify({'success': False, 'error': 'Order has not been shipped yet'}), 400
+
+        # Send shipping update
+        from lozzalingo.modules.inkthreadable import inkthreadable_service
+
+        order_data = {
+            'receipt_id': receipt_id,
+            'sku': sku,
+            'listing_id': listing_id,
+            'shop': shop,
+            'carrier': carrier,
+            'tracking_number': tracking_number,
+            'shipped_at': shipped_at,
+            'inkthreadable_id': inkthreadable_id
+        }
+
+        result = inkthreadable_service.send_etsy_shipping_update(order_data, webhook_url, callback_url)
+
+        if result.get('success'):
+            # Mark as updated in order_items
+            items_conn = sqlite3.connect(DB.ITEMS)
+            items_cursor = items_conn.cursor()
+            items_cursor.execute("""
+                UPDATE order_items
+                SET etsy_shipping_updated = CURRENT_TIMESTAMP
+                WHERE receipt_id = ?
+            """, (str(receipt_id),))
+            items_conn.commit()
+            items_conn.close()
+
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 500
+
+    except Exception as e:
+        print(f"Error sending Etsy shipping update: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500

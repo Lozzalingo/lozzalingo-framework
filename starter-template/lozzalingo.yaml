@@ -1,0 +1,38 @@
+# =============================================================================
+# Lozzalingo Configuration
+# =============================================================================
+# This file configures your Lozzalingo-powered site.
+# All settings are optional - sensible defaults are used if not specified.
+
+site:
+  name: "My Lozzalingo Site"
+  tagline: "Built with Lozzalingo Framework"
+
+# Enable/disable features (all enabled by default)
+features:
+  analytics: true
+  auth: true
+  dashboard: true
+  news: true
+  news_public: true
+  email: true
+  customer_spotlight: true
+  merchandise: true
+  orders: true
+  external_api: true
+
+# Analytics settings
+analytics:
+  track_admin: false  # Don't track admin page views
+
+# Email settings (configure in .env for security)
+# email:
+#   resend_api_key: "${RESEND_API_KEY}"
+#   from_address: "noreply@yourdomain.com"
+#   support_email: "support@yourdomain.com"
+#   admin_email: "admin@yourdomain.com"
+
+# OAuth settings (configure in .env for security)
+# auth:
+#   google_client_id: "${GOOGLE_CLIENT_ID}"
+#   google_client_secret: "${GOOGLE_CLIENT_SECRET}"

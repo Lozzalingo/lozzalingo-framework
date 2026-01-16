@@ -931,6 +931,14 @@
                                 title="Delete order">
                             🗑️ Delete
                         </button>
+                        ${order.receipt_id ? `
+                        <button name="send_etsy_shipping" class="btn-small btn-ship"
+                                onclick="sendEtsyShippingUpdate(${order.id}, '${order.receipt_id}', this)"
+                                title="Send shipping update to Etsy"
+                                style="background: #f39c12; color: white;">
+                            📦 Etsy Ship
+                        </button>
+                        ` : ''}
                     </td>
                 </tr>
             `).join('');
@@ -1602,8 +1610,37 @@
         async function updateOrderItem(event, itemId, orderId) { event.preventDefault(); const formData = new FormData(event.target); try { const response = await fetch(`${API_BASE}/api/update-order-item`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: itemId, order_id: orderId, quantity: parseInt(formData.get('quantity')), size: formData.get('size') || null, color: formData.get('color') || null, price_at_time: Math.round(parseFloat(formData.get('price_at_time')) * 100) }) }); const data = await response.json(); if (data.success) { showAlert('✅ Item updated successfully!', 'success'); viewOrderDetails(orderId); loadOrders(); } else { showAlert('❌ Error updating item: ' + data.error, 'error'); } } catch (error) { console.error('Error updating item:', error); showAlert('❌ Failed to update item.', 'error'); } }
         async function deleteOrderItem(itemId, orderId) { if (!confirm('⚠️ Delete this item from the order?\n\nThis action cannot be undone and will update the order total.')) return; try { const response = await fetch(`${API_BASE}/api/delete-order-item`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: itemId, order_id: orderId }) }); const data = await response.json(); if (data.success) { showAlert('✅ Item deleted successfully!', 'success'); const itemRow = document.getElementById(`item-${itemId}`); if (itemRow) { itemRow.style.transition = 'opacity 0.3s ease'; itemRow.style.opacity = '0'; setTimeout(() => { viewOrderDetails(orderId); loadOrders(); }, 300); } else { viewOrderDetails(orderId); loadOrders(); } } else { showAlert('❌ Error deleting item: ' + data.error, 'error'); } } catch (error) { console.error('Error deleting item:', error); showAlert('❌ Failed to delete item.', 'error'); } }
 
+        async function sendEtsyShippingUpdate(orderId, receiptId, button) {
+            if (!confirm('📦 Send shipping update to Etsy?\n\nThis will mark the order as shipped on Etsy with tracking info.')) return;
+            const originalText = button.innerHTML;
+            button.innerHTML = '⏳ Sending...';
+            button.disabled = true;
+            try {
+                const response = await fetch(`${API_BASE}/api/send-etsy-shipping-update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_id: orderId, receipt_id: receiptId })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showAlert('✅ ' + (data.message || 'Shipping update sent to Etsy!'), 'success');
+                    button.innerHTML = '✅ Sent';
+                    button.style.background = '#27ae60';
+                } else {
+                    showAlert('❌ ' + (data.error || 'Failed to send shipping update'), 'error');
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error sending Etsy shipping update:', error);
+                showAlert('❌ Failed to send shipping update.', 'error');
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        }
+
         // Make functions globally accessible
-        window.viewOrderDetails = viewOrderDetails; window.editOrderDetails = editOrderDetails; window.deleteOrder = deleteOrder; window.createNewOrder = createNewOrder; window.addOrderItem = addOrderItem; window.editOrderItem = editOrderItem; window.deleteOrderItem = deleteOrderItem; window.saveOrderItem = saveOrderItem; window.updateOrderItem = updateOrderItem; window.saveAllOrderChanges = saveAllOrderChanges; window.addNewOrderProduct = addNewOrderProduct; window.closeProductSelectModal = closeProductSelectModal; window.updateProductPrice = updateProductPrice; window.addProductToNewOrder = addProductToNewOrder; window.removeNewOrderItem = removeNewOrderItem; window.finalizeNewOrder = finalizeNewOrder; window.toggleEditMode = toggleEditMode; window.cancelEditMode = cancelEditMode; window.saveOrderChanges = saveOrderChanges; window.changePage = changePage; window.applyFilters = applyFilters; window.closeOrderModal = closeOrderModal; window.resendConfirmation = resendConfirmation; window.resendConfirmationFromModal = resendConfirmationFromModal; window.resendToInkThreadable = resendToInkThreadable; window.checkShippingStatus = checkShippingStatus;
+        window.viewOrderDetails = viewOrderDetails; window.editOrderDetails = editOrderDetails; window.deleteOrder = deleteOrder; window.createNewOrder = createNewOrder; window.addOrderItem = addOrderItem; window.editOrderItem = editOrderItem; window.deleteOrderItem = deleteOrderItem; window.saveOrderItem = saveOrderItem; window.updateOrderItem = updateOrderItem; window.saveAllOrderChanges = saveAllOrderChanges; window.addNewOrderProduct = addNewOrderProduct; window.closeProductSelectModal = closeProductSelectModal; window.updateProductPrice = updateProductPrice; window.addProductToNewOrder = addProductToNewOrder; window.removeNewOrderItem = removeNewOrderItem; window.finalizeNewOrder = finalizeNewOrder; window.toggleEditMode = toggleEditMode; window.cancelEditMode = cancelEditMode; window.saveOrderChanges = saveOrderChanges; window.changePage = changePage; window.applyFilters = applyFilters; window.closeOrderModal = closeOrderModal; window.resendConfirmation = resendConfirmation; window.resendConfirmationFromModal = resendConfirmationFromModal; window.resendToInkThreadable = resendToInkThreadable; window.checkShippingStatus = checkShippingStatus; window.sendEtsyShippingUpdate = sendEtsyShippingUpdate;
     </script>
 </body>
 </html>

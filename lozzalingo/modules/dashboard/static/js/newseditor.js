@@ -303,6 +303,18 @@ async function handleSubmit(status) {
     const content = document.getElementById('content').value.trim();
     const imageUrl = document.getElementById('imageUrl').value.trim();
 
+    // New SEO & metadata fields
+    const excerpt = document.getElementById('excerpt').value.trim();
+    const metaTitle = document.getElementById('metaTitle').value.trim();
+    const metaDescription = document.getElementById('metaDescription').value.trim();
+    const categoryName = document.getElementById('categoryName').value.trim();
+
+    // New author & source fields
+    const authorName = document.getElementById('authorName').value.trim();
+    const authorEmail = document.getElementById('authorEmail').value.trim();
+    const sourceId = document.getElementById('sourceId').value.trim();
+    const sourceUrl = document.getElementById('sourceUrl').value.trim();
+
     if (!title || !content) {
         alert('Please fill in both title and content fields.');
         return;
@@ -313,7 +325,15 @@ async function handleSubmit(status) {
         title,
         content,
         image_url: imageUrl || null,
-        status: status
+        status: status,
+        excerpt: excerpt || null,
+        meta_title: metaTitle || null,
+        meta_description: metaDescription || null,
+        category_name: categoryName || null,
+        author_name: authorName || null,
+        author_email: authorEmail || null,
+        source_id: sourceId || null,
+        source_url: sourceUrl || null
     };
 
     console.log('Submitting data:', data);
@@ -393,6 +413,18 @@ async function editArticle(id) {
         document.getElementById('title').value = article.title;
         document.getElementById('content').value = article.content;
         document.getElementById('imageUrl').value = article.image_url || '';
+
+        // Populate SEO & metadata fields
+        document.getElementById('excerpt').value = article.excerpt || '';
+        document.getElementById('metaTitle').value = article.meta_title || '';
+        document.getElementById('metaDescription').value = article.meta_description || '';
+        document.getElementById('categoryName').value = article.category_name || '';
+
+        // Populate author & source fields
+        document.getElementById('authorName').value = article.author_name || '';
+        document.getElementById('authorEmail').value = article.author_email || '';
+        document.getElementById('sourceId').value = article.source_id || '';
+        document.getElementById('sourceUrl').value = article.source_url || '';
 
         // Trigger image preview
         if (article.image_url) {

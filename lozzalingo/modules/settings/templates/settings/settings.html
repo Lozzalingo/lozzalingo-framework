@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - {{ brand_name if brand_name else 'Lozzalingo' }} Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            color: #1a1a2e;
+        }
+
+        .settings-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .settings-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: #e5e7eb;
+            color: #374151;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: #d1d5db;
+        }
+
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+
+        .flash-message {
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .flash-message.success {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+        }
+
+        .flash-message.error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .encryption-notice {
+            background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+            border: 1px solid #93c5fd;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .encryption-notice.warning {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-color: #f59e0b;
+        }
+
+        .encryption-notice .icon {
+            font-size: 1.5rem;
+        }
+
+        .encryption-notice p {
+            font-size: 0.875rem;
+            color: #1e40af;
+        }
+
+        .encryption-notice.warning p {
+            color: #92400e;
+        }
+
+        .settings-form {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .category-section {
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .category-section:last-child {
+            border-bottom: none;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px 24px;
+            background: #f9fafb;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .category-header:hover {
+            background: #f3f4f6;
+        }
+
+        .category-icon {
+            font-size: 1.5rem;
+        }
+
+        .category-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .category-toggle {
+            font-size: 1.2rem;
+            color: #9ca3af;
+            transition: transform 0.2s;
+        }
+
+        .category-section.expanded .category-toggle {
+            transform: rotate(180deg);
+        }
+
+        .category-content {
+            display: none;
+            padding: 20px 24px;
+            background: white;
+        }
+
+        .category-section.expanded .category-content {
+            display: block;
+        }
+
+        .setting-row {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 16px;
+            align-items: start;
+            margin-bottom: 20px;
+        }
+
+        .setting-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            font-weight: 500;
+            color: #374151;
+            padding-top: 10px;
+        }
+
+        .setting-label small {
+            display: block;
+            font-weight: 400;
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .setting-input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 0.95rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            transition: all 0.2s;
+            background: #f9fafb;
+        }
+
+        .setting-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .setting-input[type="password"] {
+            font-family: monospace;
+        }
+
+        .setting-input.has-value {
+            border-color: #10b981;
+        }
+
+        select.setting-input {
+            cursor: pointer;
+        }
+
+        .input-group {
+            position: relative;
+        }
+
+        .input-group .toggle-visibility {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: #9ca3af;
+            padding: 4px;
+        }
+
+        .input-group .toggle-visibility:hover {
+            color: #6b7280;
+        }
+
+        .test-btn {
+            margin-top: 12px;
+            padding: 8px 16px;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #374151;
+            transition: all 0.2s;
+        }
+
+        .test-btn:hover {
+            background: #e5e7eb;
+        }
+
+        .test-btn.success {
+            background: #d1fae5;
+            border-color: #10b981;
+            color: #065f46;
+        }
+
+        .test-btn.error {
+            background: #fee2e2;
+            border-color: #ef4444;
+            color: #991b1b;
+        }
+
+        .form-actions {
+            padding: 24px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .save-btn {
+            padding: 12px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px -5px rgba(102, 126, 234, 0.5);
+        }
+
+        .reset-btn {
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #6b7280;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .reset-btn:hover {
+            border-color: #d1d5db;
+            background: #f9fafb;
+        }
+
+        @media (max-width: 768px) {
+            .setting-row {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .setting-label {
+                padding-top: 0;
+            }
+
+            .settings-header {
+                flex-direction: column;
+                gap: 16px;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="settings-container">
+        <div class="settings-header">
+            <h1>Site Settings</h1>
+            <a href="{{ url_for('admin.dashboard') }}" class="back-btn">
+                <span>&larr;</span> Back to Dashboard
+            </a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% if has_crypto %}
+        <div class="encryption-notice">
+            <span class="icon">🔒</span>
+            <p><strong>Encryption enabled.</strong> Secret keys are encrypted at rest using AES-128 encryption.</p>
+        </div>
+        {% else %}
+        <div class="encryption-notice warning">
+            <span class="icon">⚠️</span>
+            <p><strong>Encryption disabled.</strong> Install the <code>cryptography</code> package for encrypted storage: <code>pip install cryptography</code></p>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('settings.save_settings') }}" class="settings-form">
+            {% for category_key, category in schema.items() %}
+            <div class="category-section {% if loop.first %}expanded{% endif %}">
+                <div class="category-header" onclick="toggleCategory(this)">
+                    <span class="category-icon">{{ category.icon }}</span>
+                    <span class="category-title">{{ category.label }}</span>
+                    <span class="category-toggle">▼</span>
+                </div>
+                <div class="category-content">
+                    {% for setting in category.settings %}
+                    <div class="setting-row">
+                        <label class="setting-label" for="{{ setting.key }}">
+                            {{ setting.label }}
+                            {% if setting.description %}
+                            <small>{{ setting.description }}</small>
+                            {% endif %}
+                        </label>
+                        <div class="input-group">
+                            {% if setting.type == 'select' %}
+                            <select name="{{ setting.key }}" id="{{ setting.key }}"
+                                    class="setting-input {% if current_values.get(setting.key) %}has-value{% endif %}">
+                                {% for option in setting.options %}
+                                <option value="{{ option }}"
+                                        {% if current_values.get(setting.key) == option or (not current_values.get(setting.key) and setting.get('default') == option) %}selected{% endif %}>
+                                    {{ option|capitalize }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% elif setting.type == 'password' %}
+                            <input type="password"
+                                   name="{{ setting.key }}"
+                                   id="{{ setting.key }}"
+                                   class="setting-input {% if current_values.get(setting.key) %}has-value{% endif %}"
+                                   value="{{ current_values.get(setting.key, '') }}"
+                                   placeholder="{{ setting.description or '' }}"
+                                   autocomplete="off">
+                            <button type="button" class="toggle-visibility" onclick="togglePassword('{{ setting.key }}')">👁️</button>
+                            {% else %}
+                            <input type="{{ setting.type }}"
+                                   name="{{ setting.key }}"
+                                   id="{{ setting.key }}"
+                                   class="setting-input {% if current_values.get(setting.key) %}has-value{% endif %}"
+                                   value="{{ current_values.get(setting.key, '') }}"
+                                   placeholder="{{ setting.description or '' }}">
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if category_key == 'stripe' %}
+                    <button type="button" class="test-btn" onclick="testStripe(this)">Test Stripe Connection</button>
+                    {% elif category_key == 'email' %}
+                    <button type="button" class="test-btn" onclick="testResend(this)">Test Resend Connection</button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="form-actions">
+                <button type="reset" class="reset-btn">Reset Changes</button>
+                <button type="submit" class="save-btn">Save Settings</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        function toggleCategory(header) {
+            const section = header.parentElement;
+            section.classList.toggle('expanded');
+        }
+
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') {
+                input.type = 'text';
+            } else {
+                input.type = 'password';
+            }
+        }
+
+        async function testStripe(btn) {
+            btn.textContent = 'Testing...';
+            btn.classList.remove('success', 'error');
+
+            try {
+                const response = await fetch('{{ url_for("settings.test_stripe_connection") }}');
+                const data = await response.json();
+
+                if (data.success) {
+                    btn.textContent = '✓ ' + data.message;
+                    btn.classList.add('success');
+                } else {
+                    btn.textContent = '✗ ' + data.error;
+                    btn.classList.add('error');
+                }
+            } catch (e) {
+                btn.textContent = '✗ Connection failed';
+                btn.classList.add('error');
+            }
+
+            setTimeout(() => {
+                btn.textContent = 'Test Stripe Connection';
+                btn.classList.remove('success', 'error');
+            }, 5000);
+        }
+
+        async function testResend(btn) {
+            btn.textContent = 'Testing...';
+            btn.classList.remove('success', 'error');
+
+            try {
+                const response = await fetch('{{ url_for("settings.test_resend_connection") }}');
+                const data = await response.json();
+
+                if (data.success) {
+                    btn.textContent = '✓ ' + data.message;
+                    btn.classList.add('success');
+                } else {
+                    btn.textContent = '✗ ' + data.error;
+                    btn.classList.add('error');
+                }
+            } catch (e) {
+                btn.textContent = '✗ Connection failed';
+                btn.classList.add('error');
+            }
+
+            setTimeout(() => {
+                btn.textContent = 'Test Resend Connection';
+                btn.classList.remove('success', 'error');
+            }, 5000);
+        }
+
+        // Mark inputs with values
+        document.querySelectorAll('.setting-input').forEach(input => {
+            input.addEventListener('input', function() {
+                if (this.value) {
+                    this.classList.add('has-value');
+                } else {
+                    this.classList.remove('has-value');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

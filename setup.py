@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="lozzalingo",
-    version="0.1.0",
+    version="0.2.0",
     author="Laurence Stephan",
     author_email="your.email@example.com",
     description="A modular Flask admin dashboard framework with analytics, authentication, and more",
@@ -32,6 +32,7 @@ setup(
         "Flask-CORS>=4.0.0",
         "python-dotenv>=1.0.0",
         "requests>=2.28.0",
+        "PyYAML>=6.0.0",
     ],
     extras_require={
         "dev": [
@@ -39,6 +40,15 @@ setup(
             "pytest-flask>=1.2",
             "black>=22.0",
             "flake8>=5.0",
+        ],
+        "crypto": [
+            "cryptography>=41.0.0",
+        ],
+        "all": [
+            "cryptography>=41.0.0",
+            "stripe>=7.0.0",
+            "resend>=0.7.0",
+            "authlib>=1.2.0",
         ],
     },
     include_package_data=True,

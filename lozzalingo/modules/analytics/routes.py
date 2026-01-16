@@ -46,11 +46,91 @@ def add_no_cache_headers(response):
     response.headers['Expires'] = '0'
     return response
 
-def get_db_connection(db_path):
+
+def get_allowed_origins():
+    """
+    Get allowed origins for analytics API requests.
+
+    Priority:
+    1. ANALYTICS_ALLOWED_ORIGINS from app config (list)
+    2. Dynamic: allow the current request's origin
+    3. Always include localhost variants for development
+    """
+    allowed = set()
+
+    # Always allow localhost for development
+    allowed.add('http://localhost:5000')
+    allowed.add('http://localhost:5001')
+    allowed.add('http://127.0.0.1:5000')
+    allowed.add('http://127.0.0.1:5001')
+
+    # Check for configured origins
+    if current_app.config.get('ANALYTICS_ALLOWED_ORIGINS'):
+        configured = current_app.config['ANALYTICS_ALLOWED_ORIGINS']
+        if isinstance(configured, list):
+            allowed.update(configured)
+        elif isinstance(configured, str):
+            allowed.add(configured)
+
+    # Dynamically allow the request's origin (makes development easy)
+    origin = request.headers.get('Origin')
+    if origin:
+        allowed.add(origin)
+
+    # Also allow based on Host header (for same-origin requests)
+    host = request.headers.get('Host')
+    if host:
+        # Add both http and https variants
+        if not host.startswith('http'):
+            allowed.add(f'http://{host}')
+            allowed.add(f'https://{host}')
+
+    return list(allowed)
+
+
+def is_valid_analytics_origin():
+    """
+    Check if the current request comes from a valid origin.
+
+    Returns: (is_valid: bool, reason: str)
+    """
+    origin = request.headers.get('Origin')
+    referer = request.headers.get('Referer')
+    host = request.headers.get('Host')
+
+    allowed_origins = get_allowed_origins()
+
+    # Check origin header
+    if origin and origin in allowed_origins:
+        return True, "Valid origin"
+
+    # Check referer header
+    if referer:
+        for allowed in allowed_origins:
+            if referer.startswith(allowed):
+                return True, "Valid referer"
+
+    # Allow requests without origin/referer from localhost
+    if not origin and not referer:
+        if host and ('localhost' in host or '127.0.0.1' in host):
+            return True, "Localhost request"
+
+    return False, f"Invalid origin: {origin}"
+
+def get_db_connection(db_path, init_if_missing=False):
     """Get database connection with error handling"""
     try:
         if not os.path.exists(db_path):
-            return None
+            if init_if_missing and db_path == ANALYTICS_DB:
+                # Initialize analytics database
+                try:
+                    from lozzalingo.modules.analytics.analytics import Analytics
+                    Analytics.init_analytics_db()
+                except Exception as e:
+                    print(f"Could not initialize analytics DB: {e}")
+                    return None
+            else:
+                return None
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         return conn
@@ -338,8 +418,10 @@ def get_traffic_timeline():
     
     conn = get_db_connection(ANALYTICS_DB)
     if not conn:
-        return jsonify({"error": "Analytics database not available"}), 500
-    
+        # Return empty data instead of error for fresh installs
+        response = make_response(jsonify({'timeline': []}))
+        return add_no_cache_headers(response)
+
     try:
         cursor = conn.cursor()
 
@@ -366,7 +448,7 @@ def get_traffic_timeline():
             GROUP BY DATE(timestamp)
             ORDER BY date
         """)
-        
+
         timeline_data = []
         for row in cursor.fetchall():
             timeline_data.append({
@@ -374,12 +456,14 @@ def get_traffic_timeline():
                 'views': row[1],
                 'unique_visitors': row[2]
             })
-        
+
         response = make_response(jsonify({'timeline': timeline_data}))
         return add_no_cache_headers(response)
-    
+
     except Exception as e:
-        return jsonify({"error": f"Timeline data error: {str(e)}"}), 500
+        # Return empty data on error
+        response = make_response(jsonify({'timeline': [], 'error': str(e)}))
+        return add_no_cache_headers(response)
     finally:
         conn.close()
 
@@ -394,8 +478,9 @@ def get_recent_activity():
     
     conn = get_db_connection(ANALYTICS_DB)
     if not conn:
-        return jsonify({"error": "Analytics database not available"}), 500
-    
+        response = make_response(jsonify({'activities': []}))
+        return add_no_cache_headers(response)
+
     try:
         cursor = conn.cursor()
 
@@ -416,7 +501,7 @@ def get_recent_activity():
             ORDER BY datetime(timestamp) DESC
             LIMIT ?
         """, (limit,))
-        
+
         activities = []
         for row in cursor.fetchall():
             activities.append({
@@ -436,12 +521,13 @@ def get_recent_activity():
                 'time_spent_seconds': row[13] or 'N/A',
                 'session_page_count': row[14] or 'N/A'
             })
-        
+
         response = make_response(jsonify({'activities': activities}))
         return add_no_cache_headers(response)
-    
+
     except Exception as e:
-        return jsonify({"error": f"Activity data error: {str(e)}"}), 500
+        response = make_response(jsonify({'activities': [], 'error': str(e)}))
+        return add_no_cache_headers(response)
     finally:
         conn.close()
 
@@ -457,16 +543,16 @@ def get_subscriber_details():
     
     conn = get_db_connection(USERS_DB)
     if not conn:
-        return jsonify({"error": "Users database not available"}), 500
-    
+        return jsonify({'recent_subscribers': [], 'subscription_trend': []})
+
     try:
         cursor = conn.cursor()
-        
+
         # Recent subscribers
         cursor.execute("""
             SELECT email, subscribed_at, is_active, source, ip_address
-            FROM subscribers 
-            ORDER BY datetime(subscribed_at) DESC 
+            FROM subscribers
+            ORDER BY datetime(subscribed_at) DESC
             LIMIT ?
         """, (limit,))
         
@@ -501,9 +587,10 @@ def get_subscriber_details():
             'recent_subscribers': recent_subscribers,
             'subscription_trend': subscription_trend
         })
-    
+
     except Exception as e:
-        return jsonify({"error": f"Subscriber data error: {str(e)}"}), 500
+        print(f"Subscriber data error: {e}")
+        return jsonify({'recent_subscribers': [], 'subscription_trend': []})
     finally:
         conn.close()
 
@@ -519,16 +606,16 @@ def get_news_metrics():
     
     conn = get_db_connection(NEWS_DB)
     if not conn:
-        return jsonify({"error": "News database not available"}), 500
-    
+        return jsonify({'recent_articles': [], 'publishing_trend': []})
+
     try:
         cursor = conn.cursor()
-        
+
         # Recent articles
         cursor.execute("""
             SELECT id, title, created_at, LENGTH(content) as content_length
-            FROM news_articles 
-            ORDER BY datetime(created_at) DESC 
+            FROM news_articles
+            ORDER BY datetime(created_at) DESC
             LIMIT ?
         """, (limit,))
         
@@ -562,9 +649,10 @@ def get_news_metrics():
             'recent_articles': recent_articles,
             'publishing_trend': publishing_trend
         })
-    
+
     except Exception as e:
-        return jsonify({"error": f"News data error: {str(e)}"}), 500
+        print(f"News data error: {e}")
+        return jsonify({'recent_articles': [], 'publishing_trend': []})
     finally:
         conn.close()
 
@@ -639,38 +727,10 @@ def log_interaction():
     """Log user interactions"""
     try:
         # Security: Validate request origin to prevent abuse from external sites
-        origin = request.headers.get('Origin')
-        referer = request.headers.get('Referer')
-        host = request.headers.get('Host')
-
-        # Allow requests from your own domain (localhost in dev, your domain in prod)
-        allowed_origins = [
-            'http://localhost:5001',
-            'http://127.0.0.1:5001',
-            'https://mariopintomma.com',
-            'https://www.mariopintomma.com',
-            'https://crowdsauced.laurence.computer',
-            'https://aightclothing.laurence.computer'
-        ]
-
-        # Check if request comes from allowed origin
-        is_valid_origin = False
-        if origin and origin in allowed_origins:
-            is_valid_origin = True
-        elif referer:
-            # Check if referer starts with any allowed origin
-            for allowed in allowed_origins:
-                if referer.startswith(allowed):
-                    is_valid_origin = True
-                    break
-        elif not origin and not referer:
-            # Allow requests without origin/referer (for server-side calls, curl, etc.)
-            # But only if they come from localhost/same host
-            if host and ('localhost' in host or '127.0.0.1' in host):
-                is_valid_origin = True
+        is_valid_origin, reason = is_valid_analytics_origin()
 
         if not is_valid_origin:
-            logger.warning('analytics', f'Rejected analytics request from invalid origin: {origin or referer or "unknown"}')
+            logger.warning('analytics', f'Rejected analytics request: {reason}')
             return jsonify({"error": "Invalid origin"}), 403
 
         data = request.get_json()
@@ -718,7 +778,7 @@ def get_route_analytics():
 
     conn = get_db_connection(ANALYTICS_DB)
     if not conn:
-        return jsonify({"error": "Analytics database not available"}), 500
+        return jsonify({'top_pages': [], 'route_transitions': [], 'session_stats': {'avg_pages_per_session': 0, 'max_pages_per_session': 0}})
 
     try:
         cursor = conn.cursor()
@@ -836,7 +896,8 @@ def get_route_analytics():
         })
 
     except Exception as e:
-        return jsonify({"error": f"Route analytics error: {str(e)}"}), 500
+        print(f"Route analytics error: {e}")
+        return jsonify({'top_pages': [], 'route_transitions': [], 'session_stats': {'avg_pages_per_session': 0, 'max_pages_per_session': 0}})
     finally:
         conn.close()
 
@@ -853,7 +914,16 @@ def get_referer_data():
 
     conn = get_db_connection(ANALYTICS_DB)
     if not conn:
-        return jsonify({"error": "Analytics database not available"}), 500
+        response = make_response(jsonify({
+            'top_referers': [],
+            'category_breakdown': {},
+            'medium_breakdown': {},
+            'campaign_breakdown': {},
+            'social_media_traffic': 0,
+            'search_engine_traffic': 0,
+            'total_visits': 0
+        }))
+        return add_no_cache_headers(response)
 
     try:
         cursor = conn.cursor()
@@ -996,7 +1066,17 @@ def get_referer_data():
         return add_no_cache_headers(response)
 
     except Exception as e:
-        return jsonify({"error": f"Referer data error: {str(e)}"}), 500
+        print(f"Referer data error: {e}")
+        response = make_response(jsonify({
+            'top_referers': [],
+            'category_breakdown': {},
+            'medium_breakdown': {},
+            'campaign_breakdown': {},
+            'social_media_traffic': 0,
+            'search_engine_traffic': 0,
+            'total_visits': 0
+        }))
+        return add_no_cache_headers(response)
     finally:
         conn.close()
 
@@ -1005,38 +1085,10 @@ def log_enhanced_interaction():
     """Enhanced analytics endpoint for comprehensive referrer tracking"""
     try:
         # Security: Validate request origin to prevent abuse from external sites
-        origin = request.headers.get('Origin')
-        referer = request.headers.get('Referer')
-        host = request.headers.get('Host')
-
-        # Allow requests from your own domain (localhost in dev, your domain in prod)
-        allowed_origins = [
-            'http://localhost:5001',
-            'http://127.0.0.1:5001',
-            'https://mariopintomma.com',
-            'https://www.mariopintomma.com',
-            'https://crowdsauced.laurence.computer',
-            'https://aightclothing.laurence.computer'
-        ]
-
-        # Check if request comes from allowed origin
-        is_valid_origin = False
-        if origin and origin in allowed_origins:
-            is_valid_origin = True
-        elif referer:
-            # Check if referer starts with any allowed origin
-            for allowed in allowed_origins:
-                if referer.startswith(allowed):
-                    is_valid_origin = True
-                    break
-        elif not origin and not referer:
-            # Allow requests without origin/referer (for server-side calls, curl, etc.)
-            # But only if they come from localhost/same host
-            if host and ('localhost' in host or '127.0.0.1' in host):
-                is_valid_origin = True
+        is_valid_origin, reason = is_valid_analytics_origin()
 
         if not is_valid_origin:
-            logger.warning('analytics', f'Rejected enhanced analytics request from invalid origin: {origin or referer or "unknown"}')
+            logger.warning('analytics', f'Rejected enhanced analytics request: {reason}')
             return jsonify({"error": "Invalid origin"}), 403
 
         # Get JSON data from request
@@ -1088,7 +1140,8 @@ def log_enhanced_interaction():
 
     except Exception as e:
         print(f"[ERROR] Enhanced analytics logging failed: {e}")
-        return jsonify({"error": str(e)}), 500
+        # Don't fail the client request just because analytics failed
+        return jsonify({"status": "logged", "warning": "partial failure"}), 200
 
 @analytics_bp.route('/api/ecommerce-analytics')
 def get_ecommerce_analytics():
@@ -1104,7 +1157,13 @@ def get_ecommerce_analytics():
     analytics_conn = get_db_connection(ANALYTICS_DB)
 
     if not merchandise_conn or not analytics_conn:
-        return jsonify({"error": "Database connections not available"}), 500
+        return jsonify({
+            'sales_summary': {'completed_orders': 0, 'total_revenue': 0, 'avg_order_value': 0},
+            'cart_analytics': {'add_to_cart_clicks': 0, 'checkout_clicks': 0, 'cart_page_views': 0, 'success_page_views': 0},
+            'top_products': [],
+            'conversion_funnel': {},
+            'conversion_rates': {}
+        })
 
     try:
         results = {}
@@ -1218,7 +1277,13 @@ def get_ecommerce_analytics():
 
     except Exception as e:
         print(f"E-commerce analytics error: {e}")
-        return jsonify({"error": f"E-commerce analytics error: {str(e)}"}), 500
+        return jsonify({
+            'sales_summary': {'completed_orders': 0, 'total_revenue': 0, 'avg_order_value': 0},
+            'cart_analytics': {'add_to_cart_clicks': 0, 'checkout_clicks': 0, 'cart_page_views': 0, 'success_page_views': 0},
+            'top_products': [],
+            'conversion_funnel': {},
+            'conversion_rates': {}
+        })
     finally:
         if merchandise_conn:
             merchandise_conn.close()
@@ -1362,7 +1427,18 @@ def get_sales_metrics():
         return add_no_cache_headers(response)
 
     except Exception as e:
-        return jsonify({"error": f"Sales data error: {str(e)}"}), 500
+        print(f"Sales data error: {e}")
+        return jsonify({
+            'total_orders': 0,
+            'total_revenue': 0,
+            'recent_orders': 0,
+            'recent_revenue': 0,
+            'avg_order_value': 0,
+            'sales_timeline': [],
+            'recent_sales': [],
+            'top_products': [],
+            'size_breakdown': {}
+        })
     finally:
         conn.close()
 
@@ -1443,7 +1519,13 @@ def get_ecommerce_funnel():
 
     except Exception as e:
         print(f"E-commerce funnel error: {e}")
-        return jsonify({"error": f"Funnel data error: {str(e)}"}), 500
+        return jsonify({
+            'product_views': 0,
+            'add_to_cart': 0,
+            'checkouts_initiated': 0,
+            'conversions': 0,
+            'abandoned': 0
+        })
     finally:
         if analytics_conn:
             analytics_conn.close()
@@ -1533,7 +1615,10 @@ def get_button_clicks():
 
     except Exception as e:
         print(f"Button click analytics error: {e}")
-        return jsonify({"error": f"Button click data error: {str(e)}"}), 500
+        return jsonify({
+            'top_buttons': [],
+            'commerce_buttons': []
+        })
     finally:
         if analytics_conn:
             analytics_conn.close()

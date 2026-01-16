@@ -72,6 +72,69 @@
                         <small class="form-hint">HTML tags are supported for formatting</small>
                     </div>
 
+                    <!-- SEO & Metadata Section -->
+                    <div class="form-section">
+                        <h3 class="form-section-title">SEO & Metadata</h3>
+
+                        <div class="form-group">
+                            <label for="excerpt">Excerpt</label>
+                            <textarea id="excerpt" name="excerpt" rows="2"
+                                      placeholder="Short description for previews (optional)"></textarea>
+                            <small class="form-hint">Used in blog listings and social shares. Auto-generated if left blank.</small>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="metaTitle">Meta Title</label>
+                                <input type="text" id="metaTitle" name="meta_title"
+                                       placeholder="SEO title (optional)">
+                            </div>
+                            <div class="form-group">
+                                <label for="categoryName">Category</label>
+                                <input type="text" id="categoryName" name="category_name"
+                                       placeholder="e.g., News, Tutorial">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="metaDescription">Meta Description</label>
+                            <textarea id="metaDescription" name="meta_description" rows="2"
+                                      placeholder="SEO description for search engines (optional)"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Author & Source Section -->
+                    <div class="form-section">
+                        <h3 class="form-section-title">Author & Source</h3>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="authorName">Author Name</label>
+                                <input type="text" id="authorName" name="author_name"
+                                       placeholder="Author's name">
+                            </div>
+                            <div class="form-group">
+                                <label for="authorEmail">Author Email</label>
+                                <input type="email" id="authorEmail" name="author_email"
+                                       placeholder="author@example.com">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="sourceId">Source ID</label>
+                                <input type="text" id="sourceId" name="source_id"
+                                       placeholder="External source ID" readonly>
+                                <small class="form-hint">Set by external integrations</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="sourceUrl">Source URL</label>
+                                <input type="text" id="sourceUrl" name="source_url"
+                                       placeholder="Original content URL" readonly>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="form-actions">
                         <button type="button" class="btn-primary" id="publishBtn">
                             Publish Article
@@ -112,5 +175,42 @@
 
     <script src="{{ url_for('admin.static', filename='js/newseditor.js') }}" defer></script>
 
+    <style>
+    /* New fields styling */
+    .form-section {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #ddd;
+    }
+
+    .form-section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: #333;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    #excerpt, #metaDescription {
+        min-height: 60px;
+        resize: vertical;
+    }
+
+    input[readonly] {
+        background: #f5f5f5;
+        cursor: not-allowed;
+    }
+    </style>
 </body>
 </html>
