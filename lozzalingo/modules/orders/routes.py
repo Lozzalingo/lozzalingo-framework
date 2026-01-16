@@ -55,7 +55,7 @@ def api_orders():
                    shipping_name, shipping_line1, shipping_line2, shipping_city,
                    shipping_state, shipping_postal_code, shipping_country
             FROM orders
-            ORDER BY created_at DESC
+            ORDER BY id DESC
             LIMIT 50
         ''')
 
