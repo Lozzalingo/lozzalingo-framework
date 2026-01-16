@@ -75,7 +75,7 @@ def api_orders():
             ]
             shipping = '\n'.join(part for part in shipping_parts if part)
 
-            # Get order items for this order (site orders)
+            # Get order items for this order
             order_items = OrderItem.get_by_order_id(order_id)
             product_names = []
             shop_name = None
@@ -89,29 +89,21 @@ def api_orders():
                     if item.quantity > 1:
                         item_name += f" x{item.quantity}"
                     product_names.append(item_name)
+                    # Get shop_name from product if this is an Etsy order
+                    if not shop_name and hasattr(product, 'shop_name'):
+                        shop_name = product.shop_name
 
-            # If no product names found, check order_items table (Etsy orders)
-            if not product_names and receipt_id and items_db:
-                try:
-                    import sqlite3
-                    items_conn = sqlite3.connect(items_db)
-                    items_cursor = items_conn.cursor()
-                    items_cursor.execute('''
-                        SELECT shop, title, quantity, sku FROM order_items
-                        WHERE receipt_id = ?
-                    ''', (str(receipt_id),))
-                    etsy_items = items_cursor.fetchall()
-                    items_conn.close()
-
-                    for etsy_item in etsy_items:
-                        shop, title, qty, sku = etsy_item
-                        shop_name = shop
-                        item_name = title or "Unknown Product"
-                        if qty and int(qty) > 1:
-                            item_name += f" x{qty}"
-                        product_names.append(item_name)
-                except Exception as e:
-                    print(f"Error fetching Etsy order details: {e}")
+            # If no order_items, check if order has product_id directly (Etsy orders)
+            if not product_names:
+                # Get product_id from order
+                order_cursor = conn.cursor()
+                order_cursor.execute('SELECT product_id FROM orders WHERE id = ?', (order_id,))
+                prod_row = order_cursor.fetchone()
+                if prod_row and prod_row[0]:
+                    product = Product.get_by_id(prod_row[0])
+                    if product:
+                        product_names.append(product.name)
+                        shop_name = getattr(product, 'shop_name', None)
 
             orders.append({
                 'id': order_id,
@@ -895,8 +887,8 @@ def api_send_etsy_shipping_update():
         if not callback_url:
             return jsonify({'success': False, 'error': 'Could not determine callback URL'}), 500
 
-        # Get order data from both databases
-        from app.models.merchandise import Order, get_merchandise_db
+        # Get order data from merchandise.db
+        from app.models.merchandise import Order, Product, get_merchandise_db
         from db_schema import DB
 
         import sqlite3
@@ -904,28 +896,52 @@ def api_send_etsy_shipping_update():
         # Get order from merchandise.db
         if order_id:
             order = Order.get_by_id(order_id)
-            if not order:
-                return jsonify({'success': False, 'error': 'Order not found'}), 404
-            receipt_id = getattr(order, 'receipt_id', None)
+        else:
+            # Find order by receipt_id
+            conn = get_merchandise_db()
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM orders WHERE receipt_id = ?", (str(receipt_id),))
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                order = Order.get_by_id(row[0])
+            else:
+                order = None
 
-        # Get additional data from order_items (clothing_items.db)
-        items_conn = sqlite3.connect(DB.ITEMS)
-        items_cursor = items_conn.cursor()
-        items_cursor.execute("""
-            SELECT sku, listing_id, shop, carrier, tracking_number, shipped_at, inkthreadable_id
-            FROM order_items
-            WHERE receipt_id = ?
-        """, (str(receipt_id),))
-        item_row = items_cursor.fetchone()
-        items_conn.close()
+        if not order:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
 
-        if not item_row:
-            return jsonify({'success': False, 'error': 'Order items not found'}), 404
-
-        sku, listing_id, shop, carrier, tracking_number, shipped_at, inkthreadable_id = item_row
+        receipt_id = getattr(order, 'receipt_id', None)
+        carrier = getattr(order, 'carrier', None)
+        tracking_number = getattr(order, 'tracking_number', None)
+        shipped_at = getattr(order, 'shipped_at', None)
+        inkthreadable_id = getattr(order, 'inkthreadable_id', None)
+        product_id = getattr(order, 'product_id', None)
 
         if not shipped_at:
             return jsonify({'success': False, 'error': 'Order has not been shipped yet'}), 400
+
+        # Get product data (sku, shop_name) from merchandise.db
+        sku = None
+        shop = None
+        if product_id:
+            product = Product.get_by_id(product_id)
+            if product:
+                sku = getattr(product, 'sku', None)
+                shop = getattr(product, 'shop_name', None)
+
+        # Get listing_id from design_engine.db partners table
+        listing_id = None
+        try:
+            partners_conn = sqlite3.connect(DB.DESIGN_ENGINE if hasattr(DB, 'DESIGN_ENGINE') else 'databases/design_engine.db')
+            partners_cursor = partners_conn.cursor()
+            partners_cursor.execute("SELECT listing_id FROM partners WHERE product_id = ?", (product_id,))
+            partner_row = partners_cursor.fetchone()
+            partners_conn.close()
+            if partner_row:
+                listing_id = partner_row[0]
+        except Exception as e:
+            print(f"Warning: Could not get listing_id from partners table: {e}")
 
         # Send shipping update
         from lozzalingo.modules.inkthreadable import inkthreadable_service
@@ -944,16 +960,16 @@ def api_send_etsy_shipping_update():
         result = inkthreadable_service.send_etsy_shipping_update(order_data, webhook_url, callback_url)
 
         if result.get('success'):
-            # Mark as updated in order_items
-            items_conn = sqlite3.connect(DB.ITEMS)
-            items_cursor = items_conn.cursor()
-            items_cursor.execute("""
-                UPDATE order_items
-                SET etsy_shipping_updated = CURRENT_TIMESTAMP
+            # Mark as updated in orders table (merchandise.db)
+            conn = get_merchandise_db()
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE orders
+                SET shipping_updated = CURRENT_TIMESTAMP
                 WHERE receipt_id = ?
             """, (str(receipt_id),))
-            items_conn.commit()
-            items_conn.close()
+            conn.commit()
+            conn.close()
 
             return jsonify(result), 200
         else:
