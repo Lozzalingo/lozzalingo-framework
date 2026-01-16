@@ -674,38 +674,41 @@ def api_resend_to_inkthreadable():
         if not order:
             return jsonify({'success': False, 'error': 'Order not found'}), 404
 
-        # Try to send to InkThreadable
+        # Try to send to InkThreadable using framework service
         try:
-            from utils.inkthreadable import submit_order_to_inkthreadable
-            result = submit_order_to_inkthreadable(order)
+            from lozzalingo.modules.inkthreadable import inkthreadable_service
+            from app.models.merchandise import OrderItem
 
-            if result and result.get('success'):
-                # Update the order with InkThreadable ID
-                inkthreadable_id = result.get('order_id')
-                if inkthreadable_id:
-                    conn = get_merchandise_db()
-                    cursor = conn.cursor()
-                    cursor.execute('''
-                        UPDATE orders SET inkthreadable_id = ?, inkthreadable_status = 'Submitted',
-                        updated_at = CURRENT_TIMESTAMP WHERE id = ?
-                    ''', (inkthreadable_id, order_id))
-                    conn.commit()
-                    conn.close()
+            # Create order via the service
+            result = inkthreadable_service.create_order(
+                order_id=order_id,
+                get_order_func=Order.get_by_id,
+                get_order_items_func=OrderItem.get_by_order_id,
+                get_db_func=get_merchandise_db
+            )
+
+            if result:
+                # Extract InkThreadable ID from response
+                order_data = result.get('order', {})
+                inkthreadable_id = order_data.get('id')
+                status = order_data.get('status', 'Submitted')
 
                 return jsonify({
                     'success': True,
-                    'message': f'Order sent to InkThreadable (ID: {inkthreadable_id})'
+                    'message': f'Order sent to InkThreadable (ID: {inkthreadable_id})',
+                    'inkthreadable_id': inkthreadable_id,
+                    'status': status
                 })
             else:
                 return jsonify({
                     'success': False,
-                    'error': result.get('error', 'Unknown error from InkThreadable')
+                    'error': 'Failed to send order to InkThreadable'
                 }), 500
 
-        except ImportError:
+        except ImportError as e:
             return jsonify({
                 'success': False,
-                'error': 'InkThreadable integration not configured'
+                'error': f'InkThreadable integration not configured: {str(e)}'
             }), 500
         except Exception as e:
             return jsonify({
@@ -739,17 +742,23 @@ def api_check_shipping_status():
 
         inkthreadable_id = getattr(order, 'inkthreadable_id', None)
         if not inkthreadable_id:
+            # Not an error - order just hasn't been sent to InkThreadable yet
             return jsonify({
-                'success': False,
-                'error': 'No InkThreadable order ID found for this order'
-            }), 400
+                'success': True,
+                'message': 'Order not yet sent to fulfillment',
+                'status': 'pending_fulfillment'
+            })
 
         # Try to check status from InkThreadable
         try:
-            from utils.inkthreadable import get_order_status
-            status_result = get_order_status(inkthreadable_id)
+            from lozzalingo.modules.inkthreadable import inkthreadable_service
+            api_response = inkthreadable_service.get_order_status(inkthreadable_id)
 
-            if status_result and status_result.get('success'):
+            if api_response:
+                # Extract order info from API response
+                order_info = api_response.get('order', {})
+                shipping_info = order_info.get('shipping', {})
+
                 # Update order with new status info
                 conn = get_merchandise_db()
                 cursor = conn.cursor()
@@ -757,21 +766,25 @@ def api_check_shipping_status():
                 updates = []
                 values = []
 
-                if status_result.get('status'):
+                status = order_info.get('status')
+                if status:
                     updates.append('inkthreadable_status = ?')
-                    values.append(status_result['status'])
+                    values.append(status)
 
-                if status_result.get('carrier'):
+                carrier = shipping_info.get('shippingMethod')
+                if carrier:
                     updates.append('carrier = ?')
-                    values.append(status_result['carrier'])
+                    values.append(carrier)
 
-                if status_result.get('tracking_number'):
+                tracking_number = shipping_info.get('trackingNumber')
+                if tracking_number:
                     updates.append('tracking_number = ?')
-                    values.append(status_result['tracking_number'])
+                    values.append(tracking_number)
 
-                if status_result.get('shipped_at'):
+                shipped_at = shipping_info.get('shipped_at')
+                if shipped_at:
                     updates.append('shipped_at = ?')
-                    values.append(status_result['shipped_at'])
+                    values.append(shipped_at)
 
                 if updates:
                     updates.append('updated_at = CURRENT_TIMESTAMP')
@@ -784,12 +797,13 @@ def api_check_shipping_status():
 
                 return jsonify({
                     'success': True,
-                    'message': f"Shipping status updated: {status_result.get('status', 'Unknown')}"
+                    'status': status,
+                    'message': f"Shipping status updated: {status or 'Unknown'}"
                 })
             else:
                 return jsonify({
                     'success': False,
-                    'error': status_result.get('error', 'Could not retrieve status')
+                    'error': 'Could not retrieve status from InkThreadable'
                 }), 500
 
         except ImportError:
