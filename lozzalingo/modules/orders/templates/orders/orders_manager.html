@@ -931,10 +931,10 @@
                                 title="Delete order">
                             🗑️ Delete
                         </button>
-                        ${order.receipt_id ? `
+                        ${order.shop ? `
                         <button name="send_etsy_shipping" class="btn-small btn-ship"
                                 onclick="sendEtsyShippingUpdate(${order.id}, '${order.receipt_id}', this)"
-                                title="Send shipping update to Etsy"
+                                title="Send shipping update to Etsy (${order.shop})"
                                 style="background: #f39c12; color: white;">
                             📦 Etsy Ship
                         </button>
