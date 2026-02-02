@@ -3,8 +3,11 @@ Subscribers Routes
 ==================
 
 Provides:
-- POST / -- subscribe (accepts optional feed param)
+- POST / -- subscribe (accepts optional feed/feeds param)
 - GET /stats -- subscriber count
+- GET /feeds -- available feed categories (from app config)
+- GET /manage -- manage subscription preferences page
+- POST /manage -- update subscription preferences
 - GET /unsubscribe -- unsubscribe page
 - POST /unsubscribe -- process unsubscribe
 - GET /export -- export list (admin auth required)
@@ -69,6 +72,22 @@ def _get_brand_name():
         return 'our newsletter'
 
 
+def _get_feeds_config():
+    """Get configured subscriber feeds from app config"""
+    try:
+        return current_app.config.get('SUBSCRIBER_FEEDS', [])
+    except RuntimeError:
+        return []
+
+
+def _get_default_feed():
+    """Get the default feed ID from app config"""
+    try:
+        return current_app.config.get('SUBSCRIBER_FEEDS_DEFAULT', '')
+    except RuntimeError:
+        return ''
+
+
 def init_subscribers_db():
     """Initialize the subscribers table in the database"""
     try:
@@ -113,6 +132,24 @@ def init_subscribers_db():
             conn.commit()
             logger.info("Subscribers database table created/verified successfully")
 
+            # Migrate existing subscribers to default feed if configured
+            try:
+                default_feed = _get_default_feed()
+                if default_feed:
+                    cursor.execute(
+                        "SELECT COUNT(*) FROM subscribers WHERE is_active = TRUE AND (feeds = '[]' OR feeds = '' OR feeds IS NULL)"
+                    )
+                    empty_count = cursor.fetchone()[0]
+                    if empty_count > 0:
+                        cursor.execute(
+                            "UPDATE subscribers SET feeds = ? WHERE is_active = TRUE AND (feeds = '[]' OR feeds = '' OR feeds IS NULL)",
+                            (json.dumps([default_feed]),)
+                        )
+                        conn.commit()
+                        logger.info(f"Migrated {empty_count} subscribers to default feed: {default_feed}")
+            except RuntimeError:
+                pass  # No app context (e.g. during import)
+
     except Exception as e:
         logger.error(f"Error initializing subscribers database: {e}")
         raise
@@ -149,7 +186,13 @@ def subscribe():
             return jsonify({'error': 'Email address is required'}), 400
 
         email = data['email'].lower().strip()
-        feed = data.get('feed', '').strip()  # Optional feed category
+        # Accept either 'feeds' (array) or 'feed' (string) for backwards compat
+        feeds_input = data.get('feeds', [])
+        feed = data.get('feed', '').strip()
+        if feed and not feeds_input:
+            feeds_input = [feed]
+        # Clean the feeds list
+        feeds_input = [f.strip() for f in feeds_input if isinstance(f, str) and f.strip()]
 
         if not validate_email(email):
             return jsonify({'error': 'Please enter a valid email address'}), 400
@@ -170,13 +213,18 @@ def subscribe():
                 subscriber_id, is_active, feeds_json = existing
                 current_feeds = json.loads(feeds_json) if feeds_json else []
 
-                # If a feed was specified and not already in the list, add it
-                feed_added = False
-                if feed and feed not in current_feeds:
-                    current_feeds.append(feed)
-                    feed_added = True
+                # Add any new feeds to the subscriber's list
+                feeds_changed = False
+                if feeds_input:
+                    # Replace feeds entirely with the new selection
+                    if set(feeds_input) != set(current_feeds):
+                        current_feeds = feeds_input
+                        feeds_changed = True
+                elif not current_feeds:
+                    # No feeds specified and none existing — keep empty (= all)
+                    pass
 
-                if is_active and not feed_added:
+                if is_active and not feeds_changed:
                     return jsonify({
                         'message': 'You are already subscribed!'
                     }), 200
@@ -202,11 +250,11 @@ def subscribe():
                 else:
                     logger.info(f"Updated feeds for: {email}")
                     return jsonify({
-                        'message': f'Successfully subscribed to {feed} updates!'
+                        'message': 'Subscription preferences updated!'
                     }), 200
             else:
                 # Add new subscription
-                feeds_list = [feed] if feed else []
+                feeds_list = feeds_input if feeds_input else []
                 cursor.execute('''
                     INSERT INTO subscribers (email, ip_address, user_agent, source, feeds)
                     VALUES (?, ?, ?, ?, ?)
@@ -388,6 +436,114 @@ def get_subscriber_count():
             return cursor.fetchone()[0]
     except Exception:
         return 0
+
+
+@subscribers_bp.route('/feeds', methods=['GET'])
+def get_feeds():
+    """Return available feed categories from app config (public endpoint)"""
+    feeds = _get_feeds_config()
+    default_feed = _get_default_feed()
+    return jsonify({
+        'feeds': feeds,
+        'default': default_feed
+    }), 200
+
+
+@subscribers_bp.route('/manage', methods=['GET'])
+def manage_page():
+    """Show subscription management page"""
+    email = request.args.get('email', '')
+    return render_template('subscribers/manage.html', email=email)
+
+
+@subscribers_bp.route('/manage', methods=['POST'])
+def manage_preferences():
+    """Update subscription feed preferences"""
+    try:
+        data = request.get_json()
+        if not data or 'email' not in data:
+            return jsonify({'error': 'Email address is required'}), 400
+
+        email = data['email'].lower().strip()
+        new_feeds = data.get('feeds', [])
+
+        if not validate_email(email):
+            return jsonify({'error': 'Please enter a valid email address'}), 400
+
+        # Clean feeds list
+        new_feeds = [f.strip() for f in new_feeds if isinstance(f, str) and f.strip()]
+
+        db_path = get_db_config()
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute('SELECT id, is_active, feeds FROM subscribers WHERE email = ?', (email,))
+            existing = cursor.fetchone()
+
+            if not existing:
+                return jsonify({'error': 'Email address not found in our subscriber list.'}), 404
+
+            subscriber_id = existing[0]
+
+            if not new_feeds:
+                # Empty feeds = unsubscribe from all
+                cursor.execute('''
+                    UPDATE subscribers
+                    SET is_active = FALSE, feeds = '[]', updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (subscriber_id,))
+                conn.commit()
+                logger.info(f"Unsubscribed from all: {email}")
+                return jsonify({
+                    'message': 'You have been unsubscribed from all emails.'
+                }), 200
+            else:
+                cursor.execute('''
+                    UPDATE subscribers
+                    SET is_active = TRUE, feeds = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (json.dumps(new_feeds), subscriber_id))
+                conn.commit()
+                logger.info(f"Updated preferences for {email}: {new_feeds}")
+                return jsonify({
+                    'message': 'Your subscription preferences have been updated.',
+                    'feeds': new_feeds
+                }), 200
+
+    except sqlite3.Error as e:
+        logger.error(f"Database error in manage_preferences: {e}")
+        return jsonify({'error': 'Database error occurred'}), 500
+    except Exception as e:
+        logger.error(f"Error in manage_preferences: {e}")
+        return jsonify({'error': 'An unexpected error occurred'}), 500
+
+
+@subscribers_bp.route('/preferences', methods=['GET'])
+def get_preferences():
+    """Get current subscription preferences for an email"""
+    email = request.args.get('email', '').lower().strip()
+    if not email or not validate_email(email):
+        return jsonify({'error': 'Valid email is required'}), 400
+
+    try:
+        db_path = get_db_config()
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT is_active, feeds FROM subscribers WHERE email = ?', (email,))
+            row = cursor.fetchone()
+
+            if not row:
+                return jsonify({'found': False}), 200
+
+            return jsonify({
+                'found': True,
+                'is_active': bool(row[0]),
+                'feeds': json.loads(row[1]) if row[1] else []
+            }), 200
+
+    except Exception as e:
+        logger.error(f"Error getting preferences: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
 
 
 def get_all_subscriber_emails(feed=None):

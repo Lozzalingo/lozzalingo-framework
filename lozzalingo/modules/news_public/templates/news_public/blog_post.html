@@ -60,6 +60,223 @@
         </footer>
     </article>
 
+    <!-- Blog Subscribe Section -->
+    <section class="blog-subscribe" id="blogSubscribe">
+        <h3 class="blog-subscribe-title">Enjoyed this article?</h3>
+        <p class="blog-subscribe-text">Subscribe to get articles like this delivered to your inbox.</p>
+        <form class="blog-subscribe-form" id="blogSubscribeForm">
+            <input type="email" id="blogSubscribeEmail" class="blog-subscribe-input"
+                   placeholder="Enter your email address" required autocomplete="email">
+            <div class="blog-subscribe-feeds" id="blogSubscribeFeeds"></div>
+            <button type="submit" class="blog-subscribe-btn" id="blogSubscribeBtn">
+                <span class="blog-sub-btn-text">Subscribe</span>
+                <span class="blog-sub-btn-loading" style="display:none;">Subscribing...</span>
+            </button>
+            <div class="blog-subscribe-message" id="blogSubscribeMessage"></div>
+        </form>
+    </section>
+    <style>
+        .blog-subscribe {
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 40px;
+            background: var(--noir-charcoal, #1a1a1a);
+            border: 1px solid var(--noir-gray, #3a3a3a);
+            text-align: center;
+        }
+        .blog-subscribe-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--noir-white, #fff);
+            margin-bottom: 8px;
+        }
+        .blog-subscribe-text {
+            font-size: 0.95rem;
+            color: var(--noir-light-gray, #666);
+            margin-bottom: 24px;
+        }
+        .blog-subscribe-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .blog-subscribe-input {
+            background: var(--noir-black, #0a0a0a);
+            border: 1px solid var(--noir-gray, #3a3a3a);
+            color: var(--noir-white, #fff);
+            padding: 14px 18px;
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+        .blog-subscribe-input::placeholder { color: var(--noir-light-gray, #666); }
+        .blog-subscribe-input:focus { border-color: var(--noir-gold, #c5a55a); }
+        .blog-subscribe-feeds { text-align: left; }
+        .blog-sub-feed-group { display: flex; flex-direction: column; gap: 6px; }
+        .blog-sub-feed-label {
+            font-size: 0.8rem;
+            color: var(--noir-light-gray, #666);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .blog-sub-feed-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: var(--noir-black, #0a0a0a);
+            border: 1px solid var(--noir-gray, #3a3a3a);
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+        }
+        .blog-sub-feed-option:hover { border-color: var(--noir-gold, #c5a55a); }
+        .blog-sub-feed-option input[type="radio"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--noir-gray, #3a3a3a);
+            border-radius: 50%;
+            background: transparent;
+            cursor: pointer;
+            flex-shrink: 0;
+            position: relative;
+            transition: border-color 0.2s ease;
+        }
+        .blog-sub-feed-option input[type="radio"]:checked { border-color: var(--noir-gold, #c5a55a); }
+        .blog-sub-feed-option input[type="radio"]:checked::after {
+            content: '';
+            position: absolute;
+            top: 2px; left: 2px;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--noir-gold, #c5a55a);
+        }
+        .blog-sub-feed-name { font-size: 0.85rem; font-weight: 500; color: var(--noir-silver, #999); }
+        .blog-sub-feed-desc { font-size: 0.7rem; color: var(--noir-light-gray, #666); margin-left: 4px; }
+        .blog-subscribe-btn {
+            background: var(--noir-white, #fff);
+            color: var(--noir-black, #0a0a0a);
+            border: 1px solid var(--noir-white, #fff);
+            padding: 14px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+        }
+        .blog-subscribe-btn:hover {
+            background: var(--noir-gold, #c5a55a);
+            border-color: var(--noir-gold, #c5a55a);
+            transform: translateY(-1px);
+        }
+        .blog-subscribe-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .blog-subscribe-message {
+            padding: 12px;
+            font-size: 0.9rem;
+            text-align: center;
+            display: none;
+        }
+        .blog-subscribe-message.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+        }
+        .blog-subscribe-message.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+        @media (max-width: 480px) {
+            .blog-subscribe { padding: 24px; margin: 24px auto; }
+            .blog-subscribe-title { font-size: 1.2rem; }
+        }
+    </style>
+    <script>
+    (function() {
+        const form = document.getElementById('blogSubscribeForm');
+        const feedsContainer = document.getElementById('blogSubscribeFeeds');
+        const messageEl = document.getElementById('blogSubscribeMessage');
+        let feeds = [];
+
+        // Load feed options
+        fetch('/api/subscribers/feeds')
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data || !data.feeds || !data.feeds.length) return;
+                feeds = data.feeds;
+                const defaultFeed = data.default || '';
+
+                let html = '<div class="blog-sub-feed-label">I\'m interested in:</div>';
+                html += '<div class="blog-sub-feed-group">';
+                feeds.forEach(f => {
+                    const checked = f.id === defaultFeed ? 'checked' : '';
+                    html += `<label class="blog-sub-feed-option">
+                        <input type="radio" name="blog_sub_feed" value="${f.id}" ${checked}>
+                        <span class="blog-sub-feed-name">${f.label}</span>
+                        ${f.description ? `<span class="blog-sub-feed-desc">— ${f.description}</span>` : ''}
+                    </label>`;
+                });
+                html += `<label class="blog-sub-feed-option">
+                    <input type="radio" name="blog_sub_feed" value="__all__" ${!defaultFeed ? 'checked' : ''}>
+                    <span class="blog-sub-feed-name">All updates</span>
+                    <span class="blog-sub-feed-desc">— Receive everything</span>
+                </label>`;
+                html += '</div>';
+                feedsContainer.innerHTML = html;
+            })
+            .catch(() => {});
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const email = document.getElementById('blogSubscribeEmail').value.trim();
+            if (!email) return;
+
+            const btn = document.getElementById('blogSubscribeBtn');
+            btn.disabled = true;
+            btn.querySelector('.blog-sub-btn-text').style.display = 'none';
+            btn.querySelector('.blog-sub-btn-loading').style.display = 'inline';
+            messageEl.style.display = 'none';
+
+            const body = { email: email };
+            const selected = feedsContainer.querySelector('input[name="blog_sub_feed"]:checked');
+            if (selected) {
+                body.feeds = selected.value === '__all__' ? feeds.map(f => f.id) : [selected.value];
+            }
+
+            try {
+                const res = await fetch('/api/subscribers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    messageEl.className = 'blog-subscribe-message success';
+                    messageEl.textContent = data.message || 'Subscribed!';
+                    form.reset();
+                    try { localStorage.setItem('subscriber_email', email); } catch(e) {}
+                } else {
+                    messageEl.className = 'blog-subscribe-message error';
+                    messageEl.textContent = data.error || 'Something went wrong.';
+                }
+            } catch (err) {
+                messageEl.className = 'blog-subscribe-message error';
+                messageEl.textContent = 'Connection error. Please try again.';
+            }
+            messageEl.style.display = 'block';
+            btn.disabled = false;
+            btn.querySelector('.blog-sub-btn-text').style.display = 'inline';
+            btn.querySelector('.blog-sub-btn-loading').style.display = 'none';
+        });
+    })();
+    </script>
+
     {% if related_articles %}
     <section class="related">
         <h2>Related Articles</h2>

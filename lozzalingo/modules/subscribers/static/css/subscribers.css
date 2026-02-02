@@ -283,6 +283,111 @@
     }
 }
 
+/* === Feed Options (Radio Buttons) === */
+.feed-options {
+    margin-bottom: 20px;
+}
+
+.feed-options-label {
+    font-size: 0.85rem;
+    color: var(--noir-light-gray);
+    margin-bottom: 10px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.feed-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.feed-radio-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--noir-charcoal);
+    border: 1px solid var(--noir-gray);
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+.feed-radio-option:hover {
+    border-color: var(--noir-gold, #c5a55a);
+}
+
+.feed-radio-option input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--noir-gray);
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    position: relative;
+    transition: border-color 0.2s ease;
+}
+
+.feed-radio-option input[type="radio"]:checked {
+    border-color: var(--noir-gold, #c5a55a);
+}
+
+.feed-radio-option input[type="radio"]:checked::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--noir-gold, #c5a55a);
+}
+
+.feed-radio-option input[type="radio"]:checked ~ .feed-radio-mark + .feed-radio-content .feed-radio-label {
+    color: var(--noir-white);
+}
+
+.feed-radio-mark {
+    display: none;
+}
+
+.feed-radio-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.feed-radio-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--noir-silver, #999);
+    transition: color 0.2s ease;
+}
+
+.feed-radio-desc {
+    font-size: 0.75rem;
+    color: var(--noir-light-gray);
+    font-weight: 300;
+}
+
+@media (max-width: 480px) {
+    .feed-radio-option {
+        padding: 8px 12px;
+    }
+
+    .feed-radio-label {
+        font-size: 0.85rem;
+    }
+
+    .feed-radio-desc {
+        font-size: 0.7rem;
+    }
+}
+
 /* === Form States === */
 .newsletter-form.submitting .newsletter-btn {
     pointer-events: none;

@@ -9,6 +9,10 @@ class SubscribersManager {
         this.messageElement = document.getElementById('formMessage');
         this.subscriberCountElement = document.getElementById('subscriberCount');
         this.lastUpdatedElement = document.getElementById('lastUpdated');
+        this.feedOptionsContainer = document.getElementById('feedOptions');
+
+        this.feeds = [];
+        this.defaultFeed = '';
 
         this.init();
     }
@@ -17,6 +21,75 @@ class SubscribersManager {
         this.attachEventListeners();
         this.loadSubscriberStats();
         this.setupValidation();
+        this.loadFeeds();
+    }
+
+    async loadFeeds() {
+        if (!this.feedOptionsContainer) return;
+
+        try {
+            const response = await fetch('/api/subscribers/feeds');
+            if (!response.ok) return;
+
+            const data = await response.json();
+            this.feeds = data.feeds || [];
+            this.defaultFeed = data.default || '';
+
+            if (this.feeds.length > 0) {
+                this.renderFeedOptions();
+            }
+        } catch (err) {
+            // No feeds configured or endpoint unavailable — hide feed options
+        }
+    }
+
+    renderFeedOptions() {
+        if (!this.feedOptionsContainer || !this.feeds.length) return;
+
+        let html = '<div class="feed-options-label">I\'m interested in:</div>';
+        html += '<div class="feed-radio-group">';
+
+        this.feeds.forEach(feed => {
+            const checked = feed.id === this.defaultFeed ? 'checked' : '';
+            html += `
+                <label class="feed-radio-option">
+                    <input type="radio" name="subscriber_feed" value="${feed.id}" ${checked}>
+                    <span class="feed-radio-mark"></span>
+                    <span class="feed-radio-content">
+                        <span class="feed-radio-label">${feed.label}</span>
+                        ${feed.description ? `<span class="feed-radio-desc">${feed.description}</span>` : ''}
+                    </span>
+                </label>
+            `;
+        });
+
+        // "All updates" option
+        const allChecked = !this.defaultFeed ? 'checked' : '';
+        html += `
+            <label class="feed-radio-option">
+                <input type="radio" name="subscriber_feed" value="__all__" ${allChecked}>
+                <span class="feed-radio-mark"></span>
+                <span class="feed-radio-content">
+                    <span class="feed-radio-label">All updates</span>
+                    <span class="feed-radio-desc">Receive everything</span>
+                </span>
+            </label>
+        `;
+
+        html += '</div>';
+        this.feedOptionsContainer.innerHTML = html;
+    }
+
+    getSelectedFeeds() {
+        if (!this.feeds.length) return [];
+
+        const selected = this.feedOptionsContainer?.querySelector('input[name="subscriber_feed"]:checked');
+        if (!selected) return [];
+
+        if (selected.value === '__all__') {
+            return this.feeds.map(f => f.id);
+        }
+        return [selected.value];
     }
 
     attachEventListeners() {
@@ -56,12 +129,18 @@ class SubscribersManager {
         this.setSubmitting(true);
 
         try {
+            const body = { email: email };
+            const selectedFeeds = this.getSelectedFeeds();
+            if (selectedFeeds.length > 0) {
+                body.feeds = selectedFeeds;
+            }
+
             const response = await fetch('/api/subscribers', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email: email })
+                body: JSON.stringify(body)
             });
 
             const data = await response.json();
@@ -70,6 +149,16 @@ class SubscribersManager {
                 this.showMessage(data.message || 'Successfully subscribed!', 'success');
                 this.form.reset();
                 this.form.classList.add('success');
+
+                // Re-select default feed after form reset
+                if (this.feeds.length > 0) {
+                    this.renderFeedOptions();
+                }
+
+                // Store email in localStorage so popup knows they're subscribed
+                try {
+                    localStorage.setItem('subscriber_email', email);
+                } catch (e) {}
 
                 setTimeout(() => this.loadSubscriberStats(), 1000);
 

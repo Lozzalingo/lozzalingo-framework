@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Subscription</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --noir-black: #0a0a0a;
+            --noir-charcoal: #1a1a1a;
+            --noir-dark: #2a2a2a;
+            --noir-gray: #3a3a3a;
+            --noir-light-gray: #666666;
+            --noir-white: #ffffff;
+            --accent-green: #2d5016;
+            --accent-red: #8b2635;
+            --accent-gold: #c5a55a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--noir-black);
+            color: var(--noir-white);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .manage-container {
+            background: var(--noir-charcoal);
+            border: 1px solid var(--noir-gray);
+            max-width: 520px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .subtitle {
+            font-size: 0.95rem;
+            color: var(--noir-light-gray);
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .form-group { margin-bottom: 24px; text-align: left; }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--noir-dark);
+            border: 1px solid var(--noir-gray);
+            color: var(--noir-white);
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        .form-input:focus { outline: none; border-color: var(--accent-gold); }
+        .form-input::placeholder { color: var(--noir-light-gray); }
+
+        .feeds-section { margin: 24px 0; }
+        .feeds-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+
+        .feed-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 16px;
+            background: var(--noir-dark);
+            border: 1px solid var(--noir-gray);
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .feed-option:hover { border-color: var(--accent-gold); }
+        .feed-option input[type="checkbox"] {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--noir-gray);
+            background: var(--noir-dark);
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-top: 2px;
+            position: relative;
+        }
+        .feed-option input[type="checkbox"]:checked {
+            background: var(--accent-gold);
+            border-color: var(--accent-gold);
+        }
+        .feed-option input[type="checkbox"]:checked::after {
+            content: '✓';
+            position: absolute;
+            top: -1px;
+            left: 3px;
+            font-size: 14px;
+            color: var(--noir-black);
+            font-weight: 700;
+        }
+        .feed-info { flex: 1; }
+        .feed-label { font-weight: 500; font-size: 15px; }
+        .feed-desc { font-size: 13px; color: var(--noir-light-gray); margin-top: 2px; }
+
+        .feeds-loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--noir-light-gray);
+            font-size: 14px;
+        }
+
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 28px; }
+
+        .btn {
+            border: none;
+            padding: 14px 32px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-primary {
+            background: var(--accent-gold);
+            color: var(--noir-black);
+        }
+        .btn-primary:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+
+        .btn-danger {
+            background: transparent;
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+        }
+        .btn-danger:hover:not(:disabled) { background: var(--accent-red); color: var(--noir-white); }
+
+        .message {
+            padding: 14px;
+            margin: 20px 0 0;
+            font-size: 14px;
+            display: none;
+            text-align: center;
+        }
+        .message.success {
+            background: rgba(45, 80, 22, 0.2);
+            border: 1px solid var(--accent-green);
+            color: #90c695;
+        }
+        .message.error {
+            background: rgba(139, 38, 53, 0.2);
+            border: 1px solid var(--accent-red);
+            color: #f19ca3;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 24px;
+            color: var(--noir-light-gray);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .back-link:hover { color: var(--noir-white); }
+
+        .email-step { display: block; }
+        .feeds-step { display: none; }
+
+        @media (max-width: 480px) {
+            .manage-container { padding: 24px; }
+            .title { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="manage-container">
+        <h1 class="title">Manage Subscription</h1>
+        <p class="subtitle">Choose which emails you'd like to receive.</p>
+
+        <!-- Step 1: Enter email -->
+        <div id="emailStep" class="email-step">
+            <div class="form-group">
+                <label for="email" class="form-label">Email Address</label>
+                <input type="email" id="email" class="form-input"
+                       placeholder="Enter your email address"
+                       value="{{ email }}" required>
+            </div>
+            <button class="btn btn-primary" id="lookupBtn" onclick="lookupPreferences()">
+                Continue
+            </button>
+        </div>
+
+        <!-- Step 2: Manage feeds -->
+        <div id="feedsStep" class="feeds-step">
+            <p id="emailDisplay" style="font-size:14px; color:var(--noir-light-gray); margin-bottom:20px; text-align:center;"></p>
+
+            <div class="feeds-section">
+                <div class="feeds-title">Your subscriptions:</div>
+                <div id="feedsContainer" class="feeds-loading">Loading...</div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" id="saveBtn" onclick="savePreferences()">
+                    Update Preferences
+                </button>
+                <button class="btn btn-danger" id="unsubAllBtn" onclick="unsubscribeAll()">
+                    Unsubscribe from All
+                </button>
+            </div>
+        </div>
+
+        <div class="message" id="message"></div>
+        <a href="/" class="back-link">&larr; Back to homepage</a>
+    </div>
+
+    <script>
+        let availableFeeds = [];
+        let currentEmail = '';
+
+        // Auto-lookup if email was provided via query param
+        document.addEventListener('DOMContentLoaded', () => {
+            const email = document.getElementById('email').value;
+            if (email) lookupPreferences();
+        });
+
+        async function lookupPreferences() {
+            const email = document.getElementById('email').value.trim().toLowerCase();
+            if (!email) return;
+            currentEmail = email;
+
+            const btn = document.getElementById('lookupBtn');
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
+            hideMessage();
+
+            try {
+                // Fetch feeds config and current preferences in parallel
+                const [feedsRes, prefsRes] = await Promise.all([
+                    fetch('/api/subscribers/feeds'),
+                    fetch(`/api/subscribers/preferences?email=${encodeURIComponent(email)}`)
+                ]);
+
+                const feedsData = await feedsRes.json();
+                const prefsData = await prefsRes.json();
+
+                availableFeeds = feedsData.feeds || [];
+
+                if (!prefsData.found) {
+                    showMessage('Email address not found in our subscriber list.', 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Continue';
+                    return;
+                }
+
+                const currentFeeds = prefsData.feeds || [];
+
+                // Render feeds
+                renderFeeds(currentFeeds);
+
+                // Show feeds step
+                document.getElementById('emailStep').style.display = 'none';
+                document.getElementById('feedsStep').style.display = 'block';
+                document.getElementById('emailDisplay').textContent = email;
+
+            } catch (err) {
+                showMessage('Something went wrong. Please try again.', 'error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Continue';
+        }
+
+        function renderFeeds(currentFeeds) {
+            const container = document.getElementById('feedsContainer');
+
+            if (!availableFeeds.length) {
+                container.innerHTML = '<p style="color:var(--noir-light-gray);">No feed categories configured.</p>';
+                return;
+            }
+
+            container.innerHTML = availableFeeds.map(feed => {
+                const checked = currentFeeds.includes(feed.id) ? 'checked' : '';
+                return `
+                    <label class="feed-option">
+                        <input type="checkbox" name="feed" value="${feed.id}" ${checked}>
+                        <div class="feed-info">
+                            <div class="feed-label">${feed.label}</div>
+                            <div class="feed-desc">${feed.description || ''}</div>
+                        </div>
+                    </label>
+                `;
+            }).join('');
+        }
+
+        async function savePreferences() {
+            const checkboxes = document.querySelectorAll('#feedsContainer input[type="checkbox"]');
+            const selectedFeeds = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+
+            const btn = document.getElementById('saveBtn');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+            hideMessage();
+
+            try {
+                const res = await fetch('/api/subscribers/manage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: currentEmail, feeds: selectedFeeds })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.error || 'Something went wrong.', 'error');
+                }
+            } catch (err) {
+                showMessage('Network error. Please try again.', 'error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Update Preferences';
+        }
+
+        async function unsubscribeAll() {
+            if (!confirm('Are you sure you want to unsubscribe from all emails?')) return;
+
+            const btn = document.getElementById('unsubAllBtn');
+            btn.disabled = true;
+            hideMessage();
+
+            try {
+                const res = await fetch('/api/subscribers/manage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: currentEmail, feeds: [] })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    showMessage(data.message, 'success');
+                    // Uncheck all
+                    document.querySelectorAll('#feedsContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
+                } else {
+                    showMessage(data.error || 'Something went wrong.', 'error');
+                }
+            } catch (err) {
+                showMessage('Network error. Please try again.', 'error');
+            }
+
+            btn.disabled = false;
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.className = `message ${type}`;
+            msg.textContent = text;
+            msg.style.display = 'block';
+        }
+
+        function hideMessage() {
+            document.getElementById('message').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

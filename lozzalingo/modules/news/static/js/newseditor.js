@@ -392,29 +392,67 @@ async function toggleArticleStatus(id) {
     }
 }
 
-// Send article email to subscribers
+// Send article email to subscribers (with feed selector)
 async function sendArticleEmail(id) {
-    if (!confirm('Send this article to all subscribers via email?')) {
-        return;
+    const emailBtn = document.querySelector(`button[onclick="sendArticleEmail(${id})"]`);
+
+    // Fetch available feeds
+    let feeds = [];
+    try {
+        const feedsRes = await fetch('/api/subscribers/feeds');
+        if (feedsRes.ok) {
+            const feedsData = await feedsRes.json();
+            feeds = feedsData.feeds || [];
+        }
+    } catch (e) {}
+
+    // Build feed selector dialog
+    let feedChoice = null;
+    if (feeds.length > 0) {
+        const feedOptions = feeds.map(f => `  • ${f.label} (${f.id})`).join('\n');
+        const promptMsg = `Send this article to which subscribers?\n\nAvailable feeds:\n${feedOptions}\n\nEnter a feed ID (e.g. "${feeds[0].id}") or leave blank to send to ALL subscribers:`;
+        const input = prompt(promptMsg);
+
+        if (input === null) return; // Cancelled
+
+        const trimmed = input.trim();
+        if (trimmed) {
+            const validIds = feeds.map(f => f.id);
+            if (!validIds.includes(trimmed)) {
+                showMessage(`Invalid feed "${trimmed}". Valid options: ${validIds.join(', ')}`, 'error');
+                return;
+            }
+            feedChoice = trimmed;
+        }
+
+        const targetLabel = feedChoice
+            ? feeds.find(f => f.id === feedChoice)?.label || feedChoice
+            : 'ALL subscribers';
+        if (!confirm(`Send this article email to: ${targetLabel}?`)) return;
+    } else {
+        if (!confirm('Send this article to all subscribers via email?')) return;
     }
 
-    const emailBtn = document.querySelector(`button[onclick="sendArticleEmail(${id})"]`);
     const originalText = emailBtn.textContent;
-
-    // Show loading state
     emailBtn.disabled = true;
     emailBtn.textContent = 'Sending...';
 
     try {
+        const body = feedChoice ? { feed: feedChoice } : {};
         const response = await fetch(`/admin/news-editor/api/articles/${id}/send-email`, {
-            method: 'POST'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
         });
 
         const result = await response.json();
 
         if (response.ok) {
             if (result.success) {
-                showMessage(`Email sent successfully to ${result.subscriber_count} subscribers!`, 'success');
+                const feedLabel = feedChoice
+                    ? feeds.find(f => f.id === feedChoice)?.label || feedChoice
+                    : 'all';
+                showMessage(`Email sent to ${result.subscriber_count} subscribers (${feedLabel})!`, 'success');
             } else {
                 showMessage(result.message || 'No subscribers found', 'info');
             }
@@ -425,7 +463,6 @@ async function sendArticleEmail(id) {
         console.error('Error sending article email:', error);
         showMessage('Failed to send email: ' + error.message, 'error');
     } finally {
-        // Restore button state
         emailBtn.disabled = false;
         emailBtn.textContent = originalText;
     }
