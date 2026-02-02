@@ -27,10 +27,9 @@ class Config:
     GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET')
     
     # Email settings
-    # Hostinger SMTP settings for no-reply@mariopintomma.com
-    EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS", "no-reply@mariopintomma.com")
-    EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")  # Hostinger email password
-    EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.hostinger.com")
+    EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS", "onboarding@resend.dev")
+    EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+    EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
     EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 
     # Resend API settings (free tier: 3,000 emails/month)

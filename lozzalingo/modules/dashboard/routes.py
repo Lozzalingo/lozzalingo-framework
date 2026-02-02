@@ -12,6 +12,24 @@ import hashlib
 import os
 from datetime import datetime, timedelta
 
+def _get_config_value(key, default=None):
+    """Get configuration value: Flask app config first, then Config import, then env var"""
+    try:
+        from flask import current_app
+        val = current_app.config.get(key)
+        if val:
+            return val
+    except RuntimeError:
+        pass
+    try:
+        from config import Config
+        val = getattr(Config, key, None)
+        if val:
+            return val
+    except ImportError:
+        pass
+    return os.getenv(key, default)
+
 def hash_password(password):
     """Simple password hashing"""
     return hashlib.sha256(password.encode()).hexdigest()
@@ -65,11 +83,7 @@ def init_admin_table(db_connection_func, user_db_path):
 def login():
     """Admin login route"""
     # Get database connection function and path from config
-    try:
-        from config import Config
-        user_db = Config.USER_DB
-    except (ImportError, AttributeError):
-        user_db = os.getenv('USER_DB', 'users.db')
+    user_db = _get_config_value('USER_DB', 'users.db')
 
     try:
         from database import Database
@@ -139,11 +153,7 @@ def change_password():
         return redirect(url_for('admin.login'))
 
     # Get database connection
-    try:
-        from config import Config
-        user_db = Config.USER_DB
-    except (ImportError, AttributeError):
-        user_db = os.getenv('USER_DB', 'users.db')
+    user_db = _get_config_value('USER_DB', 'users.db')
 
     try:
         from database import Database
@@ -203,11 +213,7 @@ def change_password():
 def create_admin():
     """Create new admin (only accessible by existing admin or if no admins exist)"""
     # Get database connection
-    try:
-        from config import Config
-        user_db = Config.USER_DB
-    except (ImportError, AttributeError):
-        user_db = os.getenv('USER_DB', 'users.db')
+    user_db = _get_config_value('USER_DB', 'users.db')
 
     try:
         from database import Database
@@ -315,15 +321,9 @@ def api_stats():
 
     try:
         # Get config
-        try:
-            from config import Config
-            analytics_db = Config.ANALYTICS_DB if hasattr(Config, 'ANALYTICS_DB') else None
-            news_db = Config.NEWS_DB if hasattr(Config, 'NEWS_DB') else None
-            user_db = Config.USER_DB if hasattr(Config, 'USER_DB') else None
-        except ImportError:
-            analytics_db = os.getenv('ANALYTICS_DB')
-            news_db = os.getenv('NEWS_DB')
-            user_db = os.getenv('USER_DB')
+        analytics_db = _get_config_value('ANALYTICS_DB')
+        news_db = _get_config_value('NEWS_DB')
+        user_db = _get_config_value('USER_DB')
 
         # Get database connection
         try:

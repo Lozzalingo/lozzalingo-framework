@@ -126,7 +126,19 @@ class ReferrerTracker:
             hostname = hostname.lower().replace('www.', '')
 
             # Check if internal (self-referral)
-            if hostname in ['mariopintomma.com', 'localhost', '127.0.0.1']:
+            # Check against configured site domains + localhost
+            internal_hosts = ['localhost', '127.0.0.1']
+            try:
+                from flask import current_app
+                site_url = current_app.config.get('EMAIL_WEBSITE_URL', '')
+                if site_url:
+                    from urllib.parse import urlparse
+                    site_host = urlparse(site_url).hostname
+                    if site_host:
+                        internal_hosts.append(site_host.replace('www.', ''))
+            except (RuntimeError, ImportError):
+                pass
+            if hostname in internal_hosts:
                 result.update({
                     'source': 'Internal',
                     'medium': 'internal',

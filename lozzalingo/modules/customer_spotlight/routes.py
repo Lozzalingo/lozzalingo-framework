@@ -19,6 +19,12 @@ from . import customer_spotlight_bp
 def get_db_path():
     """Get the database path from config or environment"""
     try:
+        val = current_app.config.get('USER_DB')
+        if val:
+            return val
+    except RuntimeError:
+        pass
+    try:
         from config import Config
         return getattr(Config, 'USER_DB', None) or os.getenv('USER_DB', 'users.db')
     except ImportError:
@@ -27,6 +33,12 @@ def get_db_path():
 
 def get_spotlight_images_path():
     """Get the path where spotlight images are stored"""
+    try:
+        base_path = current_app.config.get('SPOTLIGHT_IMAGES_PATH')
+        if base_path:
+            return base_path
+    except RuntimeError:
+        pass
     try:
         from config import Config
         base_path = getattr(Config, 'SPOTLIGHT_IMAGES_PATH', None)

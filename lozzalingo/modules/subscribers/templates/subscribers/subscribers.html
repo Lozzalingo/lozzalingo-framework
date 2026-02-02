@@ -1,0 +1,51 @@
+<!-- Subscribers Section -->
+<section class="content-section" id="newsletter">
+    <div class="section-content">
+        <h2 class="section-title">Stay Updated</h2>
+        <p class="lead-text">Get the latest updates and exclusive content delivered straight to your inbox. No spam, just the good stuff.</p>
+
+        <div class="newsletter-container">
+            <form class="newsletter-form" id="subscriberForm">
+                <div class="form-group">
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        placeholder="Enter your email address"
+                        class="newsletter-input"
+                        required
+                    >
+                    <button name="subscribe_newsletter" type="submit" class="newsletter-btn">
+                        <span class="btn-text">Subscribe</span>
+                        <span class="btn-loading" style="display: none;">
+                            <span class="loading-spinner"></span>
+                        </span>
+                    </button>
+                </div>
+
+
+                <div class="form-message" id="formMessage" style="display: none;"></div>
+
+
+                <div class="subscriber-stats" id="subscriberStats">
+                    <div class="stats-item">
+                        <span class="stats-number" id="subscriberCount">-</span>
+                        <span class="stats-label">Subscribers</span>
+                    </div>
+                </div>
+
+            </form>
+
+            <div class="subscriber-stats" id="subscriberStats">
+                <div class="stats-item">
+                    <span class="stats-number" id="subscriberCount">-</span>
+                    <span class="stats-label">Subscribers</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Include CSS and JS -->
+<link rel="stylesheet" href="{{ url_for('subscribers.static', filename='css/subscribers.css') }}">
+<script src="{{ url_for('subscribers.static', filename='js/subscribers.js') }}" defer></script>

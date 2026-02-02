@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Logs - Admin Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --noir-black: #0a0a0a;
+            --noir-charcoal: #1a1a1a;
+            --noir-dark: #2a2a2a;
+            --noir-gray: #3a3a3a;
+            --noir-light-gray: #666666;
+            --noir-white: #ffffff;
+            --accent-green: #2d5016;
+            --accent-red: #8b2635;
+            --accent-blue: #1a4d2e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--noir-black);
+            color: var(--noir-white);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        .header {
+            margin-bottom: 40px;
+            border-bottom: 1px solid var(--noir-gray);
+            padding-bottom: 30px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 16px;
+            color: var(--noir-light-gray);
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .back-link:hover { color: var(--noir-white); }
+
+        .title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            color: var(--noir-white);
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            color: var(--noir-light-gray);
+            font-weight: 400;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--noir-charcoal);
+            border: 1px solid var(--noir-gray);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            margin: 0 0 8px 0;
+            font-size: 2em;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .stat-card p {
+            margin: 0;
+            color: var(--noir-light-gray);
+            font-size: 0.9em;
+        }
+
+        .stat-card.success h3 { color: #22c55e; }
+        .stat-card.danger h3 { color: #ef4444; }
+        .stat-card.info h3 { color: #3b82f6; }
+
+        .log-filters {
+            background: var(--noir-charcoal);
+            padding: 16px 20px;
+            border-radius: 8px;
+            border: 1px solid var(--noir-gray);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .log-filters label {
+            font-size: 0.85rem;
+            color: var(--noir-light-gray);
+        }
+
+        .log-filters select, .log-filters input {
+            padding: 6px 10px;
+            border: 1px solid var(--noir-gray);
+            border-radius: 4px;
+            background: var(--noir-dark);
+            color: var(--noir-white);
+            font-size: 0.85rem;
+        }
+
+        .refresh-btn {
+            background: var(--noir-dark);
+            color: var(--noir-white);
+            border: 1px solid var(--noir-gray);
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+
+        .refresh-btn:hover {
+            background: var(--noir-gray);
+        }
+
+        .email-table {
+            width: 100%;
+            background: var(--noir-charcoal);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--noir-gray);
+        }
+
+        .email-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .email-table th {
+            background: var(--noir-dark);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--noir-light-gray);
+            border-bottom: 1px solid var(--noir-gray);
+        }
+
+        .email-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #222;
+            font-size: 0.9rem;
+        }
+
+        .email-table tr:hover td {
+            background: var(--noir-dark);
+        }
+
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-badge.sent {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+        }
+
+        .status-badge.failed {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+
+        .type-badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+        }
+
+        .error-cell {
+            color: #ef4444;
+            font-size: 0.85em;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .timestamp-cell {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            color: var(--noir-light-gray);
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 20px 15px; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .log-filters { flex-direction: column; align-items: stretch; }
+            .email-table { overflow-x: auto; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/admin/email-preview/" class="back-link">&larr; Back to Email Templates</a>
+
+        <div class="header">
+            <h1 class="title">Email Logs</h1>
+            <p class="subtitle">Monitor sent and failed emails</p>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card success">
+                <h3 id="totalSent">-</h3>
+                <p>Emails Sent</p>
+            </div>
+            <div class="stat-card danger">
+                <h3 id="totalFailed">-</h3>
+                <p>Failed</p>
+            </div>
+            <div class="stat-card info">
+                <h3 id="orderConfirmations">-</h3>
+                <p>Order Confirmations</p>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="log-filters">
+            <label>
+                Type:
+                <select id="typeFilter">
+                    <option value="all">All Types</option>
+                    <option value="order_confirmation">Order Confirmations</option>
+                    <option value="welcome">Welcome Emails</option>
+                    <option value="admin_notification">Admin Notifications</option>
+                    <option value="news_notification">News</option>
+                    <option value="other">Other</option>
+                </select>
+            </label>
+
+            <label>
+                Status:
+                <select id="statusFilter">
+                    <option value="all">All Status</option>
+                    <option value="sent">Sent</option>
+                    <option value="failed">Failed</option>
+                </select>
+            </label>
+
+            <label>
+                Limit:
+                <input type="number" id="limitInput" value="100" min="10" max="1000" style="width: 80px;">
+            </label>
+
+            <button name="refresh_email_logs" onclick="loadEmailLogs()" class="refresh-btn">Refresh</button>
+            <button name="clear_email_filters" onclick="resetFilters()" class="refresh-btn">Clear Filters</button>
+        </div>
+
+        <!-- Email Logs Table -->
+        <div class="email-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Recipient</th>
+                        <th>Subject</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Error</th>
+                    </tr>
+                </thead>
+                <tbody id="emailLogsBody">
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px; color: var(--noir-light-gray);">
+                            Loading email logs...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function loadEmailLogs() {
+            const type = document.getElementById('typeFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            const limit = document.getElementById('limitInput').value;
+
+            const url = `/admin/email-preview/logs/api?type=${type}&status=${status}&limit=${limit}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // Update statistics
+                    document.getElementById('totalSent').textContent = data.stats.total_sent;
+                    document.getElementById('totalFailed').textContent = data.stats.total_failed;
+                    document.getElementById('orderConfirmations').textContent = data.stats.order_confirmations;
+
+                    // Update table
+                    const tbody = document.getElementById('emailLogsBody');
+
+                    if (data.logs.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 40px; color: var(--noir-light-gray);">
+                                    No email logs found matching your filters.
+                                </td>
+                            </tr>
+                        `;
+                        return;
+                    }
+
+                    tbody.innerHTML = data.logs.map(log => `
+                        <tr>
+                            <td class="timestamp-cell">${formatTimestamp(log.sent_at)}</td>
+                            <td>${escapeHtml(log.recipient)}</td>
+                            <td>${escapeHtml(log.subject)}</td>
+                            <td><span class="type-badge">${escapeHtml(log.email_type || 'unknown')}</span></td>
+                            <td><span class="status-badge ${log.status}">${log.status.toUpperCase()}</span></td>
+                            <td class="error-cell">${log.error_message ? escapeHtml(log.error_message) : '-'}</td>
+                        </tr>
+                    `).join('');
+                })
+                .catch(error => {
+                    console.error('Error loading email logs:', error);
+                    document.getElementById('emailLogsBody').innerHTML = `
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 40px; color: #ef4444;">
+                                Error loading email logs
+                            </td>
+                        </tr>
+                    `;
+                });
+        }
+
+        function resetFilters() {
+            document.getElementById('typeFilter').value = 'all';
+            document.getElementById('statusFilter').value = 'all';
+            document.getElementById('limitInput').value = '100';
+            loadEmailLogs();
+        }
+
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function escapeHtml(text) {
+            if (!text || text === null || text === undefined) return text;
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+
+        // Load logs on page load
+        document.addEventListener('DOMContentLoaded', loadEmailLogs);
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadEmailLogs, 30000);
+    </script>
+</body>
+</html>

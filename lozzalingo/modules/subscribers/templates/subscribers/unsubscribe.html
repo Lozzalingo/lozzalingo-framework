@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unsubscribe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --noir-black: #0a0a0a;
+            --noir-charcoal: #1a1a1a;
+            --noir-dark: #2a2a2a;
+            --noir-gray: #3a3a3a;
+            --noir-light-gray: #666666;
+            --noir-white: #ffffff;
+            --accent-green: #2d5016;
+            --accent-red: #8b2635;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--noir-black);
+            color: var(--noir-white);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .unsubscribe-container {
+            background: var(--noir-charcoal);
+            border: 1px solid var(--noir-gray);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 32px;
+        }
+
+        .title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+            color: var(--noir-white);
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            color: var(--noir-light-gray);
+            font-weight: 400;
+            line-height: 1.5;
+        }
+
+        .form-section {
+            margin: 32px 0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--noir-white);
+            font-size: 14px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--noir-dark);
+            border: 1px solid var(--noir-gray);
+            color: var(--noir-white);
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-red);
+        }
+
+        .form-input::placeholder {
+            color: var(--noir-light-gray);
+        }
+
+        .unsubscribe-btn {
+            background: var(--accent-red);
+            color: var(--noir-white);
+            border: none;
+            padding: 14px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            margin-bottom: 16px;
+        }
+
+        .unsubscribe-btn:hover {
+            background: #a12d3e;
+            transform: translateY(-1px);
+        }
+
+        .unsubscribe-btn:disabled {
+            background: var(--noir-gray);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .back-link {
+            color: var(--noir-light-gray);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.3s ease;
+        }
+
+        .back-link:hover {
+            color: var(--noir-white);
+        }
+
+        .message {
+            padding: 16px;
+            margin: 20px 0;
+            font-size: 14px;
+            display: none;
+        }
+
+        .message.success {
+            background: rgba(45, 80, 22, 0.2);
+            border: 1px solid var(--accent-green);
+            color: #90c695;
+        }
+
+        .message.error {
+            background: rgba(139, 38, 53, 0.2);
+            border: 1px solid var(--accent-red);
+            color: #f19ca3;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 10px;
+        }
+
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--noir-gray);
+            border-top: 2px solid var(--noir-white);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 480px) {
+            .unsubscribe-container {
+                padding: 24px;
+            }
+            .title {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="unsubscribe-container">
+        <div class="header">
+            <h1 class="title">Unsubscribe</h1>
+            <p class="subtitle">We're sorry to see you go. Enter your email address below to unsubscribe from updates.</p>
+        </div>
+
+        <div class="form-section">
+            <form id="unsubscribeForm">
+                <div class="form-group">
+                    <label for="email" class="form-label">Email Address</label>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        class="form-input"
+                        placeholder="Enter your email address"
+                        required
+                    >
+                </div>
+
+                <button type="submit" class="unsubscribe-btn" id="unsubscribeBtn">
+                    Unsubscribe
+                </button>
+
+                <div class="loading" id="loading">
+                    <div class="loading-spinner"></div>
+                    Processing...
+                </div>
+            </form>
+
+            <div class="message" id="message"></div>
+
+            <a href="/" class="back-link">&larr; Back to homepage</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('unsubscribeForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const button = document.getElementById('unsubscribeBtn');
+            const loading = document.getElementById('loading');
+            const message = document.getElementById('message');
+
+            message.style.display = 'none';
+            message.className = 'message';
+
+            button.disabled = true;
+            loading.style.display = 'block';
+
+            try {
+                const response = await fetch('/api/subscribers/unsubscribe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email: email })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    message.className = 'message success';
+                    message.textContent = data.message;
+                    document.getElementById('email').value = '';
+                } else {
+                    message.className = 'message error';
+                    message.textContent = data.error || 'An error occurred';
+                }
+
+                message.style.display = 'block';
+
+            } catch (error) {
+                message.className = 'message error';
+                message.textContent = 'Network error. Please try again.';
+                message.style.display = 'block';
+            }
+
+            button.disabled = false;
+            loading.style.display = 'none';
+        });
+    </script>
+</body>
+</html>

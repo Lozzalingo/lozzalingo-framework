@@ -28,7 +28,14 @@ from datetime import datetime
 # ===== Database Helper Functions =====
 
 def get_db_config():
-    """Get database configuration - uses user_log.db for API keys"""
+    """Get database configuration - uses users.db for API keys"""
+    try:
+        from flask import current_app
+        val = current_app.config.get('USER_DB')
+        if val:
+            return val
+    except RuntimeError:
+        pass
     try:
         from config import Config
         return Config.USER_DB if hasattr(Config, 'USER_DB') else 'databases/user_log.db'
@@ -37,6 +44,13 @@ def get_db_config():
 
 def get_news_db_config():
     """Get news database configuration"""
+    try:
+        from flask import current_app
+        val = current_app.config.get('NEWS_DB')
+        if val:
+            return val
+    except RuntimeError:
+        pass
     try:
         from config import Config
         return Config.NEWS_DB if hasattr(Config, 'NEWS_DB') else 'databases/news.db'

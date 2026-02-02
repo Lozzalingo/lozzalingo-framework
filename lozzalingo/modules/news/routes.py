@@ -18,6 +18,13 @@ import re
 def get_db_config():
     """Get database configuration"""
     try:
+        from flask import current_app
+        val = current_app.config.get('NEWS_DB')
+        if val:
+            return val
+    except RuntimeError:
+        pass
+    try:
         from config import Config
         return Config.NEWS_DB if hasattr(Config, 'NEWS_DB') else 'news.db'
     except ImportError:
@@ -609,3 +616,100 @@ def upload_image():
     except Exception as e:
         print(f"Error uploading image: {e}")
         return jsonify({'error': 'Failed to upload image'}), 500
+
+
+# ================================
+# SEND ARTICLE EMAIL
+# ================================
+
+@news_bp.route('/api/articles/<int:article_id>/send-email', methods=['POST'])
+def send_article_email(article_id):
+    """Send article email to subscribers, with optional feed filtering"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Admin access required'}), 401
+
+    try:
+        # Get article
+        article = get_article_db(article_id)
+        if not article:
+            return jsonify({'error': 'Article not found'}), 404
+
+        # Get optional feed from POST body
+        data = request.get_json(silent=True) or {}
+        feed = data.get('feed', None)
+
+        # Get subscriber emails (optional import)
+        get_subscriber_emails = None
+        try:
+            from lozzalingo.modules.subscribers.routes import get_all_subscriber_emails
+            get_subscriber_emails = get_all_subscriber_emails
+        except ImportError:
+            pass
+
+        if get_subscriber_emails is None:
+            try:
+                from app.blueprints.subscribers.routes import get_all_subscriber_emails
+                get_subscriber_emails = get_all_subscriber_emails
+            except ImportError:
+                pass
+
+        if get_subscriber_emails is None:
+            return jsonify({'error': 'Subscribers module not available'}), 500
+
+        subscribers = get_subscriber_emails(feed=feed)
+        if not subscribers:
+            feed_msg = f' for feed "{feed}"' if feed else ''
+            return jsonify({
+                'success': False,
+                'message': f'No subscribers found{feed_msg}',
+                'subscriber_count': 0
+            }), 200
+
+        # Prepare article data
+        content = article.get('content', '')
+        article_data = {
+            'id': article['id'],
+            'title': article['title'],
+            'content': content,
+            'slug': article.get('slug', ''),
+            'excerpt': article.get('excerpt') or (content[:300] + '...' if len(content) > 300 else content),
+            'date': article.get('created_at', '')
+        }
+
+        # Get email service (optional import)
+        email_svc = None
+        try:
+            from lozzalingo.modules.email.email_service import email_service
+            email_svc = email_service
+        except ImportError:
+            pass
+
+        if email_svc is None:
+            try:
+                from app.services.email_service import email_service
+                email_svc = email_service
+            except ImportError:
+                pass
+
+        if email_svc is None:
+            return jsonify({'error': 'Email service not available'}), 500
+
+        success = email_svc.send_news_notification(subscribers, article_data)
+
+        if success:
+            mark_email_sent_db(article_id)
+            return jsonify({
+                'success': True,
+                'message': f'Email sent successfully to {len(subscribers)} subscribers',
+                'subscriber_count': len(subscribers)
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to send email',
+                'subscriber_count': len(subscribers)
+            }), 500
+
+    except Exception as e:
+        print(f"Error sending article email: {e}")
+        return jsonify({'error': str(e)}), 500
