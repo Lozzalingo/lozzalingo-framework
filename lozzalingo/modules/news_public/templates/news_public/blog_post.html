@@ -297,7 +297,7 @@
     {% if config.get('NEWS_EMBED_PRODUCTS', False) %}
     <script>
     (function() {
-        var PARAGRAPHS_BETWEEN = 4;
+        var WORDS_BETWEEN = 500;
         var PRODUCTS_URL = '/merchandise/products';
         var SHOP_URL = '/#merchandise';
 
@@ -312,22 +312,16 @@
         function formatPrice(product) {
             if (product.price_display) return product.price_display;
             if (product.price) {
-                try {
-                    var pence = parseInt(product.price, 10);
-                    return '\u00a3' + (pence / 100).toFixed(2);
-                } catch(e) { return ''; }
+                try { return '\u00a3' + (parseInt(product.price, 10) / 100).toFixed(2); }
+                catch(e) { return ''; }
             }
             return '';
         }
 
         function getImageUrl(product) {
             var img = product.image_url || product.image || '';
-            if (!img && product.image_urls && product.image_urls.length) {
-                img = '/static/' + product.image_urls[0];
-            }
-            if (img && !img.startsWith('http') && !img.startsWith('/')) {
-                img = '/static/' + img;
-            }
+            if (!img && product.image_urls && product.image_urls.length) img = '/static/' + product.image_urls[0];
+            if (img && !img.startsWith('http') && !img.startsWith('/')) img = '/static/' + img;
             return img;
         }
 
@@ -337,11 +331,9 @@
             if (desc.length > 120) desc = desc.substring(0, 117) + '...';
             var price = formatPrice(product);
             var imgUrl = getImageUrl(product);
-
             var card = document.createElement('div');
             card.setAttribute('data-product-card', 'true');
             card.style.cssText = 'margin:32px auto;padding:20px;border:1px solid #3a3a3a;background:#1a1a1a;display:flex;gap:16px;align-items:center;max-width:480px;border-radius:6px;';
-
             var html = '';
             if (imgUrl) {
                 html += '<div style="flex-shrink:0;width:100px;border-radius:4px;overflow:hidden;">'
@@ -350,13 +342,9 @@
             }
             html += '<div style="flex:1;">';
             html += '<div style="font-weight:600;font-size:0.95rem;color:#fff;margin-bottom:4px;">' + name + '</div>';
-            if (desc) {
-                html += '<div style="font-size:0.8rem;color:#999;margin-bottom:8px;">' + desc + '</div>';
-            }
+            if (desc) html += '<div style="font-size:0.8rem;color:#999;margin-bottom:8px;">' + desc + '</div>';
             html += '<div style="display:flex;align-items:center;gap:12px;">';
-            if (price) {
-                html += '<span style="font-size:1.1rem;font-weight:700;color:#c5a55a;">' + price + '</span>';
-            }
+            if (price) html += '<span style="font-size:1.1rem;font-weight:700;color:#c5a55a;">' + price + '</span>';
             html += '<a href="' + SHOP_URL + '" target="_blank" rel="noopener" '
                 + 'style="display:inline-block;padding:6px 16px;background:#fff;color:#0a0a0a;'
                 + 'font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;'
@@ -366,13 +354,9 @@
             return card;
         }
 
-        function hasExistingCard(el) {
-            var next = el.nextElementSibling;
-            if (!next) return false;
-            if (next.getAttribute('data-product-card') === 'true') return true;
-            if (next.querySelector && next.querySelector('a[href*="merchandise"]')) return true;
-            if (next.innerHTML && next.innerHTML.indexOf('Shop Now') !== -1) return true;
-            return false;
+        function wordCount(el) {
+            var text = (el.textContent || '').trim();
+            return text ? text.split(/\s+/).length : 0;
         }
 
         fetch(PRODUCTS_URL)
@@ -381,29 +365,38 @@
                 if (!data) return;
                 var products = Array.isArray(data) ? data : (data.products || []);
                 if (!products.length) return;
-                shuffleArray(products);
 
-                var contentEl = document.querySelector('.content');
+                var contentEl = document.querySelector('.blog-post-content') || document.querySelector('.content');
                 if (!contentEl) return;
+
+                // If article already has baked-in product cards, skip injection
+                if (contentEl.querySelector('a[href*="merchandise"]') && contentEl.innerHTML.indexOf('Shop Now') !== -1) {
+                    return;
+                }
 
                 var paragraphs = contentEl.querySelectorAll('p');
                 if (paragraphs.length < 2) return;
 
+                shuffleArray(products);
+
+                // Find insertion points based on cumulative word count
                 var insertionPoints = [];
-                for (var i = PARAGRAPHS_BETWEEN - 1; i < paragraphs.length; i += PARAGRAPHS_BETWEEN) {
-                    insertionPoints.push(i);
+                var cumWords = 0;
+                var nextThreshold = WORDS_BETWEEN;
+                for (var i = 0; i < paragraphs.length; i++) {
+                    cumWords += wordCount(paragraphs[i]);
+                    if (cumWords >= nextThreshold) {
+                        insertionPoints.push(i);
+                        nextThreshold = cumWords + WORDS_BETWEEN;
+                    }
                 }
+                // Always add one at the end
                 var lastIdx = paragraphs.length - 1;
-                if (insertionPoints.indexOf(lastIdx) === -1) {
-                    insertionPoints.push(lastIdx);
-                }
+                if (insertionPoints.indexOf(lastIdx) === -1) insertionPoints.push(lastIdx);
 
                 var productIdx = 0;
-                for (var j = 0; j < insertionPoints.length; j++) {
-                    var pIdx = insertionPoints[j];
-                    var para = paragraphs[pIdx];
-                    if (hasExistingCard(para)) continue;
-
+                for (var j = insertionPoints.length - 1; j >= 0; j--) {
+                    var para = paragraphs[insertionPoints[j]];
                     var product = products[productIdx % products.length];
                     productIdx++;
                     var card = buildCard(product);
