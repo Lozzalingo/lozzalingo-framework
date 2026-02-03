@@ -687,15 +687,29 @@ def send_article_email(article_id):
                 'subscriber_count': 0
             }), 200
 
+        # Build the correct article URL using category routing if configured
+        slug = article.get('slug', '')
+        article_url = None
+        category_name = article.get('category_name', '')
+        if category_name:
+            categories = current_app.config.get('NEWS_CATEGORIES', [])
+            for cat in categories:
+                if cat.get('name') == category_name:
+                    article_url = f"/{cat['slug']}/{slug}"
+                    break
+        if not article_url:
+            article_url = f"/news/{slug}"
+
         # Prepare article data
         content = article.get('content', '')
         article_data = {
             'id': article['id'],
             'title': article['title'],
             'content': content,
-            'slug': article.get('slug', ''),
+            'slug': slug,
             'excerpt': article.get('excerpt') or (content[:300] + '...' if len(content) > 300 else content),
-            'date': article.get('created_at', '')
+            'date': article.get('created_at', ''),
+            'url': article_url
         }
 
         # Get email service (optional import)

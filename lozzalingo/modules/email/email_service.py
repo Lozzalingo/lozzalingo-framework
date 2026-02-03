@@ -603,7 +603,7 @@ New update from {self.brand_name}!
 
 {article.get('excerpt', article.get('content', '')[:200] + '...')}
 
-Read the full article: {self.website_url}/news/{article.get('slug', '')}
+Read the full article: {self.website_url}{article.get('url', '/news/' + article.get('slug', ''))}
 
 Best regards,
 The {self.brand_name} Team
@@ -617,7 +617,7 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
         """Get news notification email HTML template"""
         title = article.get('title', 'Latest News')
         excerpt = article.get('excerpt', article.get('content', '')[:320] + '...')
-        article_url = f"{self.website_url}/news/{article.get('slug', '')}"
+        article_url = f"{self.website_url}{article.get('url', '/news/' + article.get('slug', ''))}"
         date = article.get('date', datetime.now().strftime('%B %d, %Y'))
 
         return f"""
