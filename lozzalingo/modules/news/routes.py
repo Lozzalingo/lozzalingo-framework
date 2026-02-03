@@ -605,7 +605,8 @@ def upload_image():
         return jsonify({'error': 'Invalid file type'}), 400
 
     try:
-        UPLOAD_FOLDER = 'static/blog'
+        from flask import current_app
+        UPLOAD_FOLDER = os.path.join(current_app.static_folder, 'blog')
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
         file_ext = file.filename.rsplit('.', 1)[1].lower()
