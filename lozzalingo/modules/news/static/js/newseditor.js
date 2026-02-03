@@ -455,19 +455,9 @@ async function sendArticleEmail(id) {
     // 3. Show confirmation
     let feedChoice = null;
     if (autoFeed) {
-        const choice = prompt(
-            `This article is categorised as "${article.category_name}".\n\n` +
-            `Send to:\n` +
-            `  1. ${autoFeedLabel || autoFeed} subscribers only (recommended)\n` +
-            `  2. ALL subscribers\n\n` +
-            `Enter 1 or 2:`
-        );
-        if (choice === null) return;
-        if (choice.trim() === '2') {
-            feedChoice = '__all__';
-        } else {
-            feedChoice = autoFeed;
-        }
+        const label = autoFeedLabel || autoFeed;
+        if (!confirm(`Send this article to ${label} subscribers and All Updates subscribers?`)) return;
+        feedChoice = autoFeed;
     } else {
         if (!confirm('Send this article to all subscribers via email?')) return;
         feedChoice = '__all__';

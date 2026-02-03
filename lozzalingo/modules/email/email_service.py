@@ -153,7 +153,9 @@ class EmailService:
                 logger.error("Sender email not configured")
                 return False
 
-            # Send email to each recipient
+            # Send email to each recipient, skipping failures
+            sent_count = 0
+            failed_count = 0
             for i, recipient in enumerate(to):
                 logger.info(f"Sending email from: {self.sender_email} to: {recipient}")
                 logger.info(f"Subject: {subject}")
@@ -179,10 +181,11 @@ class EmailService:
                         logger.debug(f"Email sent successfully to: {recipient}, ID: {r['id']}")
                         email_type = self._get_email_type_from_subject(subject)
                         self._log_email(recipient, subject, email_type, 'sent', None)
+                        sent_count += 1
                     else:
                         logger.error(f"Resend error for {recipient}: {r}")
                         self._log_email(recipient, subject, 'unknown', 'failed', str(r))
-                        return False
+                        failed_count += 1
 
                     # Rate limit: Wait 0.6s between sends (max ~1.66 emails/sec)
                     if i < len(to) - 1:
@@ -192,10 +195,15 @@ class EmailService:
                 except Exception as send_error:
                     logger.error(f"Error sending to {recipient}: {send_error}")
                     self._log_email(recipient, subject, 'unknown', 'failed', str(send_error))
-                    return False
+                    failed_count += 1
 
-            logger.info(f"Email sent successfully to {len(to)} recipients: {subject}")
-            return True
+            if failed_count > 0:
+                logger.warning(f"Email send completed with errors: {sent_count} sent, {failed_count} failed")
+            else:
+                logger.info(f"Email sent successfully to {sent_count} recipients: {subject}")
+
+            # Return True as long as at least one email was sent
+            return sent_count > 0
 
         except Exception as e:
             logger.error(f"Failed to send email via Resend: {str(e)}")
