@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, jsonify, redirect, url_for, flash, request, current_app
+from flask import Blueprint, render_template, jsonify, redirect, url_for, flash, request, current_app, make_response
 import re
 
 news_public_bp = Blueprint('news', __name__, url_prefix='/news', template_folder='templates')
@@ -98,6 +98,71 @@ def article_url(article):
     return url_for('news.blog_post', slug=slug)
 
 
+# ===== Sitemap Generator =====
+
+def _generate_sitemap():
+    """Generate a sitemap.xml from config + published news articles.
+
+    Requires SITE_URL in app config. Optional configs:
+    - SITEMAP_STATIC_PAGES: list of {'path': '/', 'changefreq': 'weekly', 'priority': '1.0'}
+    - NEWS_CATEGORIES: used for category-based article URLs
+    """
+    from lozzalingo.modules.news.routes import get_all_articles_db
+
+    site_url = current_app.config.get('SITE_URL', '').rstrip('/')
+    static_pages = current_app.config.get('SITEMAP_STATIC_PAGES', [])
+    categories = _get_categories_config()
+    _, name_to_slug = _get_category_maps()
+    default_slug = _get_default_category_slug()
+
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+
+    # Static pages from config
+    for page in static_pages:
+        path = page.get('path', '/')
+        changefreq = page.get('changefreq', 'weekly')
+        priority = page.get('priority', '0.5')
+        xml += f'    <url>\n'
+        xml += f'        <loc>{site_url}{path}</loc>\n'
+        xml += f'        <changefreq>{changefreq}</changefreq>\n'
+        xml += f'        <priority>{priority}</priority>\n'
+        xml += f'    </url>\n'
+
+    # Published news articles
+    articles = get_all_articles_db(status='published')
+    for article in articles:
+        slug = article.get('slug', '')
+        updated_at = article.get('updated_at', '')
+        cat_name = article.get('category_name', '')
+
+        # Build URL using category routing
+        if categories:
+            cat_slug = name_to_slug.get(cat_name, default_slug or 'news')
+            loc = f'{site_url}/{cat_slug}/{slug}'
+        else:
+            loc = f'{site_url}/news/{slug}'
+
+        # Format date as ISO 8601
+        lastmod = ''
+        if updated_at:
+            lastmod = updated_at.replace(' ', 'T') + '+00:00'
+
+        xml += f'    <url>\n'
+        xml += f'        <loc>{loc}</loc>\n'
+        if lastmod:
+            xml += f'        <lastmod>{lastmod}</lastmod>\n'
+        xml += f'        <changefreq>monthly</changefreq>\n'
+        xml += f'        <priority>0.7</priority>\n'
+        xml += f'    </url>\n'
+
+    xml += '</urlset>'
+
+    response = make_response(xml)
+    response.headers['Content-Type'] = 'application/xml'
+    return response
+
+
 # ===== Register Category Routes at App Level =====
 
 @news_public_bp.record_once
@@ -152,6 +217,14 @@ def register_category_routes(state):
         endpoint = f'category_{cat_slug}'
         app.add_url_rule(f'/{cat_slug}/<article_slug>', endpoint=endpoint, view_func=view_func)
         print(f"[News] Registered category route: /{cat_slug}/<slug> -> {endpoint}")
+
+    # Register /sitemap.xml at the app level if SITE_URL is configured
+    site_url = app.config.get('SITE_URL')
+    if site_url:
+        def sitemap_xml_view():
+            return _generate_sitemap()
+        app.add_url_rule('/sitemap.xml', endpoint='sitemap_xml', view_func=sitemap_xml_view)
+        print(f"[News] Registered /sitemap.xml for {site_url}")
 
 
 # ===== Routes =====
