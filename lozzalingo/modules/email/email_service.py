@@ -7,11 +7,15 @@ All branding is configurable through Flask app config.
 """
 
 import os
+import re
 import logging
 import sqlite3
 import time
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+
+# Rejects consecutive dots, leading/trailing dots in local part
+_VALID_EMAIL = re.compile(r'^[a-zA-Z0-9_%+-]+(\.[a-zA-Z0-9_%+-]+)*@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$')
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -153,10 +157,22 @@ class EmailService:
                 logger.error("Sender email not configured")
                 return False
 
+            # Filter out invalid email addresses before sending
+            valid_recipients = []
+            for addr in to:
+                if _VALID_EMAIL.match(addr):
+                    valid_recipients.append(addr)
+                else:
+                    logger.warning(f"Skipping invalid email address: {addr}")
+
+            if not valid_recipients:
+                logger.error("No valid recipients after filtering")
+                return False
+
             # Send email to each recipient, skipping failures
             sent_count = 0
             failed_count = 0
-            for i, recipient in enumerate(to):
+            for i, recipient in enumerate(valid_recipients):
                 logger.info(f"Sending email from: {self.sender_email} to: {recipient}")
                 logger.info(f"Subject: {subject}")
 
@@ -188,7 +204,7 @@ class EmailService:
                         failed_count += 1
 
                     # Rate limit: Wait 0.6s between sends (max ~1.66 emails/sec)
-                    if i < len(to) - 1:
+                    if i < len(valid_recipients) - 1:
                         logger.debug(f"Rate limiting: Waiting 0.6s before next send...")
                         time.sleep(0.6)
 

@@ -27,8 +27,8 @@ from datetime import datetime
 from flask import request, jsonify, render_template, session, current_app
 from . import subscribers_bp
 
-# Email validation regex
-EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+# Email validation regex — rejects consecutive dots, leading/trailing dots
+EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_%+-]+(\.[a-zA-Z0-9_%+-]+)*@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$')
 
 # Setup logging
 logger = logging.getLogger(__name__)
