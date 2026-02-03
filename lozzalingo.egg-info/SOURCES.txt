@@ -93,6 +93,8 @@ lozzalingo/modules/email/routes.py
 lozzalingo/modules/external_api/__init__.py
 lozzalingo/modules/external_api/routes.py
 lozzalingo/modules/external_api/templates/external_api/api_keys_manager.html
+lozzalingo/modules/inkthreadable/__init__.py
+lozzalingo/modules/inkthreadable/service.py
 lozzalingo/modules/merchandise/__init__.py
 lozzalingo/modules/merchandise/routes.py
 lozzalingo/modules/merchandise/templates/merchandise/merchandise_editor.html
@@ -110,3 +112,8 @@ lozzalingo/modules/news_public/templates/news_public/news.html
 lozzalingo/modules/orders/__init__.py
 lozzalingo/modules/orders/routes.py
 lozzalingo/modules/orders/templates/orders/orders_manager.html
+lozzalingo/modules/settings/__init__.py
+lozzalingo/modules/settings/database.py
+lozzalingo/modules/settings/helpers.py
+lozzalingo/modules/settings/routes.py
+lozzalingo/modules/settings/templates/settings/settings.html

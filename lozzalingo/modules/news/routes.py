@@ -643,9 +643,22 @@ def send_article_email(article_id):
         if not article:
             return jsonify({'error': 'Article not found'}), 404
 
-        # Get optional feed from POST body
+        # Get feed: explicit override from POST body, or auto-detect from article category
         data = request.get_json(silent=True) or {}
         feed = data.get('feed', None)
+
+        if feed == '__all__':
+            feed = None  # explicit "send to everyone"
+        elif feed is None:
+            # Auto-detect from NEWS_CATEGORIES config
+            from flask import current_app
+            category_name = article.get('category_name')
+            if category_name:
+                categories = current_app.config.get('NEWS_CATEGORIES', [])
+                for cat in categories:
+                    if cat.get('name') == category_name and cat.get('feed'):
+                        feed = cat['feed']
+                        break
 
         # Get subscriber emails (optional import)
         get_subscriber_emails = None

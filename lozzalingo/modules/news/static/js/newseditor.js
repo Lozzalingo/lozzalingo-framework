@@ -392,45 +392,59 @@ async function toggleArticleStatus(id) {
     }
 }
 
-// Send article email to subscribers (with feed selector)
+// Send article email to subscribers (with auto-detect from category)
 async function sendArticleEmail(id) {
     const emailBtn = document.querySelector(`button[onclick="sendArticleEmail(${id})"]`);
 
-    // Fetch available feeds
-    let feeds = [];
+    // 1. Get article details to find category
+    let article = null;
     try {
-        const feedsRes = await fetch('/api/subscribers/feeds');
-        if (feedsRes.ok) {
-            const feedsData = await feedsRes.json();
-            feeds = feedsData.feeds || [];
+        const articleRes = await fetch(`/admin/news-editor/api/articles/${id}`);
+        if (articleRes.ok) article = await articleRes.json();
+    } catch (e) {}
+
+    // 2. Auto-detect feed from article category via NEWS_CATEGORIES config
+    let autoFeed = null;
+    let autoFeedLabel = null;
+    try {
+        const catRes = await fetch('/news/api/categories');
+        if (catRes.ok) {
+            const catData = await catRes.json();
+            const match = (catData.categories || []).find(
+                c => article && c.name === article.category_name && c.feed
+            );
+            if (match) {
+                autoFeed = match.feed;
+                // Look up feed label from subscriber feeds
+                const feedsRes = await fetch('/api/subscribers/feeds');
+                if (feedsRes.ok) {
+                    const feedsData = await feedsRes.json();
+                    const feedMatch = (feedsData.feeds || []).find(f => f.id === autoFeed);
+                    autoFeedLabel = feedMatch ? feedMatch.label : autoFeed;
+                }
+            }
         }
     } catch (e) {}
 
-    // Build feed selector dialog
+    // 3. Show confirmation
     let feedChoice = null;
-    if (feeds.length > 0) {
-        const feedOptions = feeds.map(f => `  • ${f.label} (${f.id})`).join('\n');
-        const promptMsg = `Send this article to which subscribers?\n\nAvailable feeds:\n${feedOptions}\n\nEnter a feed ID (e.g. "${feeds[0].id}") or leave blank to send to ALL subscribers:`;
-        const input = prompt(promptMsg);
-
-        if (input === null) return; // Cancelled
-
-        const trimmed = input.trim();
-        if (trimmed) {
-            const validIds = feeds.map(f => f.id);
-            if (!validIds.includes(trimmed)) {
-                showMessage(`Invalid feed "${trimmed}". Valid options: ${validIds.join(', ')}`, 'error');
-                return;
-            }
-            feedChoice = trimmed;
+    if (autoFeed) {
+        const choice = prompt(
+            `This article is categorised as "${article.category_name}".\n\n` +
+            `Send to:\n` +
+            `  1. ${autoFeedLabel || autoFeed} subscribers only (recommended)\n` +
+            `  2. ALL subscribers\n\n` +
+            `Enter 1 or 2:`
+        );
+        if (choice === null) return;
+        if (choice.trim() === '2') {
+            feedChoice = '__all__';
+        } else {
+            feedChoice = autoFeed;
         }
-
-        const targetLabel = feedChoice
-            ? feeds.find(f => f.id === feedChoice)?.label || feedChoice
-            : 'ALL subscribers';
-        if (!confirm(`Send this article email to: ${targetLabel}?`)) return;
     } else {
         if (!confirm('Send this article to all subscribers via email?')) return;
+        feedChoice = '__all__';
     }
 
     const originalText = emailBtn.textContent;
@@ -438,7 +452,7 @@ async function sendArticleEmail(id) {
     emailBtn.textContent = 'Sending...';
 
     try {
-        const body = feedChoice ? { feed: feedChoice } : {};
+        const body = { feed: feedChoice };
         const response = await fetch(`/admin/news-editor/api/articles/${id}/send-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -449,10 +463,10 @@ async function sendArticleEmail(id) {
 
         if (response.ok) {
             if (result.success) {
-                const feedLabel = feedChoice
-                    ? feeds.find(f => f.id === feedChoice)?.label || feedChoice
+                const label = (feedChoice && feedChoice !== '__all__')
+                    ? (autoFeedLabel || feedChoice)
                     : 'all';
-                showMessage(`Email sent to ${result.subscriber_count} subscribers (${feedLabel})!`, 'success');
+                showMessage(`Email sent to ${result.subscriber_count} subscribers (${label})!`, 'success');
             } else {
                 showMessage(result.message || 'No subscribers found', 'info');
             }
