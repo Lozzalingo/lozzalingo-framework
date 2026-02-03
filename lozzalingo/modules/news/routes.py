@@ -136,8 +136,8 @@ def create_slug(title):
 
     return slug
 
-def get_all_articles_db(status=None):
-    """Get all articles with optional status filter"""
+def get_all_articles_db(status=None, category_name=None, exclude_categories=None):
+    """Get all articles with optional status, category, and exclusion filters"""
     news_db = get_db_config()
     db_connect = get_db_connection()
 
@@ -145,23 +145,31 @@ def get_all_articles_db(status=None):
         with db_connect(news_db) as conn:
             cursor = conn.cursor()
 
+            conditions = []
+            params = []
+
             if status:
-                cursor.execute('''
-                    SELECT id, title, slug, content, image_url, status, email_sent, created_at, updated_at,
-                           excerpt, meta_title, meta_description, author_name, author_email,
-                           category_name, source_id, source_url
-                    FROM news_articles
-                    WHERE status = ?
-                    ORDER BY created_at DESC
-                ''', (status,))
-            else:
-                cursor.execute('''
-                    SELECT id, title, slug, content, image_url, status, email_sent, created_at, updated_at,
-                           excerpt, meta_title, meta_description, author_name, author_email,
-                           category_name, source_id, source_url
-                    FROM news_articles
-                    ORDER BY created_at DESC
-                ''')
+                conditions.append('status = ?')
+                params.append(status)
+
+            if category_name:
+                conditions.append('category_name = ?')
+                params.append(category_name)
+
+            if exclude_categories:
+                placeholders = ','.join('?' for _ in exclude_categories)
+                conditions.append(f'(category_name IS NULL OR category_name NOT IN ({placeholders}))')
+                params.extend(exclude_categories)
+
+            where_clause = f' WHERE {" AND ".join(conditions)}' if conditions else ''
+
+            cursor.execute(f'''
+                SELECT id, title, slug, content, image_url, status, email_sent, created_at, updated_at,
+                       excerpt, meta_title, meta_description, author_name, author_email,
+                       category_name, source_id, source_url
+                FROM news_articles{where_clause}
+                ORDER BY created_at DESC
+            ''', params)
 
             rows = cursor.fetchall()
             articles = []

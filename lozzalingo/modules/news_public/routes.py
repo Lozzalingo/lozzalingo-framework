@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, jsonify, redirect, url_for, flash
+from flask import Blueprint, render_template, jsonify, redirect, url_for, flash, request, current_app
 import re
 
 news_public_bp = Blueprint('news', __name__, url_prefix='/news', template_folder='templates')
@@ -35,44 +35,207 @@ def format_content(content):
 def format_content_filter(content):
     return format_content(content)
 
+
+# ===== Category Helpers =====
+
+def _get_categories_config():
+    """Read NEWS_CATEGORIES from app config. Returns [] if not configured."""
+    try:
+        return current_app.config.get('NEWS_CATEGORIES', [])
+    except RuntimeError:
+        return []
+
+
+def _get_category_maps():
+    """Returns (slug_to_name, name_to_slug) dicts from config."""
+    categories = _get_categories_config()
+    slug_to_name = {c['slug']: c['name'] for c in categories}
+    name_to_slug = {c['name']: c['slug'] for c in categories}
+    return slug_to_name, name_to_slug
+
+
+def _get_gallery_excludes():
+    """Returns list of category names where gallery=False."""
+    categories = _get_categories_config()
+    return [c['name'] for c in categories if not c.get('gallery', True)]
+
+
+def _get_default_category_slug():
+    """Returns the slug of the first category with gallery=True, or None."""
+    categories = _get_categories_config()
+    for c in categories:
+        if c.get('gallery', True):
+            return c['slug']
+    return None
+
+
+# ===== Template Globals =====
+
+@news_public_bp.app_template_global()
+def article_url(article):
+    """Generate the correct URL for an article based on category config.
+
+    If NEWS_CATEGORIES is configured, returns /<category-slug>/<article-slug>.
+    Otherwise falls back to /news/<slug>.
+    """
+    slug = article.get('slug', '') if isinstance(article, dict) else article.slug
+    categories = _get_categories_config()
+
+    if not categories:
+        return url_for('news.blog_post', slug=slug)
+
+    cat_name = article.get('category_name', '') if isinstance(article, dict) else getattr(article, 'category_name', '')
+    _, name_to_slug = _get_category_maps()
+
+    cat_slug = name_to_slug.get(cat_name)
+    if cat_slug:
+        return f'/{cat_slug}/{slug}'
+
+    # Fallback to default category or /news/<slug>
+    default = _get_default_category_slug()
+    if default:
+        return f'/{default}/{slug}'
+    return url_for('news.blog_post', slug=slug)
+
+
+# ===== Register Category Routes at App Level =====
+
+@news_public_bp.record_once
+def register_category_routes(state):
+    """Register top-level /<category-slug>/<article-slug> routes on the app."""
+    app = state.app
+    categories = app.config.get('NEWS_CATEGORIES', [])
+
+    if not categories:
+        return
+
+    for cat in categories:
+        cat_slug = cat['slug']
+        cat_name = cat['name']
+
+        def make_view(category_slug, category_name):
+            def category_article_view(article_slug):
+                from lozzalingo.modules.news.routes import get_article_by_slug_db, get_all_articles_db
+                article = get_article_by_slug_db(article_slug)
+
+                if not article or article.get('status') != 'published':
+                    flash('Article not found', 'error')
+                    return redirect(url_for('news.blog'))
+
+                # If article belongs to a different category, redirect to the correct one
+                article_cat = article.get('category_name', '')
+                _, name_to_slug = _get_category_maps()
+                correct_slug = name_to_slug.get(article_cat, _get_default_category_slug())
+
+                if correct_slug and correct_slug != category_slug:
+                    return redirect(f'/{correct_slug}/{article_slug}', code=301)
+
+                # Get related articles from same category
+                all_articles = get_all_articles_db(status='published', category_name=category_name)
+                related_articles = [a for a in all_articles if a['slug'] != article_slug][:3]
+
+                # If not enough related articles from same category, fill from all
+                if len(related_articles) < 3:
+                    all_published = get_all_articles_db(status='published')
+                    existing_slugs = {article_slug} | {a['slug'] for a in related_articles}
+                    for a in all_published:
+                        if a['slug'] not in existing_slugs:
+                            related_articles.append(a)
+                            if len(related_articles) >= 3:
+                                break
+
+                return render_template('news_public/blog_post.html',
+                                     article=article, related_articles=related_articles)
+            return category_article_view
+
+        view_func = make_view(cat_slug, cat_name)
+        endpoint = f'category_{cat_slug}'
+        app.add_url_rule(f'/{cat_slug}/<article_slug>', endpoint=endpoint, view_func=view_func)
+        print(f"[News] Registered category route: /{cat_slug}/<slug> -> {endpoint}")
+
+
+# ===== Routes =====
+
 @news_public_bp.route('/')
 def news_list():
-    """Public news listing page - only shows published articles"""
-    # Import here to avoid circular imports
+    """Public news listing page - only shows published articles.
+    Excludes categories with gallery=False when NEWS_CATEGORIES is configured."""
     from lozzalingo.modules.news.routes import get_all_articles_db
-    articles = get_all_articles_db(status='published')
+    excludes = _get_gallery_excludes()
+    if excludes:
+        articles = get_all_articles_db(status='published', exclude_categories=excludes)
+    else:
+        articles = get_all_articles_db(status='published')
     return render_template('news_public/news.html', articles=articles)
 
 @news_public_bp.route('/blog')
 def blog():
-    """Dedicated blog page with better styling - only shows published articles"""
-    # Import here to avoid circular imports
+    """Dedicated blog page with better styling - only shows published articles.
+    Excludes categories with gallery=False when NEWS_CATEGORIES is configured."""
     from lozzalingo.modules.news.routes import get_all_articles_db
-    articles = get_all_articles_db(status='published')
+    excludes = _get_gallery_excludes()
+    if excludes:
+        articles = get_all_articles_db(status='published', exclude_categories=excludes)
+    else:
+        articles = get_all_articles_db(status='published')
     return render_template('news_public/blog.html', articles=articles)
 
 @news_public_bp.route('/<slug>')
 def blog_post(slug):
-    """Individual blog post page - only shows published articles"""
-    # Import here to avoid circular imports
-    from lozzalingo.modules.news.routes import get_article_by_slug_db
+    """Individual blog post page.
+    If NEWS_CATEGORIES is configured, 301 redirects to /<category-slug>/<slug>.
+    Otherwise renders directly."""
+    from lozzalingo.modules.news.routes import get_article_by_slug_db, get_all_articles_db
     article = get_article_by_slug_db(slug)
+
     if not article or article.get('status') != 'published':
         flash('Article not found', 'error')
         return redirect(url_for('news.blog'))
 
-    # Get related articles (exclude current one, only published)
-    from lozzalingo.modules.news.routes import get_all_articles_db
+    # If categories are configured, redirect to the proper category URL
+    categories = _get_categories_config()
+    if categories:
+        cat_name = article.get('category_name', '')
+        _, name_to_slug = _get_category_maps()
+        cat_slug = name_to_slug.get(cat_name, _get_default_category_slug())
+        if cat_slug:
+            return redirect(f'/{cat_slug}/{slug}', code=301)
+
+    # No categories configured — render directly (original behavior)
     all_articles = get_all_articles_db(status='published')
     related_articles = [a for a in all_articles if a['slug'] != slug][:3]
-
     return render_template('news_public/blog_post.html', article=article, related_articles=related_articles)
 
-# API Routes - Public endpoint only
+
+# ===== API Routes =====
+
 @news_public_bp.route('/api/articles', methods=['GET'])
 def get_articles():
-    """Get all published articles API - public endpoint"""
-    # Import here to avoid circular imports
+    """Get published articles API - public endpoint.
+    Supports ?category=<name> and ?exclude_gallery=true query params."""
     from lozzalingo.modules.news.routes import get_all_articles_db
-    articles = get_all_articles_db(status='published')
+
+    category = request.args.get('category')
+    exclude_gallery = request.args.get('exclude_gallery', '').lower() == 'true'
+
+    kwargs = {'status': 'published'}
+
+    if category:
+        kwargs['category_name'] = category
+    elif exclude_gallery:
+        excludes = _get_gallery_excludes()
+        if excludes:
+            kwargs['exclude_categories'] = excludes
+
+    articles = get_all_articles_db(**kwargs)
     return jsonify(articles)
+
+
+@news_public_bp.route('/api/categories', methods=['GET'])
+def get_categories():
+    """Return NEWS_CATEGORIES config as JSON for frontend consumption."""
+    categories = _get_categories_config()
+    return jsonify({
+        'categories': categories,
+        'default': _get_default_category_slug()
+    })
