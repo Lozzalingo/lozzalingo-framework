@@ -1,10 +1,32 @@
 // News Editor functionality with image upload
 document.addEventListener('DOMContentLoaded', function() {
+    loadCategories();
     loadArticles();
     setupForm();
     setupImagePreview();
     setupImageUpload();
 });
+
+// Populate category dropdown from NEWS_CATEGORIES config
+async function loadCategories() {
+    const select = document.getElementById('categoryName');
+    if (!select) return;
+    try {
+        const res = await fetch('/news/api/categories');
+        if (!res.ok) return;
+        const data = await res.json();
+        const categories = data.categories || [];
+        if (categories.length === 0) return;
+        categories.forEach(function(cat) {
+            const opt = document.createElement('option');
+            opt.value = cat.name;
+            opt.textContent = cat.name;
+            select.appendChild(opt);
+        });
+    } catch (e) {
+        console.log('[Editor] Could not load categories');
+    }
+}
 
 let editingArticleId = null;
 
@@ -236,11 +258,14 @@ async function handleSubmit(status) {
         return;
     }
 
+    const categoryName = document.getElementById('categoryName').value.trim();
+
     // Ensure image URL is not empty string when sending
     const data = {
         title,
         content,
         image_url: imageUrl || null,
+        category_name: categoryName || null,
         status: status
     };
 
@@ -321,6 +346,7 @@ async function editArticle(id) {
         document.getElementById('title').value = article.title;
         document.getElementById('content').value = article.content;
         document.getElementById('imageUrl').value = article.image_url || '';
+        document.getElementById('categoryName').value = article.category_name || '';
 
         // Trigger image preview
         if (article.image_url) {
