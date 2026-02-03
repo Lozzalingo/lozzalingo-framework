@@ -390,10 +390,6 @@
                         nextThreshold = cumWords + WORDS_BETWEEN;
                     }
                 }
-                // Always add one at the end
-                var lastIdx = paragraphs.length - 1;
-                if (insertionPoints.indexOf(lastIdx) === -1) insertionPoints.push(lastIdx);
-
                 var productIdx = 0;
                 for (var j = insertionPoints.length - 1; j >= 0; j--) {
                     var para = paragraphs[insertionPoints[j]];
