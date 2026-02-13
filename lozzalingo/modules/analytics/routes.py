@@ -222,10 +222,20 @@ def get_overview_stats():
             cursor = conn.cursor()
             
             # Filter out only truly invalid IPs (keep development IPs for testing)
-            # TODO: Add environment-based filtering (strict in production, permissive in dev)
+            # Filter out localhost, Docker, and private network IPs (RFC 1918)
+            # 172.16-31.* is private, but 172.32+.* are real IPs (T-Mobile, Google, etc.)
             local_ip_filter = """
                 AND ip IS NOT NULL
                 AND ip NOT IN ('127.0.0.1', '::1', 'localhost', '')
+                AND ip NOT LIKE '192.168.%'
+                AND ip NOT LIKE '10.%'
+                AND ip NOT LIKE '172.16.%'
+                AND ip NOT LIKE '172.17.%'
+                AND ip NOT LIKE '172.18.%'
+                AND ip NOT LIKE '172.19.%'
+                AND ip NOT LIKE '172.2_.%'
+                AND ip NOT LIKE '172.30.%'
+                AND ip NOT LIKE '172.31.%'
             """
 
             # Total page views (only count page_view_client events, exclude localhost)
@@ -366,10 +376,20 @@ def get_overview_stats():
             cursor = conn.cursor()
 
             # Filter out only truly invalid IPs (keep development IPs for testing)
-            # TODO: Add environment-based filtering (strict in production, permissive in dev)
+            # Filter out localhost, Docker, and private network IPs (RFC 1918)
+            # 172.16-31.* is private, but 172.32+.* are real IPs (T-Mobile, Google, etc.)
             local_ip_filter = """
                 AND ip IS NOT NULL
                 AND ip NOT IN ('127.0.0.1', '::1', 'localhost', '')
+                AND ip NOT LIKE '192.168.%'
+                AND ip NOT LIKE '10.%'
+                AND ip NOT LIKE '172.16.%'
+                AND ip NOT LIKE '172.17.%'
+                AND ip NOT LIKE '172.18.%'
+                AND ip NOT LIKE '172.19.%'
+                AND ip NOT LIKE '172.2_.%'
+                AND ip NOT LIKE '172.30.%'
+                AND ip NOT LIKE '172.31.%'
             """
 
             # Average pages per session (exclude localhost)
