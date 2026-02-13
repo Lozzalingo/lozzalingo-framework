@@ -5,6 +5,15 @@ class AnalyticsClient {
         this.currentRoute = this.getCurrentRoute();
         this.routeHistory = [];
 
+        // Persist session page count across full-page navigations using sessionStorage
+        try {
+            const storedCount = parseInt(sessionStorage.getItem('_lz_page_count') || '0', 10);
+            this._sessionPageCount = storedCount + 1;
+            sessionStorage.setItem('_lz_page_count', this._sessionPageCount.toString());
+        } catch (e) {
+            this._sessionPageCount = 1;
+        }
+
         // Store fingerprint promise
         this.rateLimiterByDevice = this.generateUltraStableFingerprint();
 
@@ -609,7 +618,7 @@ class AnalyticsClient {
             device_os: deviceInfo.device_os,
             device_brand: deviceInfo.device_brand,
             device_confidence: deviceInfo.device_confidence,
-            session_page_count: this.routeHistory.length + 1
+            session_page_count: this._sessionPageCount || 1
         };
     }
 

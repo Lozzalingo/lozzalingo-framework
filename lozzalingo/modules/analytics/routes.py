@@ -1003,16 +1003,10 @@ def get_referer_data():
             # Use enhanced referrer tracking with priority referrer
             referrer_data = ReferrerTracker.parse_referrer(primary_referrer, url_params)
 
-            # Skip internal admin routes
-            if referrer_data['is_internal'] and primary_referrer:
-                excluded_paths = ['/admin/', '/api/', '/debug/', '/maintenance', '/template-preview/']
-                from urllib.parse import urlparse
-                try:
-                    parsed = urlparse(primary_referrer)
-                    if any(path in parsed.path for path in excluded_paths):
-                        continue
-                except:
-                    pass
+            # Skip ALL internal same-site navigation — these are not entry visits.
+            # Only count genuinely direct (no referrer) or external referrals.
+            if referrer_data['is_internal']:
+                continue
 
             # Get display name for aggregation
             display_name = ReferrerTracker.generate_display_name(referrer_data)
