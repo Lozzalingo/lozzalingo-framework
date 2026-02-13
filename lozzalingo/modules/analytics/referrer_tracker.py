@@ -132,7 +132,6 @@ class ReferrerTracker:
                 from flask import current_app
                 site_url = current_app.config.get('EMAIL_WEBSITE_URL', '')
                 if site_url:
-                    from urllib.parse import urlparse
                     site_host = urlparse(site_url).hostname
                     if site_host:
                         internal_hosts.append(site_host.replace('www.', ''))
