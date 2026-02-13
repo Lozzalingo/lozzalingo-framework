@@ -107,12 +107,26 @@ class ReferrerTracker:
         if url_params:
             result.update(ReferrerTracker._parse_utm_params(url_params))
 
-        # If no referrer URL, check for URL parameters
+        # If no referrer URL, classify from UTM params if available
         if not referrer_url:
             if result['utm_source']:
-                result['source'] = result['utm_source']
-                result['medium'] = result['utm_medium'] or 'campaign'
-                result['category'] = 'Campaign Traffic'
+                utm_key = result['utm_source'].lower()
+                mapped = ReferrerTracker.UTM_SOURCE_MAP.get(utm_key)
+                if mapped:
+                    source, medium, category, is_social, is_search = mapped
+                    result['source'] = source
+                    result['medium'] = result['utm_medium'] or medium
+                    result['category'] = category
+                    result['platform'] = source
+                    result['is_social'] = is_social
+                    result['is_search'] = is_search
+                else:
+                    result['source'] = result['utm_source']
+                    result['medium'] = result['utm_medium'] or 'campaign'
+                    result['category'] = 'Campaign Traffic'
+                if result['utm_campaign']:
+                    result['campaign'] = result['utm_campaign']
+                    result['category'] = 'Campaign Traffic'
             return result
 
         # Parse the referrer URL
