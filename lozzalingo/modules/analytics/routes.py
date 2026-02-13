@@ -943,11 +943,31 @@ def get_referer_data():
             AND ip NOT LIKE '172.31.%'
         """
 
-        # Get entry page views (first page in session) for accurate external referrer data.
-        # Only session_page_count=1 has the real external document.referrer — subsequent
-        # page views have an internal referrer from same-site navigation.
-        # Use JSON_EXTRACT to pull the client-side referrer directly for efficient grouping.
+        # Get only the FIRST page view per visitor per session for accurate traffic sources.
+        # A "session" is defined as a group of page views from the same fingerprint with no
+        # more than 30 minutes between them. We select the entry (first) page view per session
+        # since only it carries the real external document.referrer — subsequent page views
+        # have an internal referrer from same-site navigation.
         cursor.execute(f"""
+            WITH ordered AS (
+                SELECT
+                    rowid,
+                    fingerprint_hash,
+                    timestamp,
+                    referer,
+                    additional_data,
+                    LAG(timestamp) OVER (PARTITION BY fingerprint_hash ORDER BY timestamp) as prev_ts
+                FROM analytics_log
+                WHERE event_type = 'page_view_client'
+                AND datetime(timestamp) >= datetime('now', '-{days} days')
+                {local_ip_filter}
+            ),
+            entry_views AS (
+                SELECT rowid, fingerprint_hash, timestamp, referer, additional_data
+                FROM ordered
+                WHERE prev_ts IS NULL
+                   OR (julianday(timestamp) - julianday(prev_ts)) * 24 * 60 > 30
+            )
             SELECT
                 referer,
                 COALESCE(
@@ -958,11 +978,7 @@ def get_referer_data():
                 JSON_EXTRACT(additional_data, '$.search_params') as search_params,
                 JSON_EXTRACT(additional_data, '$.referrer_info') as referrer_info_json,
                 COUNT(*) as visits
-            FROM analytics_log
-            WHERE event_type = 'page_view_client'
-            AND datetime(timestamp) >= datetime('now', '-{days} days')
-            AND (session_page_count = '1' OR session_page_count = 1 OR session_page_count IS NULL)
-            {local_ip_filter}
+            FROM entry_views
             GROUP BY referer, doc_referrer
             ORDER BY visits DESC
         """)
