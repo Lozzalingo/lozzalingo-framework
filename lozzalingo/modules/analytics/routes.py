@@ -250,17 +250,22 @@ def get_overview_stats():
             cursor.execute(f"SELECT COUNT(DISTINCT fingerprint) FROM analytics_log WHERE event_type = 'page_view_client' AND fingerprint IS NOT NULL AND identity = 'human' AND datetime(timestamp) >= ? {local_ip_filter}", (cutoff_date,))
             stats['unique_visitors'] = cursor.fetchone()[0]
 
-            # Human vs Bot breakdown (from page views only, exclude localhost)
-            cursor.execute(f"SELECT identity, COUNT(*) FROM analytics_log WHERE event_type = 'page_view_client' AND identity IS NOT NULL AND datetime(timestamp) >= ? {local_ip_filter} GROUP BY identity", (cutoff_date,))
+            # Human vs Bot breakdown (unique visitors per identity type)
+            cursor.execute(f"SELECT identity, COUNT(DISTINCT fingerprint) FROM analytics_log WHERE event_type = 'page_view_client' AND identity IS NOT NULL AND fingerprint IS NOT NULL AND datetime(timestamp) >= ? {local_ip_filter} GROUP BY identity", (cutoff_date,))
             identity_breakdown = dict(cursor.fetchall())
             stats['identity_breakdown'] = identity_breakdown
 
-            # Top countries (from page views only, exclude localhost)
+            # All analytics queries below use the same filter: human visitors only,
+            # counted by unique fingerprint (not page views) for consistency with
+            # the Unique Visitors / Human Visitors overview stats.
+
+            # Top countries (unique human visitors per country)
             cursor.execute(f"""
-                SELECT country, COUNT(*) as count
+                SELECT country, COUNT(DISTINCT fingerprint) as count
                 FROM analytics_log
                 WHERE event_type = 'page_view_client' AND country IS NOT NULL AND country != ''
                 AND country NOT IN ('Local', 'Unknown')
+                AND identity = 'human' AND fingerprint IS NOT NULL
                 AND datetime(timestamp) >= ? {local_ip_filter}
                 GROUP BY country
                 ORDER BY count DESC
@@ -268,21 +273,23 @@ def get_overview_stats():
             """, (cutoff_date,))
             stats['top_countries'] = [(row[0], row[1]) for row in cursor.fetchall()]
 
-            # Device types (from page views only, exclude localhost)
+            # Device types (unique human visitors per device type)
             cursor.execute(f"""
-                SELECT device_type, COUNT(*) as count
+                SELECT device_type, COUNT(DISTINCT fingerprint) as count
                 FROM analytics_log
                 WHERE event_type = 'page_view_client' AND device_type IS NOT NULL AND device_type != ''
+                AND identity = 'human' AND fingerprint IS NOT NULL
                 AND datetime(timestamp) >= ? {local_ip_filter}
                 GROUP BY device_type
             """, (cutoff_date,))
             stats['device_types'] = dict(cursor.fetchall())
 
-            # Top device brands (from page views only)
+            # Top device brands (unique human visitors per brand)
             cursor.execute(f"""
-                SELECT device_brand, COUNT(*) as count
+                SELECT device_brand, COUNT(DISTINCT fingerprint) as count
                 FROM analytics_log
                 WHERE event_type = 'page_view_client' AND device_brand IS NOT NULL AND device_brand != ''
+                AND identity = 'human' AND fingerprint IS NOT NULL
                 AND datetime(timestamp) >= ? {local_ip_filter}
                 GROUP BY device_brand
             """, (cutoff_date,))
@@ -291,11 +298,12 @@ def get_overview_stats():
             brand_results_sorted = sorted(brand_results, key=lambda x: x[1], reverse=True)[:10]
             stats['device_brands'] = dict(brand_results_sorted)
 
-            # Top device OS (from page views only, exclude localhost)
+            # Top device OS (unique human visitors per OS)
             cursor.execute(f"""
-                SELECT device_os, COUNT(*) as count
+                SELECT device_os, COUNT(DISTINCT fingerprint) as count
                 FROM analytics_log
                 WHERE event_type = 'page_view_client' AND device_os IS NOT NULL AND device_os != ''
+                AND identity = 'human' AND fingerprint IS NOT NULL
                 AND datetime(timestamp) >= ? {local_ip_filter}
                 GROUP BY device_os
             """, (cutoff_date,))
