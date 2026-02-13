@@ -963,43 +963,35 @@ def get_referer_data():
             AND ip NOT LIKE '172.31.%'
         """
 
-        # Get only the FIRST page view per visitor per session for accurate traffic sources.
-        # A "session" is defined as a group of page views from the same fingerprint with no
-        # more than 30 minutes between them. We select the entry (first) page view per session
-        # since only it carries the real external document.referrer — subsequent page views
-        # have an internal referrer from same-site navigation.
+        # Get the FIRST page view per unique visitor for accurate traffic source attribution.
+        # Each visitor (fingerprint_hash) is counted exactly once, attributed to the source
+        # that first brought them. This ensures the traffic sources total matches unique visitors.
         cursor.execute(f"""
-            WITH ordered AS (
+            WITH first_visit AS (
                 SELECT
-                    rowid,
                     fingerprint_hash,
-                    timestamp,
-                    referer,
-                    additional_data,
-                    LAG(timestamp) OVER (PARTITION BY fingerprint_hash ORDER BY timestamp) as prev_ts
+                    MIN(rowid) as first_rowid
                 FROM analytics_log
                 WHERE event_type = 'page_view_client'
+                AND identity = 'human'
+                AND fingerprint_hash IS NOT NULL
                 AND datetime(timestamp) >= datetime('now', '-{days} days')
                 {local_ip_filter}
-            ),
-            entry_views AS (
-                SELECT rowid, fingerprint_hash, timestamp, referer, additional_data
-                FROM ordered
-                WHERE prev_ts IS NULL
-                   OR (julianday(timestamp) - julianday(prev_ts)) * 24 * 60 > 30
+                GROUP BY fingerprint_hash
             )
             SELECT
-                referer,
+                a.referer,
                 COALESCE(
-                    JSON_EXTRACT(additional_data, '$.referrer'),
-                    JSON_EXTRACT(additional_data, '$.document_referrer')
+                    JSON_EXTRACT(a.additional_data, '$.referrer'),
+                    JSON_EXTRACT(a.additional_data, '$.document_referrer')
                 ) as doc_referrer,
-                JSON_EXTRACT(additional_data, '$.utm_params') as utm_params_json,
-                JSON_EXTRACT(additional_data, '$.search_params') as search_params,
-                JSON_EXTRACT(additional_data, '$.referrer_info') as referrer_info_json,
+                JSON_EXTRACT(a.additional_data, '$.utm_params') as utm_params_json,
+                JSON_EXTRACT(a.additional_data, '$.search_params') as search_params,
+                JSON_EXTRACT(a.additional_data, '$.referrer_info') as referrer_info_json,
                 COUNT(*) as visits
-            FROM entry_views
-            GROUP BY referer, doc_referrer
+            FROM first_visit fv
+            JOIN analytics_log a ON a.rowid = fv.first_rowid
+            GROUP BY a.referer, doc_referrer
             ORDER BY visits DESC
         """)
 
