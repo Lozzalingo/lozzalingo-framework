@@ -1042,10 +1042,16 @@ def get_referer_data():
             # Use enhanced referrer tracking with priority referrer
             referrer_data = ReferrerTracker.parse_referrer(primary_referrer, url_params)
 
-            # Skip internal same-site navigation (document.referrer points to same site).
-            # Genuinely direct visits have no document.referrer and won't be internal.
+            # Reclassify internal as Direct — since we already deduplicated to one entry
+            # per unique visitor, an "internal" first page view just means we don't know
+            # the original source. Count them as Direct rather than dropping them.
             if referrer_data['is_internal']:
-                continue
+                referrer_data.update({
+                    'source': 'Direct',
+                    'medium': 'direct',
+                    'category': 'Direct Traffic',
+                    'is_internal': False
+                })
 
             # Get display name for aggregation
             display_name = ReferrerTracker.generate_display_name(referrer_data)
