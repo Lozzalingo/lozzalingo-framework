@@ -955,6 +955,8 @@ def get_referer_data():
                     JSON_EXTRACT(additional_data, '$.document_referrer')
                 ) as doc_referrer,
                 JSON_EXTRACT(additional_data, '$.utm_params') as utm_params_json,
+                JSON_EXTRACT(additional_data, '$.search_params') as search_params,
+                JSON_EXTRACT(additional_data, '$.referrer_info') as referrer_info_json,
                 COUNT(*) as visits
             FROM analytics_log
             WHERE event_type = 'page_view_client'
@@ -973,9 +975,11 @@ def get_referer_data():
             referer = row[0]
             document_referrer = row[1]
             utm_params_json = row[2]
-            visits = row[3]
+            search_params = row[3]
+            referrer_info_json = row[4]
+            visits = row[5]
 
-            # Parse UTM parameters if available
+            # Parse UTM parameters — try utm_params first, then search_params
             url_params = {}
             try:
                 if utm_params_json:
@@ -983,9 +987,18 @@ def get_referer_data():
                     url_params = json.loads(utm_params_json)
             except:
                 pass
+            if not url_params and search_params:
+                try:
+                    from urllib.parse import parse_qs
+                    parsed_params = parse_qs(search_params.lstrip('?'))
+                    for k, v in parsed_params.items():
+                        if k.startswith('utm_') and v:
+                            url_params[k] = v[0]
+                except:
+                    pass
 
             # Use document_referrer as first priority, fallback to HTTP referer header
-            primary_referrer = document_referrer if document_referrer else referer
+            primary_referrer = document_referrer if document_referrer and document_referrer != 'None' else referer
 
             # Use enhanced referrer tracking with priority referrer
             referrer_data = ReferrerTracker.parse_referrer(primary_referrer, url_params)
