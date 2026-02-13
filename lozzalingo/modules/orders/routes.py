@@ -15,7 +15,9 @@ def orders_manager():
     if 'admin_id' not in session:
         return redirect(url_for('admin.login', next=request.path))
 
-    return render_template('orders/orders_manager.html')
+    from flask import current_app
+    etsy_shops = current_app.config.get('ETSY_SHOPS', [])
+    return render_template('orders/orders_manager.html', etsy_shops=etsy_shops)
 
 @orders_bp.route('/api/orders')
 def api_orders():

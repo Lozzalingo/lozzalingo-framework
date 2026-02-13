@@ -682,17 +682,16 @@
             </div>
         </div>
 
+        {% if etsy_shops %}
         <!-- Fetch Etsy Orders Section -->
         <div class="etsy-fetch-section" style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 2px solid #e0e0e0;">
             <h3 style="margin: 0 0 15px 0; color: #333;">Fetch Etsy Orders</h3>
             <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
                 <select id="etsy-shop-select" style="padding: 10px 15px; border-radius: 5px; border: 1px solid #ddd; min-width: 200px;">
                     <option value="">Select Shop...</option>
-                    <option value="Off-Brand">Off-Brand</option>
-                    <option value="Crowd Sauced">Crowd Sauced</option>
-                    <option value="Kawaii Pop">Kawaii Pop</option>
-                    <option value="Nintrendo">Nintrendo</option>
-                    <option value="The Third Nest">The Third Nest</option>
+                    {% for shop in etsy_shops %}
+                    <option value="{{ shop }}">{{ shop }}</option>
+                    {% endfor %}
                 </select>
                 <button onclick="fetchEtsyOrders()" style="padding: 10px 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">
                     Fetch Orders
@@ -736,6 +735,7 @@
             }
         }
         </script>
+        {% endif %}
 
         <!-- Filters -->
         <div class="orders-filters">
