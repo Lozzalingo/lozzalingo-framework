@@ -246,8 +246,23 @@ class Analytics:
             referer = request.headers.get('Referer', '')
 
             # Enhanced referrer tracking
+            # Use client-side document.referrer when available (more accurate
+            # than HTTP Referer which is always the page's own URL for JS fetches)
+            doc_referrer = None
             url_params = dict(request.args) if hasattr(request, 'args') else {}
-            referrer_data = ReferrerTracker.parse_referrer(referer, url_params)
+            if additional_data:
+                doc_referrer = additional_data.get('referrer') or additional_data.get('document_referrer')
+                # Extract UTM params from the page URL's query string
+                search_params = additional_data.get('search_params', '')
+                if search_params:
+                    from urllib.parse import parse_qs
+                    parsed_params = parse_qs(search_params.lstrip('?'))
+                    # parse_qs returns lists, flatten to single values
+                    for k, v in parsed_params.items():
+                        if k.startswith('utm_') and v:
+                            url_params[k] = v[0]
+            referrer_url = doc_referrer or referer
+            referrer_data = ReferrerTracker.parse_referrer(referrer_url, url_params)
 
             print(f"[DEBUG ANALYTICS] Request data - IP: {ip}, User-Agent: {user_agent[:50]}...")
             print(f"[DEBUG ANALYTICS] Enhanced referrer data: {referrer_data}")

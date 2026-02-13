@@ -146,6 +146,7 @@ class ReferrerTracker:
                 })
 
                 # Check for Facebook click tracking on internal referrals
+                # (fbclid fallback — UTM override below takes priority)
                 if 'fbclid=' in referrer_url:
                     result.update({
                         'source': 'Facebook',
@@ -156,10 +157,9 @@ class ReferrerTracker:
                         'is_internal': False
                     })
 
-                return result
-
-            # Categorize external referrers
-            result.update(ReferrerTracker._categorize_external_referrer(hostname, referrer_url))
+            else:
+                # Categorize external referrers
+                result.update(ReferrerTracker._categorize_external_referrer(hostname, referrer_url))
 
         except Exception as e:
             print(f"Error parsing referrer URL: {e}")
@@ -170,15 +170,51 @@ class ReferrerTracker:
                 'raw_referrer': referrer_url
             })
 
-        # Override with UTM parameters if available
+        # Override with UTM parameters if available — these are the most
+        # reliable signal (e.g. utm_source=ig from Instagram mobile)
         if result['utm_source']:
-            result['source'] = result['utm_source']
-            result['medium'] = result['utm_medium'] or result['medium']
+            utm_key = result['utm_source'].lower()
+            mapped = ReferrerTracker.UTM_SOURCE_MAP.get(utm_key)
+            if mapped:
+                source, medium, category, is_social, is_search = mapped
+                result['source'] = source
+                result['medium'] = result['utm_medium'] or medium
+                result['category'] = category
+                result['platform'] = source
+                result['is_social'] = is_social
+                result['is_search'] = is_search
+                result['is_internal'] = False
+            else:
+                result['source'] = result['utm_source']
+                result['medium'] = result['utm_medium'] or result['medium']
             if result['utm_campaign']:
                 result['campaign'] = result['utm_campaign']
                 result['category'] = 'Campaign Traffic'
 
         return result
+
+    # Map common utm_source shorthand values to canonical platform names
+    UTM_SOURCE_MAP = {
+        'ig': ('Instagram', 'social', 'Social Media', True, False),
+        'instagram': ('Instagram', 'social', 'Social Media', True, False),
+        'fb': ('Facebook', 'social', 'Social Media', True, False),
+        'facebook': ('Facebook', 'social', 'Social Media', True, False),
+        'tw': ('Twitter/X', 'social', 'Social Media', True, False),
+        'twitter': ('Twitter/X', 'social', 'Social Media', True, False),
+        'x': ('Twitter/X', 'social', 'Social Media', True, False),
+        'li': ('LinkedIn', 'social', 'Social Media', True, False),
+        'linkedin': ('LinkedIn', 'social', 'Social Media', True, False),
+        'yt': ('YouTube', 'social', 'Social Media', True, False),
+        'youtube': ('YouTube', 'social', 'Social Media', True, False),
+        'tiktok': ('TikTok', 'social', 'Social Media', True, False),
+        'tt': ('TikTok', 'social', 'Social Media', True, False),
+        'pinterest': ('Pinterest', 'social', 'Social Media', True, False),
+        'reddit': ('Reddit', 'social', 'Social Media', True, False),
+        'whatsapp': ('WhatsApp', 'social', 'Social Media', True, False),
+        'telegram': ('Telegram', 'social', 'Social Media', True, False),
+        'google': ('Google', 'cpc', 'Search Engine', False, True),
+        'bing': ('Bing', 'cpc', 'Search Engine', False, True),
+    }
 
     @staticmethod
     def _parse_utm_params(url_params: Dict) -> Dict:
