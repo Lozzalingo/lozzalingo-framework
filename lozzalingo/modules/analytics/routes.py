@@ -943,13 +943,25 @@ def get_referer_data():
             AND ip NOT LIKE '172.31.%'
         """
 
-        # Get all analytics records with referrer and additional data for enhanced processing
+        # Get entry page views (first page in session) for accurate external referrer data.
+        # Only session_page_count=1 has the real external document.referrer — subsequent
+        # page views have an internal referrer from same-site navigation.
+        # Use JSON_EXTRACT to pull the client-side referrer directly for efficient grouping.
         cursor.execute(f"""
-            SELECT referer, additional_data, COUNT(*) as visits
+            SELECT
+                referer,
+                COALESCE(
+                    JSON_EXTRACT(additional_data, '$.referrer'),
+                    JSON_EXTRACT(additional_data, '$.document_referrer')
+                ) as doc_referrer,
+                JSON_EXTRACT(additional_data, '$.utm_params') as utm_params_json,
+                COUNT(*) as visits
             FROM analytics_log
             WHERE event_type = 'page_view_client'
-            AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
-            GROUP BY referer, additional_data
+            AND datetime(timestamp) >= datetime('now', '-{days} days')
+            AND (session_page_count = '1' OR session_page_count = 1 OR session_page_count IS NULL)
+            {local_ip_filter}
+            GROUP BY referer, doc_referrer
             ORDER BY visits DESC
         """)
 
@@ -959,24 +971,16 @@ def get_referer_data():
 
         for row in cursor.fetchall():
             referer = row[0]
-            additional_data_str = row[1]
-            visits = row[2]
+            document_referrer = row[1]
+            utm_params_json = row[2]
+            visits = row[3]
 
-            # Parse additional data to get URL parameters and document_referrer
+            # Parse UTM parameters if available
             url_params = {}
-            document_referrer = None
             try:
-                if additional_data_str:
+                if utm_params_json:
                     import json
-                    additional_data = json.loads(additional_data_str)
-                    # Look for UTM parameters in the stored data
-                    if 'utm_params' in additional_data:
-                        url_params = additional_data['utm_params']
-                    # PRIORITY: Use document_referrer if available (from client-side)
-                    if 'referrer' in additional_data:
-                        document_referrer = additional_data['referrer']
-                    elif 'document_referrer' in additional_data:
-                        document_referrer = additional_data['document_referrer']
+                    url_params = json.loads(utm_params_json)
             except:
                 pass
 

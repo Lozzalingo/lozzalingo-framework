@@ -49,11 +49,25 @@ def api_orders():
         conn = get_merchandise_db()
         cursor = conn.cursor()
 
-        cursor.execute('''
-            SELECT id, receipt_id, stripe_session_id, customer_email, customer_name,
-                   total_amount, status, created_at,
-                   shipping_name, shipping_line1, shipping_line2, shipping_city,
-                   shipping_state, shipping_postal_code, shipping_country
+        # Detect available columns to handle schema differences across projects
+        cursor.execute("PRAGMA table_info(orders)")
+        available_columns = {col[1] for col in cursor.fetchall()}
+
+        has_receipt_id = 'receipt_id' in available_columns
+        has_product_id = 'product_id' in available_columns
+
+        select_cols = ['id']
+        if has_receipt_id:
+            select_cols.append('receipt_id')
+        select_cols += [
+            'stripe_session_id', 'customer_email', 'customer_name',
+            'total_amount', 'status', 'created_at',
+            'shipping_name', 'shipping_line1', 'shipping_line2', 'shipping_city',
+            'shipping_state', 'shipping_postal_code', 'shipping_country'
+        ]
+
+        cursor.execute(f'''
+            SELECT {', '.join(select_cols)}
             FROM orders
             ORDER BY id DESC
             LIMIT 50
@@ -61,8 +75,24 @@ def api_orders():
 
         orders = []
         for row in cursor.fetchall():
-            order_id, receipt_id, session_id, email, name, amount, status, created_at, \
-            ship_name, ship_line1, ship_line2, ship_city, ship_state, ship_postal, ship_country = row
+            idx = 0
+            order_id = row[idx]; idx += 1
+            receipt_id = row[idx] if has_receipt_id else None
+            if has_receipt_id:
+                idx += 1
+            session_id = row[idx]; idx += 1
+            email = row[idx]; idx += 1
+            name = row[idx]; idx += 1
+            amount = row[idx]; idx += 1
+            status = row[idx]; idx += 1
+            created_at = row[idx]; idx += 1
+            ship_name = row[idx]; idx += 1
+            ship_line1 = row[idx]; idx += 1
+            ship_line2 = row[idx]; idx += 1
+            ship_city = row[idx]; idx += 1
+            ship_state = row[idx]; idx += 1
+            ship_postal = row[idx]; idx += 1
+            ship_country = row[idx]; idx += 1
 
             # Format shipping address for display
             shipping_parts = [
@@ -94,7 +124,7 @@ def api_orders():
                         shop_name = product.shop_name
 
             # If no order_items, check if order has product_id directly (Etsy orders)
-            if not product_names:
+            if not product_names and has_product_id:
                 # Get product_id from order
                 order_cursor = conn.cursor()
                 order_cursor.execute('SELECT product_id FROM orders WHERE id = ?', (order_id,))
