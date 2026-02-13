@@ -997,14 +997,17 @@ def get_referer_data():
                 except:
                     pass
 
-            # Use document_referrer as first priority, fallback to HTTP referer header
-            primary_referrer = document_referrer if document_referrer and document_referrer != 'None' else referer
+            # Use document.referrer from client JS — this is the real external referrer.
+            # Do NOT fall back to HTTP Referer header (which is always the page's own URL
+            # for JS-initiated requests and would incorrectly classify Direct as Internal).
+            has_doc_referrer = document_referrer and document_referrer != 'None' and document_referrer.strip()
+            primary_referrer = document_referrer if has_doc_referrer else None
 
             # Use enhanced referrer tracking with priority referrer
             referrer_data = ReferrerTracker.parse_referrer(primary_referrer, url_params)
 
-            # Skip ALL internal same-site navigation — these are not entry visits.
-            # Only count genuinely direct (no referrer) or external referrals.
+            # Skip internal same-site navigation (document.referrer points to same site).
+            # Genuinely direct visits have no document.referrer and won't be internal.
             if referrer_data['is_internal']:
                 continue
 
