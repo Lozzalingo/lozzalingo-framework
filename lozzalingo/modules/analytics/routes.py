@@ -250,8 +250,8 @@ def get_overview_stats():
             cursor.execute(f"SELECT COUNT(DISTINCT fingerprint) FROM analytics_log WHERE event_type = 'page_view_client' AND fingerprint IS NOT NULL AND identity = 'human' AND datetime(timestamp) >= ? {local_ip_filter}", (cutoff_date,))
             stats['unique_visitors'] = cursor.fetchone()[0]
 
-            # Human vs Bot breakdown (unique visitors per identity type)
-            cursor.execute(f"SELECT identity, COUNT(DISTINCT fingerprint) FROM analytics_log WHERE event_type = 'page_view_client' AND identity IS NOT NULL AND fingerprint IS NOT NULL AND datetime(timestamp) >= ? {local_ip_filter} GROUP BY identity", (cutoff_date,))
+            # Human vs Bot breakdown (total page views per identity type)
+            cursor.execute(f"SELECT identity, COUNT(*) FROM analytics_log WHERE event_type = 'page_view_client' AND identity IS NOT NULL AND datetime(timestamp) >= ? {local_ip_filter} GROUP BY identity", (cutoff_date,))
             identity_breakdown = dict(cursor.fetchall())
             stats['identity_breakdown'] = identity_breakdown
 
