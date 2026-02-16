@@ -217,6 +217,9 @@ class Lozzalingo:
 
     def _map_yaml_config(self, yaml_config: dict) -> dict:
         """Map YAML config structure to internal config structure."""
+        # INTEGRATION: YAML keys != internal config keys. e.g. site.name -> brand_name,
+        # admin.email -> email.admin_email. See mapping below; adding a YAML key without
+        # mapping it here means it will be silently ignored.
         result = {}
 
         # Map site section
@@ -298,12 +301,16 @@ class Lozzalingo:
 
     def _setup_database_dir(self):
         """Ensure database directory exists."""
+        # INTEGRATION: DB_DIR defaults to app.root_path-relative. Inside Docker, CWD and
+        # root_path may differ from local dev -- always set DB_DIR explicitly via env var.
         db_dir = self.app.config.get('DB_DIR',
             os.path.join(self.app.root_path, 'databases'))
         os.makedirs(db_dir, exist_ok=True)
 
     def _register_modules(self):
         """Register all enabled module blueprints."""
+        # INTEGRATION: Registration order matters. Dashboard must be first (other modules
+        # reference its templates/routes). Email must come before orders/subscribers.
         features = self._config.get('features', {})
 
         # Dashboard (admin core) - always register first as other modules depend on it
@@ -475,6 +482,9 @@ class Lozzalingo:
 
     def _setup_auto_injection(self):
         """Set up automatic script injection for analytics."""
+        # INTEGRATION: This after_request hook injects analytics JS into ALL HTML responses
+        # (except /admin when track_admin=False). It modifies response bodies in-flight.
+        # If your app returns HTML from non-admin routes, those responses WILL be modified.
         features = self._config.get('features', {})
 
         if not features.get('analytics', True):

@@ -2,7 +2,8 @@
 Email Service Module
 ====================
 
-Configurable email service using Resend API.
+Configurable email service supporting Resend and Amazon SES.
+Provider is selected via EMAIL_PROVIDER config ('resend' or 'ses').
 All branding is configurable through Flask app config.
 """
 
@@ -27,15 +28,26 @@ try:
     RESEND_AVAILABLE = True
 except ImportError:
     RESEND_AVAILABLE = False
-    logger.warning("resend package not installed. Email sending will be disabled.")
+    logger.info("resend package not installed.")
+
+# Try to import boto3 for SES - it's optional
+try:
+    import boto3
+    from botocore.exceptions import ClientError
+    BOTO3_AVAILABLE = True
+except ImportError:
+    BOTO3_AVAILABLE = False
+    logger.info("boto3 package not installed.")
 
 
 class EmailService:
     """
-    Configurable email service with Resend API integration.
+    Configurable email service supporting Resend and Amazon SES.
 
     Configuration (set in Flask app.config):
-        RESEND_API_KEY: Your Resend API key
+        EMAIL_PROVIDER: 'resend' (default) or 'ses'
+        RESEND_API_KEY: Your Resend API key (required if provider is 'resend')
+        AWS_REGION: AWS region for SES (default: 'eu-west-1', only needed if provider is 'ses')
         EMAIL_ADDRESS: Sender email address (default: onboarding@resend.dev)
         EMAIL_BRAND_NAME: Brand name for emails (default: 'Your Brand')
         EMAIL_BRAND_TAGLINE: Brand tagline (default: '')
@@ -46,7 +58,9 @@ class EmailService:
     """
 
     def __init__(self, app=None):
+        self.provider = 'resend'
         self.api_key = None
+        self.ses_client = None
         self.sender_email = None
         self.brand_name = 'Your Brand'
         self.brand_tagline = ''
@@ -60,11 +74,14 @@ class EmailService:
 
     def init_app(self, app):
         """Initialize email service with Flask app configuration"""
-        logger.info("=== INITIALIZING EMAIL SERVICE (Resend) ===")
+        # INTEGRATION: Reads these config keys: EMAIL_PROVIDER, EMAIL_ADDRESS, EMAIL_BRAND_NAME,
+        # EMAIL_BRAND_TAGLINE, EMAIL_WEBSITE_URL, EMAIL_SUPPORT_EMAIL, EMAIL_ADMIN_EMAIL,
+        # USER_DB, RESEND_API_KEY, AWS_REGION. These must be set BEFORE init_app is called.
+        self.provider = app.config.get('EMAIL_PROVIDER', 'resend').lower()
+        logger.info(f"=== INITIALIZING EMAIL SERVICE (provider: {self.provider}) ===")
 
         # Core settings
         self.sender_email = app.config.get('EMAIL_ADDRESS', 'onboarding@resend.dev')
-        self.api_key = app.config.get('RESEND_API_KEY')
 
         # Branding settings
         self.brand_name = app.config.get('EMAIL_BRAND_NAME', 'Your Brand')
@@ -77,6 +94,17 @@ class EmailService:
         logger.info(f"Sender email: {self.sender_email}")
         logger.info(f"Brand name: {self.brand_name}")
 
+        # INTEGRATION: Provider selection -- 'ses' uses boto3/AWS, anything else defaults to Resend.
+        # Only one provider is active at a time. Set EMAIL_PROVIDER in app.config to switch.
+        if self.provider == 'ses':
+            self._init_ses(app)
+        else:
+            self._init_resend(app)
+
+    def _init_resend(self, app):
+        """Initialize Resend provider"""
+        self.api_key = app.config.get('RESEND_API_KEY')
+
         if not self.api_key:
             logger.warning("RESEND_API_KEY not configured - email sending disabled")
             return
@@ -85,9 +113,21 @@ class EmailService:
             logger.error("resend package not installed")
             return
 
-        # Set the global API key for resend
         resend.api_key = self.api_key
         logger.info("Resend API client initialized successfully")
+
+    def _init_ses(self, app):
+        """Initialize Amazon SES provider"""
+        if not BOTO3_AVAILABLE:
+            logger.error("boto3 package not installed - SES email sending disabled")
+            return
+
+        aws_region = app.config.get('AWS_REGION', 'eu-west-1')
+        try:
+            self.ses_client = boto3.client('ses', region_name=aws_region)
+            logger.info(f"SES client initialized successfully (region: {aws_region})")
+        except Exception as e:
+            logger.error(f"Failed to initialize SES client: {e}")
 
     def _get_db_path(self):
         """Get database path from config or environment"""
@@ -129,7 +169,7 @@ class EmailService:
     def send_email(self, to: List[str], subject: str, html_body: str,
                    text_body: Optional[str] = None) -> bool:
         """
-        Send an email to multiple recipients using Resend API
+        Send an email to multiple recipients via the configured provider.
 
         Args:
             to: List of recipient email addresses
@@ -138,93 +178,127 @@ class EmailService:
             text_body: Plain text content (optional)
 
         Returns:
-            bool: True if successful, False otherwise
+            bool: True if at least one email was sent successfully, False otherwise
         """
+        if not to:
+            logger.error("No recipients provided")
+            return False
+
+        if not self.sender_email:
+            logger.error("Sender email not configured")
+            return False
+
+        # Filter out invalid email addresses before sending
+        valid_recipients = []
+        for addr in to:
+            if _VALID_EMAIL.match(addr):
+                valid_recipients.append(addr)
+            else:
+                logger.warning(f"Skipping invalid email address: {addr}")
+
+        if not valid_recipients:
+            logger.error("No valid recipients after filtering")
+            return False
+
+        # INTEGRATION: Sends one-by-one with 0.6s sleep between sends (rate limiting).
+        # For large subscriber lists this is blocking and slow -- consider async for bulk sends.
+        sent_count = 0
+        failed_count = 0
+        for i, recipient in enumerate(valid_recipients):
+            logger.info(f"Sending email from: {self.sender_email} to: {recipient}")
+            logger.info(f"Subject: {subject}")
+
+            try:
+                if self.provider == 'ses':
+                    success = self._send_via_ses(recipient, subject, html_body, text_body)
+                else:
+                    success = self._send_via_resend(recipient, subject, html_body, text_body)
+
+                if success:
+                    email_type = self._get_email_type_from_subject(subject)
+                    self._log_email(recipient, subject, email_type, 'sent', None)
+                    sent_count += 1
+                else:
+                    self._log_email(recipient, subject, 'unknown', 'failed', 'Provider returned failure')
+                    failed_count += 1
+
+                # Rate limit: Wait 0.6s between sends (max ~1.66 emails/sec)
+                if i < len(valid_recipients) - 1:
+                    logger.debug("Rate limiting: Waiting 0.6s before next send...")
+                    time.sleep(0.6)
+
+            except Exception as send_error:
+                logger.error(f"Error sending to {recipient}: {send_error}")
+                self._log_email(recipient, subject, 'unknown', 'failed', str(send_error))
+                failed_count += 1
+
+        if failed_count > 0:
+            logger.warning(f"Email send completed with errors: {sent_count} sent, {failed_count} failed")
+        else:
+            logger.info(f"Email sent successfully to {sent_count} recipients: {subject}")
+
+        return sent_count > 0
+
+    def _send_via_resend(self, recipient: str, subject: str, html_body: str,
+                         text_body: Optional[str] = None) -> bool:
+        """Send a single email via Resend API"""
         if not RESEND_AVAILABLE:
             logger.error("resend package not installed")
             return False
 
+        if not self.api_key:
+            logger.error("Resend API key not configured")
+            return False
+
+        email_params = {
+            "from": self.sender_email,
+            "to": recipient,
+            "subject": subject,
+            "html": html_body
+        }
+        if text_body:
+            email_params["text"] = text_body
+
+        r = resend.Emails.send(email_params)
+        logger.info(f"Resend response: {r}")
+
+        if r and r.get('id'):
+            logger.debug(f"Email sent successfully to: {recipient}, ID: {r['id']}")
+            return True
+        else:
+            logger.error(f"Resend error for {recipient}: {r}")
+            return False
+
+    def _send_via_ses(self, recipient: str, subject: str, html_body: str,
+                      text_body: Optional[str] = None) -> bool:
+        """Send a single email via Amazon SES"""
+        if not BOTO3_AVAILABLE:
+            logger.error("boto3 package not installed")
+            return False
+
+        if not self.ses_client:
+            logger.error("SES client not initialized")
+            return False
+
+        body = {'Html': {'Charset': 'UTF-8', 'Data': html_body}}
+        if text_body:
+            body['Text'] = {'Charset': 'UTF-8', 'Data': text_body}
+
         try:
-            if not self.api_key:
-                logger.error("Resend API key not configured")
-                return False
-
-            if not to:
-                logger.error("No recipients provided")
-                return False
-
-            if not self.sender_email:
-                logger.error("Sender email not configured")
-                return False
-
-            # Filter out invalid email addresses before sending
-            valid_recipients = []
-            for addr in to:
-                if _VALID_EMAIL.match(addr):
-                    valid_recipients.append(addr)
-                else:
-                    logger.warning(f"Skipping invalid email address: {addr}")
-
-            if not valid_recipients:
-                logger.error("No valid recipients after filtering")
-                return False
-
-            # Send email to each recipient, skipping failures
-            sent_count = 0
-            failed_count = 0
-            for i, recipient in enumerate(valid_recipients):
-                logger.info(f"Sending email from: {self.sender_email} to: {recipient}")
-                logger.info(f"Subject: {subject}")
-
-                try:
-                    # Prepare email data for Resend
-                    email_params = {
-                        "from": self.sender_email,
-                        "to": recipient,
-                        "subject": subject,
-                        "html": html_body
-                    }
-
-                    # Add plain text content if provided
-                    if text_body:
-                        email_params["text"] = text_body
-
-                    # Send via Resend API
-                    r = resend.Emails.send(email_params)
-                    logger.info(f"Resend response: {r}")
-
-                    if r and r.get('id'):
-                        logger.debug(f"Email sent successfully to: {recipient}, ID: {r['id']}")
-                        email_type = self._get_email_type_from_subject(subject)
-                        self._log_email(recipient, subject, email_type, 'sent', None)
-                        sent_count += 1
-                    else:
-                        logger.error(f"Resend error for {recipient}: {r}")
-                        self._log_email(recipient, subject, 'unknown', 'failed', str(r))
-                        failed_count += 1
-
-                    # Rate limit: Wait 0.6s between sends (max ~1.66 emails/sec)
-                    if i < len(valid_recipients) - 1:
-                        logger.debug(f"Rate limiting: Waiting 0.6s before next send...")
-                        time.sleep(0.6)
-
-                except Exception as send_error:
-                    logger.error(f"Error sending to {recipient}: {send_error}")
-                    self._log_email(recipient, subject, 'unknown', 'failed', str(send_error))
-                    failed_count += 1
-
-            if failed_count > 0:
-                logger.warning(f"Email send completed with errors: {sent_count} sent, {failed_count} failed")
-            else:
-                logger.info(f"Email sent successfully to {sent_count} recipients: {subject}")
-
-            # Return True as long as at least one email was sent
-            return sent_count > 0
-
-        except Exception as e:
-            logger.error(f"Failed to send email via Resend: {str(e)}")
-            for recipient in to:
-                self._log_email(recipient, subject, 'unknown', 'failed', str(e))
+            response = self.ses_client.send_email(
+                Source=self.sender_email,
+                Destination={'ToAddresses': [recipient]},
+                Message={
+                    'Subject': {'Charset': 'UTF-8', 'Data': subject},
+                    'Body': body,
+                },
+            )
+            message_id = response.get('MessageId', '')
+            logger.info(f"SES response MessageId: {message_id}")
+            logger.debug(f"Email sent successfully to: {recipient}, MessageId: {message_id}")
+            return True
+        except ClientError as e:
+            logger.error(f"SES error for {recipient}: {e.response['Error']['Message']}")
             return False
 
     def _get_email_type_from_subject(self, subject: str) -> str:

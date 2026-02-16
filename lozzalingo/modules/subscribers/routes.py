@@ -18,6 +18,12 @@ Exported helpers:
 - init_subscribers_db()
 """
 
+# INTEGRATION NOTE: This module provides /api/subscribers/* routes.
+# If the consuming app has its own subscribers blueprint registered first,
+# Flask route priority means the app's routes will take precedence.
+# Shipping policy routes are NOT in this module - they belong in the app's
+# merchandise blueprint (learned from Feb 2026 outage in Mario Pinto).
+
 import json
 import sqlite3
 import os

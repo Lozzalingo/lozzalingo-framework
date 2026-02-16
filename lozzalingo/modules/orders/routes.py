@@ -622,7 +622,8 @@ def api_resend_confirmation():
         if not order.customer_email:
             return jsonify({'success': False, 'error': 'Order has no customer email'}), 400
 
-        # Try to send confirmation email using crowd_sauced email service
+        # INTEGRATION: Depends on email_service being initialized (via _register_email in __init__.py).
+        # Falls back to ImportError if email module is not installed in the consuming app.
         try:
             from email_service import EmailService
 
@@ -679,6 +680,8 @@ def api_resend_confirmation():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# INTEGRATION: InkThreadable fulfillment is optional. If lozzalingo.modules.inkthreadable
+# is not installed, these endpoints return a 500 with a clear error -- they do NOT crash.
 @orders_bp.route('/api/resend-to-inkthreadable', methods=['POST'])
 def api_resend_to_inkthreadable():
     """Resend order to InkThreadable for fulfillment"""
