@@ -1,11 +1,44 @@
 // News Editor functionality with image upload
+let allArticles = [];
+
 document.addEventListener('DOMContentLoaded', function() {
     loadCategories();
     loadArticles();
     setupForm();
     setupImagePreview();
     setupImageUpload();
+    setupFilters();
 });
+
+// Search and filter setup
+function setupFilters() {
+    const searchInput = document.getElementById('articleSearch');
+    const filterSelect = document.getElementById('articleFilter');
+    if (searchInput) searchInput.addEventListener('input', applyFilters);
+    if (filterSelect) filterSelect.addEventListener('change', applyFilters);
+}
+
+function applyFilters() {
+    const search = (document.getElementById('articleSearch').value || '').toLowerCase().trim();
+    const filter = (document.getElementById('articleFilter').value || 'all');
+
+    let filtered = allArticles;
+    if (filter !== 'all') {
+        filtered = filtered.filter(a => (a.status || 'published') === filter);
+    }
+    if (search) {
+        filtered = filtered.filter(a =>
+            a.title.toLowerCase().includes(search) ||
+            (a.slug || '').toLowerCase().includes(search)
+        );
+    }
+    displayArticles(filtered, true);
+}
+
+function updateArticleCount(count) {
+    const el = document.getElementById('articleCount');
+    if (el) el.textContent = count + ' article' + (count !== 1 ? 's' : '');
+}
 
 // Populate category dropdown from NEWS_CATEGORIES config
 async function loadCategories() {
@@ -187,6 +220,8 @@ async function loadArticles() {
         }
         
         const articles = await response.json();
+        allArticles = articles;
+        updateArticleCount(articles.length);
         displayArticles(articles);
     } catch (error) {
         console.error('Error loading articles:', error);
@@ -200,11 +235,14 @@ async function loadArticles() {
 }
 
 // Display articles in management list
-function displayArticles(articles) {
+function displayArticles(articles, isFiltered) {
     const container = document.getElementById('articlesList');
+    updateArticleCount(articles.length);
 
     if (articles.length === 0) {
-        container.innerHTML = '<p class="articles-empty">No articles yet. Create your first article!</p>';
+        container.innerHTML = isFiltered
+            ? '<p class="articles-empty">No articles match your search.</p>'
+            : '<p class="articles-empty">No articles yet. Create your first article!</p>';
         return;
     }
 
@@ -385,7 +423,7 @@ async function toggleArticleStatus(id) {
     const currentStatus = article.status || 'published';
     const newStatus = currentStatus === 'draft' ? 'published' : 'draft';
     const confirmMsg = currentStatus === 'draft'
-        ? 'Publish this article? Subscribers will be notified via email.'
+        ? 'Publish this article? It will be visible to the public.'
         : 'Move this article to draft? It will no longer be visible to the public.';
 
     if (!confirm(confirmMsg)) {
