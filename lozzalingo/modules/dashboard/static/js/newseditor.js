@@ -1,14 +1,67 @@
 // News Editor functionality with image upload
+let allArticles = [];
+
 document.addEventListener('DOMContentLoaded', function() {
+    loadCategories();
     loadArticles();
     setupForm();
     setupImagePreview();
     setupImageUpload();
-    initializeFilters();
+    setupFilters();
 });
 
+// Search and filter setup
+function setupFilters() {
+    const searchInput = document.getElementById('articleSearch');
+    const filterSelect = document.getElementById('articleFilter');
+    if (searchInput) searchInput.addEventListener('input', applyFilters);
+    if (filterSelect) filterSelect.addEventListener('change', applyFilters);
+}
+
+function applyFilters() {
+    const search = (document.getElementById('articleSearch').value || '').toLowerCase().trim();
+    const filter = (document.getElementById('articleFilter').value || 'all');
+
+    let filtered = allArticles;
+    if (filter !== 'all') {
+        filtered = filtered.filter(a => (a.status || 'published') === filter);
+    }
+    if (search) {
+        filtered = filtered.filter(a =>
+            a.title.toLowerCase().includes(search) ||
+            (a.slug || '').toLowerCase().includes(search)
+        );
+    }
+    displayArticles(filtered, true);
+}
+
+function updateArticleCount(count) {
+    const el = document.getElementById('articleCount');
+    if (el) el.textContent = count + ' article' + (count !== 1 ? 's' : '');
+}
+
+// Populate category dropdown from NEWS_CATEGORIES config
+async function loadCategories() {
+    const select = document.getElementById('categoryName');
+    if (!select) return;
+    try {
+        const res = await fetch('/news/api/categories');
+        if (!res.ok) return;
+        const data = await res.json();
+        const categories = data.categories || [];
+        if (categories.length === 0) return;
+        categories.forEach(function(cat) {
+            const opt = document.createElement('option');
+            opt.value = cat.name;
+            opt.textContent = cat.name;
+            select.appendChild(opt);
+        });
+    } catch (e) {
+        console.log('[Editor] Could not load categories');
+    }
+}
+
 let editingArticleId = null;
-let allArticles = [];  // Store all articles for filtering
 
 // Form setup
 function setupForm() {
@@ -117,68 +170,6 @@ function setupImageUpload() {
     });
 }
 
-// Filter initialization
-function initializeFilters() {
-    const searchInput = document.getElementById('articleSearch');
-    const filterSelect = document.getElementById('articleFilter');
-
-    if (searchInput) {
-        searchInput.addEventListener('input', filterArticles);
-    }
-    if (filterSelect) {
-        filterSelect.addEventListener('change', filterArticles);
-    }
-}
-
-// Filter articles based on search and filter criteria
-function filterArticles() {
-    const searchInput = document.getElementById('articleSearch');
-    const filterSelect = document.getElementById('articleFilter');
-
-    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
-    const filterType = filterSelect ? filterSelect.value : 'all';
-
-    let filtered = allArticles.filter(article => {
-        // Search filter - check title and content
-        const matchesSearch = !searchTerm ||
-            article.title.toLowerCase().includes(searchTerm) ||
-            (article.content && article.content.toLowerCase().includes(searchTerm)) ||
-            (article.slug && article.slug.toLowerCase().includes(searchTerm));
-
-        // Status filter
-        let matchesFilter = true;
-        const status = article.status || 'published';
-        switch (filterType) {
-            case 'published':
-                matchesFilter = status === 'published';
-                break;
-            case 'draft':
-                matchesFilter = status === 'draft';
-                break;
-            case 'all':
-            default:
-                matchesFilter = true;
-        }
-
-        return matchesSearch && matchesFilter;
-    });
-
-    renderArticles(filtered);
-    updateArticleCount(filtered.length, allArticles.length);
-}
-
-// Update article count display
-function updateArticleCount(shown, total) {
-    const countEl = document.getElementById('articleCount');
-    if (countEl) {
-        if (shown === total) {
-            countEl.textContent = `${total} article${total !== 1 ? 's' : ''}`;
-        } else {
-            countEl.textContent = `${shown} of ${total} article${total !== 1 ? 's' : ''}`;
-        }
-    }
-}
-
 // Image preview setup
 function setupImagePreview() {
     const imageUrlInput = document.getElementById('imageUrl');
@@ -219,7 +210,7 @@ function setupImagePreview() {
 async function loadArticles() {
     try {
         const response = await fetch('/admin/news-editor/api/articles');
-
+        
         if (!response.ok) {
             if (response.status === 401) {
                 window.location.href = '/admin/login';
@@ -227,11 +218,11 @@ async function loadArticles() {
             }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-
+        
         const articles = await response.json();
-        allArticles = articles;  // Store for filtering
-        renderArticles(articles);
-        updateArticleCount(articles.length, articles.length);
+        allArticles = articles;
+        updateArticleCount(articles.length);
+        displayArticles(articles);
     } catch (error) {
         console.error('Error loading articles:', error);
         const container = document.getElementById('articlesList');
@@ -243,18 +234,15 @@ async function loadArticles() {
     }
 }
 
-// Render articles in management list
-function renderArticles(articles) {
+// Display articles in management list
+function displayArticles(articles, isFiltered) {
     const container = document.getElementById('articlesList');
+    updateArticleCount(articles.length);
 
     if (articles.length === 0) {
-        // Check if this is due to filtering or no articles at all
-        const hasFilters = (document.getElementById('articleSearch')?.value || document.getElementById('articleFilter')?.value !== 'all');
-        if (hasFilters && allArticles.length > 0) {
-            container.innerHTML = '<p class="articles-empty">No articles match your search/filter criteria.</p>';
-        } else {
-            container.innerHTML = '<p class="articles-empty">No articles yet. Create your first article!</p>';
-        }
+        container.innerHTML = isFiltered
+            ? '<p class="articles-empty">No articles match your search.</p>'
+            : '<p class="articles-empty">No articles yet. Create your first article!</p>';
         return;
     }
 
@@ -303,37 +291,20 @@ async function handleSubmit(status) {
     const content = document.getElementById('content').value.trim();
     const imageUrl = document.getElementById('imageUrl').value.trim();
 
-    // New SEO & metadata fields
-    const excerpt = document.getElementById('excerpt').value.trim();
-    const metaTitle = document.getElementById('metaTitle').value.trim();
-    const metaDescription = document.getElementById('metaDescription').value.trim();
-    const categoryName = document.getElementById('categoryName').value.trim();
-
-    // New author & source fields
-    const authorName = document.getElementById('authorName').value.trim();
-    const authorEmail = document.getElementById('authorEmail').value.trim();
-    const sourceId = document.getElementById('sourceId').value.trim();
-    const sourceUrl = document.getElementById('sourceUrl').value.trim();
-
     if (!title || !content) {
         alert('Please fill in both title and content fields.');
         return;
     }
+
+    const categoryName = document.getElementById('categoryName').value.trim();
 
     // Ensure image URL is not empty string when sending
     const data = {
         title,
         content,
         image_url: imageUrl || null,
-        status: status,
-        excerpt: excerpt || null,
-        meta_title: metaTitle || null,
-        meta_description: metaDescription || null,
         category_name: categoryName || null,
-        author_name: authorName || null,
-        author_email: authorEmail || null,
-        source_id: sourceId || null,
-        source_url: sourceUrl || null
+        status: status
     };
 
     console.log('Submitting data:', data);
@@ -413,18 +384,7 @@ async function editArticle(id) {
         document.getElementById('title').value = article.title;
         document.getElementById('content').value = article.content;
         document.getElementById('imageUrl').value = article.image_url || '';
-
-        // Populate SEO & metadata fields
-        document.getElementById('excerpt').value = article.excerpt || '';
-        document.getElementById('metaTitle').value = article.meta_title || '';
-        document.getElementById('metaDescription').value = article.meta_description || '';
         document.getElementById('categoryName').value = article.category_name || '';
-
-        // Populate author & source fields
-        document.getElementById('authorName').value = article.author_name || '';
-        document.getElementById('authorEmail').value = article.author_email || '';
-        document.getElementById('sourceId').value = article.source_id || '';
-        document.getElementById('sourceUrl').value = article.source_url || '';
 
         // Trigger image preview
         if (article.image_url) {
@@ -463,7 +423,7 @@ async function toggleArticleStatus(id) {
     const currentStatus = article.status || 'published';
     const newStatus = currentStatus === 'draft' ? 'published' : 'draft';
     const confirmMsg = currentStatus === 'draft'
-        ? 'Publish this article? Subscribers will be notified via email.'
+        ? 'Publish this article? It will be visible to the public.'
         : 'Move this article to draft? It will no longer be visible to the public.';
 
     if (!confirm(confirmMsg)) {
@@ -496,29 +456,71 @@ async function toggleArticleStatus(id) {
     }
 }
 
-// Send article email to subscribers
+// Send article email to subscribers (with auto-detect from category)
 async function sendArticleEmail(id) {
-    if (!confirm('Send this article to all subscribers via email?')) {
-        return;
+    const emailBtn = document.querySelector(`button[onclick="sendArticleEmail(${id})"]`);
+
+    // 1. Get article details to find category
+    let article = null;
+    try {
+        const articleRes = await fetch(`/admin/news-editor/api/articles/${id}`);
+        if (articleRes.ok) article = await articleRes.json();
+    } catch (e) {}
+
+    // 2. Auto-detect feed from article category via NEWS_CATEGORIES config
+    let autoFeed = null;
+    let autoFeedLabel = null;
+    try {
+        const catRes = await fetch('/news/api/categories');
+        if (catRes.ok) {
+            const catData = await catRes.json();
+            const match = (catData.categories || []).find(
+                c => article && c.name === article.category_name && c.feed
+            );
+            if (match) {
+                autoFeed = match.feed;
+                // Look up feed label from subscriber feeds
+                const feedsRes = await fetch('/api/subscribers/feeds');
+                if (feedsRes.ok) {
+                    const feedsData = await feedsRes.json();
+                    const feedMatch = (feedsData.feeds || []).find(f => f.id === autoFeed);
+                    autoFeedLabel = feedMatch ? feedMatch.label : autoFeed;
+                }
+            }
+        }
+    } catch (e) {}
+
+    // 3. Show confirmation
+    let feedChoice = null;
+    if (autoFeed) {
+        const label = autoFeedLabel || autoFeed;
+        if (!confirm(`Send this article to ${label} subscribers and All Updates subscribers?`)) return;
+        feedChoice = autoFeed;
+    } else {
+        if (!confirm('Send this article to all subscribers via email?')) return;
+        feedChoice = '__all__';
     }
 
-    const emailBtn = document.querySelector(`button[onclick="sendArticleEmail(${id})"]`);
     const originalText = emailBtn.textContent;
-
-    // Show loading state
     emailBtn.disabled = true;
     emailBtn.textContent = 'Sending...';
 
     try {
+        const body = { feed: feedChoice };
         const response = await fetch(`/admin/news-editor/api/articles/${id}/send-email`, {
-            method: 'POST'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
         });
 
         const result = await response.json();
 
         if (response.ok) {
             if (result.success) {
-                showMessage(`Email sent successfully to ${result.subscriber_count} subscribers!`, 'success');
+                const label = (feedChoice && feedChoice !== '__all__')
+                    ? (autoFeedLabel || feedChoice)
+                    : 'all';
+                showMessage(`Email sent to ${result.subscriber_count} subscribers (${label})!`, 'success');
             } else {
                 showMessage(result.message || 'No subscribers found', 'info');
             }
@@ -529,7 +531,6 @@ async function sendArticleEmail(id) {
         console.error('Error sending article email:', error);
         showMessage('Failed to send email: ' + error.message, 'error');
     } finally {
-        // Restore button state
         emailBtn.disabled = false;
         emailBtn.textContent = originalText;
     }
