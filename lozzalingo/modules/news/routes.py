@@ -627,6 +627,42 @@ def upload_image():
         return jsonify({'error': 'Failed to upload image'}), 500
 
 
+@news_bp.route('/list-images', methods=['GET'])
+def list_images():
+    """List uploaded images in the blog folder for gallery selection"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    try:
+        from flask import current_app
+        blog_folder = os.path.join(current_app.static_folder, 'blog')
+
+        if not os.path.isdir(blog_folder):
+            return jsonify([])
+
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        images = []
+
+        for filename in os.listdir(blog_folder):
+            ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+            if ext in allowed_extensions:
+                images.append({
+                    'url': f'/static/blog/{filename}',
+                    'filename': filename
+                })
+
+        # Sort by modification time, newest first
+        images.sort(
+            key=lambda img: os.path.getmtime(os.path.join(blog_folder, img['filename'])),
+            reverse=True
+        )
+
+        return jsonify(images)
+    except Exception as e:
+        print(f"Error listing images: {e}")
+        return jsonify({'error': 'Failed to list images'}), 500
+
+
 # ================================
 # SEND ARTICLE EMAIL
 # ================================

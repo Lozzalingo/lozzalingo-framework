@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>News Editor - Admin</title>
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css">
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/newseditor.css') }}">
 </head>
 <body>
@@ -67,9 +68,8 @@
 
                     <div class="form-group">
                         <label for="content">Article Content *</label>
-                        <textarea id="content" name="content" required
-                                  placeholder="Write your article content here..."></textarea>
-                        <small class="form-hint">HTML tags are supported for formatting</small>
+                        <div id="editor"></div>
+                        <input type="hidden" id="content" name="content">
                     </div>
 
                     <!-- SEO & Metadata Section -->
@@ -174,6 +174,26 @@
         </div>
     </div>
 
+    <!-- Image Gallery Modal -->
+    <div id="imageModal" class="image-modal-overlay" style="display:none;">
+        <div class="image-modal-card">
+            <div class="image-modal-header">
+                <h3>Insert Image</h3>
+                <button type="button" class="image-modal-close" onclick="closeImageModal()">&times;</button>
+            </div>
+            <div class="image-modal-body">
+                <div class="image-modal-options">
+                    <button type="button" class="image-modal-btn" onclick="triggerInlineUpload()">Upload New Image</button>
+                    <button type="button" class="image-modal-btn" onclick="loadImageGallery()">Select from Uploaded</button>
+                    <button type="button" class="image-modal-btn" onclick="promptImageUrl()">Enter Image URL</button>
+                </div>
+                <input type="file" id="inlineImageFile" accept="image/*" style="display:none;">
+                <div id="imageGalleryGrid" class="image-gallery-grid" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <script src="{{ url_for('admin.static', filename='js/newseditor.js') }}" defer></script>
 
     <style>

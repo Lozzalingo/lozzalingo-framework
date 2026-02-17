@@ -1,16 +1,194 @@
-// News Editor functionality with image upload
+// News Editor functionality with Quill WYSIWYG and image upload
 let allArticles = [];
+let editingArticleId = null;
+let quill = null;
 
 document.addEventListener('DOMContentLoaded', function() {
+    initQuill();
     loadCategories();
     loadArticles();
     setupForm();
     setupImagePreview();
     setupImageUpload();
     setupFilters();
+    setupInlineImageUpload();
 });
 
-// Search and filter setup
+// ===== Quill Initialization =====
+
+function initQuill() {
+    quill = new Quill('#editor', {
+        theme: 'snow',
+        placeholder: 'Write your article content here...',
+        modules: {
+            toolbar: {
+                container: [
+                    [{ 'header': [1, 2, 3, 4, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                    [{ 'indent': '-1' }, { 'indent': '+1' }],
+                    [{ 'align': [] }],
+                    [{ 'color': [] }, { 'background': [] }],
+                    ['blockquote', 'code-block'],
+                    ['link', 'image', 'video'],
+                    ['clean']
+                ],
+                handlers: {
+                    'image': imageHandler,
+                    'link': linkHandler
+                }
+            }
+        }
+    });
+}
+
+// ===== Custom Image Handler =====
+
+function imageHandler() {
+    document.getElementById('imageModal').style.display = 'flex';
+    // Reset gallery state
+    document.getElementById('imageGalleryGrid').style.display = 'none';
+    document.getElementById('imageGalleryGrid').innerHTML = '';
+}
+
+function closeImageModal() {
+    document.getElementById('imageModal').style.display = 'none';
+}
+
+function triggerInlineUpload() {
+    document.getElementById('inlineImageFile').click();
+}
+
+function setupInlineImageUpload() {
+    const fileInput = document.getElementById('inlineImageFile');
+    if (!fileInput) return;
+
+    fileInput.addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            showMessage('Invalid file type. Please use PNG, JPG, JPEG, GIF, or WEBP.', 'error');
+            fileInput.value = '';
+            return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            showMessage('File too large. Please use an image under 10MB.', 'error');
+            fileInput.value = '';
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const response = await fetch('/admin/news-editor/upload-image', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    insertImageIntoEditor(result.image_url);
+                    closeImageModal();
+                    showMessage('Image uploaded and inserted!', 'success');
+                } else {
+                    showMessage(result.error || 'Upload failed', 'error');
+                }
+            } else {
+                showMessage('Upload failed. Please try again.', 'error');
+            }
+        } catch (error) {
+            console.error('Inline upload error:', error);
+            showMessage('Upload failed. Please try again.', 'error');
+        }
+
+        fileInput.value = '';
+    });
+}
+
+async function loadImageGallery() {
+    const grid = document.getElementById('imageGalleryGrid');
+    grid.style.display = 'grid';
+    grid.innerHTML = '<p style="color: var(--noir-silver); grid-column: 1/-1; text-align: center;">Loading images...</p>';
+
+    try {
+        const response = await fetch('/admin/news-editor/list-images');
+        if (!response.ok) throw new Error('Failed to load images');
+
+        const images = await response.json();
+
+        if (images.length === 0) {
+            grid.innerHTML = '<p style="color: var(--noir-silver); grid-column: 1/-1; text-align: center;">No images uploaded yet.</p>';
+            return;
+        }
+
+        grid.innerHTML = images.map(img => `
+            <div class="gallery-item" onclick="selectGalleryImage('${img.url}')">
+                <img src="${img.url}" alt="${img.filename}" loading="lazy">
+                <span class="gallery-filename">${img.filename}</span>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading gallery:', error);
+        grid.innerHTML = '<p style="color: #e74c3c; grid-column: 1/-1; text-align: center;">Failed to load images.</p>';
+    }
+}
+
+function selectGalleryImage(url) {
+    insertImageIntoEditor(url);
+    closeImageModal();
+}
+
+function promptImageUrl() {
+    const url = prompt('Enter image URL:');
+    if (url && url.trim()) {
+        insertImageIntoEditor(url.trim());
+        closeImageModal();
+    }
+}
+
+function insertImageIntoEditor(url) {
+    const range = quill.getSelection(true);
+    quill.insertEmbed(range.index, 'image', url);
+    quill.setSelection(range.index + 1);
+}
+
+// ===== Custom Link Handler =====
+
+function linkHandler() {
+    const range = quill.getSelection();
+    if (!range) return;
+
+    const currentFormat = quill.getFormat(range);
+    if (currentFormat.link) {
+        // Remove link if already linked
+        quill.format('link', false);
+        return;
+    }
+
+    let url = prompt('Enter URL:');
+    if (!url || !url.trim()) return;
+    url = url.trim();
+
+    // Smart URL normalization
+    if (url.match(/^mailto:/i) || url.match(/^tel:/i)) {
+        // Already proper protocol
+    } else if (url.match(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)) {
+        // Bare domain like example.com - add https://
+        url = 'https://' + url;
+    } else if (!url.match(/^https?:\/\//i)) {
+        url = 'https://' + url;
+    }
+
+    quill.format('link', url);
+}
+
+// ===== Search and filter setup =====
+
 function setupFilters() {
     const searchInput = document.getElementById('articleSearch');
     const filterSelect = document.getElementById('articleFilter');
@@ -40,7 +218,8 @@ function updateArticleCount(count) {
     if (el) el.textContent = count + ' article' + (count !== 1 ? 's' : '');
 }
 
-// Populate category dropdown from NEWS_CATEGORIES config
+// ===== Populate category dropdown =====
+
 async function loadCategories() {
     const select = document.getElementById('categoryName');
     if (!select) return;
@@ -61,16 +240,14 @@ async function loadCategories() {
     }
 }
 
-let editingArticleId = null;
+// ===== Form setup =====
 
-// Form setup
 function setupForm() {
     const form = document.getElementById('articleForm');
     const cancelBtn = document.getElementById('cancelBtn');
     const publishBtn = document.getElementById('publishBtn');
     const draftBtn = document.getElementById('draftBtn');
 
-    // Remove form submit handler, use button handlers instead
     form.addEventListener('submit', (e) => e.preventDefault());
 
     publishBtn.addEventListener('click', () => handleSubmit('published'));
@@ -78,44 +255,41 @@ function setupForm() {
     cancelBtn.addEventListener('click', cancelEdit);
 }
 
-// Image upload setup
+// ===== Image upload setup (cover image) =====
+
 function setupImageUpload() {
     const imageFile = document.getElementById('imageFile');
     const uploadProgress = document.getElementById('uploadProgress');
     const progressFill = document.getElementById('progressFill');
     const progressText = document.getElementById('progressText');
-    
+
     imageFile.addEventListener('change', async function(e) {
         const file = e.target.files[0];
         if (!file) return;
-        
-        // Validate file type
+
         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
         if (!allowedTypes.includes(file.type)) {
             showMessage('Invalid file type. Please use PNG, JPG, JPEG, GIF, or WEBP.', 'error');
             imageFile.value = '';
             return;
         }
-        
-        // Validate file size (10MB limit)
+
         if (file.size > 10 * 1024 * 1024) {
             showMessage('File too large. Please use an image under 10MB.', 'error');
             imageFile.value = '';
             return;
         }
-        
-        // Show upload progress
+
         uploadProgress.style.display = 'block';
         progressFill.style.width = '0%';
         progressText.textContent = 'Uploading...';
-        
+
         try {
             const formData = new FormData();
             formData.append('image', file);
-            
+
             const xhr = new XMLHttpRequest();
-            
-            // Track upload progress
+
             xhr.upload.addEventListener('progress', function(e) {
                 if (e.lengthComputable) {
                     const percentComplete = (e.loaded / e.total) * 100;
@@ -123,18 +297,16 @@ function setupImageUpload() {
                     progressText.textContent = `Uploading... ${Math.round(percentComplete)}%`;
                 }
             });
-            
+
             xhr.addEventListener('load', function() {
                 uploadProgress.style.display = 'none';
-                
+
                 if (xhr.status === 200) {
                     const response = JSON.parse(xhr.responseText);
                     if (response.success) {
-                        // Set the image URL and trigger preview
                         document.getElementById('imageUrl').value = response.image_url;
                         const event = new Event('input');
                         document.getElementById('imageUrl').dispatchEvent(event);
-                        
                         showMessage('Image uploaded successfully!', 'success');
                     } else {
                         showMessage(response.error || 'Upload failed', 'error');
@@ -147,20 +319,19 @@ function setupImageUpload() {
                         showMessage('Upload failed. Please try again.', 'error');
                     }
                 }
-                
-                // Clear file input
+
                 imageFile.value = '';
             });
-            
+
             xhr.addEventListener('error', function() {
                 uploadProgress.style.display = 'none';
                 showMessage('Upload failed. Please check your connection.', 'error');
                 imageFile.value = '';
             });
-            
+
             xhr.open('POST', '/admin/news-editor/upload-image');
             xhr.send(formData);
-            
+
         } catch (error) {
             console.error('Upload error:', error);
             uploadProgress.style.display = 'none';
@@ -170,34 +341,27 @@ function setupImageUpload() {
     });
 }
 
-// Image preview setup
+// ===== Image preview setup (cover image) =====
+
 function setupImagePreview() {
     const imageUrlInput = document.getElementById('imageUrl');
     const imagePreview = document.getElementById('imagePreview');
     const previewImg = document.getElementById('previewImg');
-    
+
     imageUrlInput.addEventListener('input', function() {
         const url = this.value.trim();
         if (url) {
-            // Show preview for any URL (relative or absolute)
             imagePreview.style.display = 'block';
             previewImg.src = url;
-            
-            // Handle load success
+
             previewImg.onload = function() {
                 imagePreview.style.display = 'block';
             };
-            
-            // Handle load errors - only hide for clearly invalid URLs
+
             previewImg.onerror = function() {
-                // Keep preview visible for relative URLs (they should work on the server)
                 if (url.startsWith('/') || url.startsWith('./') || url.startsWith('../')) {
-                    console.log('Relative URL - keeping preview visible:', url);
                     return;
                 }
-                
-                // Hide only for absolute URLs that fail to load
-                console.log('Image failed to load:', url);
                 imagePreview.style.display = 'none';
             };
         } else {
@@ -206,11 +370,12 @@ function setupImagePreview() {
     });
 }
 
-// Load articles for management
+// ===== Load articles =====
+
 async function loadArticles() {
     try {
         const response = await fetch('/admin/news-editor/api/articles');
-        
+
         if (!response.ok) {
             if (response.status === 401) {
                 window.location.href = '/admin/login';
@@ -218,7 +383,7 @@ async function loadArticles() {
             }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const articles = await response.json();
         allArticles = articles;
         updateArticleCount(articles.length);
@@ -234,7 +399,8 @@ async function loadArticles() {
     }
 }
 
-// Display articles in management list
+// ===== Display articles =====
+
 function displayArticles(articles, isFiltered) {
     const container = document.getElementById('articlesList');
     updateArticleCount(articles.length);
@@ -285,26 +451,45 @@ function displayArticles(articles, isFiltered) {
     container.innerHTML = articlesHTML;
 }
 
-// Handle form submission
+// ===== Handle form submission =====
+
 async function handleSubmit(status) {
     const title = document.getElementById('title').value.trim();
-    const content = document.getElementById('content').value.trim();
+    const content = quill.root.innerHTML.trim();
     const imageUrl = document.getElementById('imageUrl').value.trim();
 
-    if (!title || !content) {
+    // Check if Quill is empty (only has the default empty paragraph)
+    const isEmpty = !quill.getText().trim();
+
+    if (!title || isEmpty) {
         alert('Please fill in both title and content fields.');
         return;
     }
 
     const categoryName = document.getElementById('categoryName').value.trim();
 
-    // Ensure image URL is not empty string when sending
+    // Collect SEO & author fields
+    const excerpt = (document.getElementById('excerpt').value || '').trim() || null;
+    const metaTitle = (document.getElementById('metaTitle').value || '').trim() || null;
+    const metaDescription = (document.getElementById('metaDescription').value || '').trim() || null;
+    const authorName = (document.getElementById('authorName').value || '').trim() || null;
+    const authorEmail = (document.getElementById('authorEmail').value || '').trim() || null;
+    const sourceId = (document.getElementById('sourceId').value || '').trim() || null;
+    const sourceUrl = (document.getElementById('sourceUrl').value || '').trim() || null;
+
     const data = {
         title,
         content,
         image_url: imageUrl || null,
         category_name: categoryName || null,
-        status: status
+        status: status,
+        excerpt: excerpt,
+        meta_title: metaTitle,
+        meta_description: metaDescription,
+        author_name: authorName,
+        author_email: authorEmail,
+        source_id: sourceId,
+        source_url: sourceUrl
     };
 
     console.log('Submitting data:', data);
@@ -314,7 +499,6 @@ async function handleSubmit(status) {
     const activeBtn = status === 'published' ? publishBtn : draftBtn;
     const originalText = activeBtn.textContent;
 
-    // Disable both buttons during submission
     publishBtn.disabled = true;
     draftBtn.disabled = true;
     activeBtn.textContent = 'Saving...';
@@ -343,10 +527,8 @@ async function handleSubmit(status) {
             resetForm();
             loadArticles();
 
-            // Show success message
             showMessage(result.message || 'Article saved successfully!', 'success');
 
-            // If creating new published article, optionally redirect to view it
             if (!editingArticleId && result.slug && status === 'published') {
                 setTimeout(() => {
                     if (confirm('Article published! Would you like to view it?')) {
@@ -369,7 +551,8 @@ async function handleSubmit(status) {
     }
 }
 
-// Edit article
+// ===== Edit article =====
+
 async function editArticle(id) {
     try {
         const response = await fetch(`/admin/news-editor/api/articles/${id}`);
@@ -382,9 +565,20 @@ async function editArticle(id) {
 
         document.getElementById('articleId').value = article.id;
         document.getElementById('title').value = article.title;
-        document.getElementById('content').value = article.content;
         document.getElementById('imageUrl').value = article.image_url || '';
         document.getElementById('categoryName').value = article.category_name || '';
+
+        // Set Quill content
+        quill.root.innerHTML = article.content || '';
+
+        // Populate SEO & author fields
+        document.getElementById('excerpt').value = article.excerpt || '';
+        document.getElementById('metaTitle').value = article.meta_title || '';
+        document.getElementById('metaDescription').value = article.meta_description || '';
+        document.getElementById('authorName').value = article.author_name || '';
+        document.getElementById('authorEmail').value = article.author_email || '';
+        document.getElementById('sourceId').value = article.source_id || '';
+        document.getElementById('sourceUrl').value = article.source_url || '';
 
         // Trigger image preview
         if (article.image_url) {
@@ -417,7 +611,8 @@ async function editArticle(id) {
     }
 }
 
-// Toggle article status
+// ===== Toggle article status =====
+
 async function toggleArticleStatus(id) {
     const article = await fetch(`/admin/news-editor/api/articles/${id}`).then(r => r.json());
     const currentStatus = article.status || 'published';
@@ -440,7 +635,6 @@ async function toggleArticleStatus(id) {
             showMessage(result.message, 'success');
             loadArticles();
 
-            // If we're currently editing this article, update the status indicator
             if (editingArticleId === id) {
                 document.getElementById('currentStatus').textContent = result.status === 'draft' ? 'Draft' : 'Published';
                 document.getElementById('currentStatus').className = result.status === 'draft' ? 'status-draft' : 'status-published';
@@ -456,18 +650,17 @@ async function toggleArticleStatus(id) {
     }
 }
 
-// Send article email to subscribers (with auto-detect from category)
+// ===== Send article email =====
+
 async function sendArticleEmail(id) {
     const emailBtn = document.querySelector(`button[onclick="sendArticleEmail(${id})"]`);
 
-    // 1. Get article details to find category
     let article = null;
     try {
         const articleRes = await fetch(`/admin/news-editor/api/articles/${id}`);
         if (articleRes.ok) article = await articleRes.json();
     } catch (e) {}
 
-    // 2. Auto-detect feed from article category via NEWS_CATEGORIES config
     let autoFeed = null;
     let autoFeedLabel = null;
     try {
@@ -479,7 +672,6 @@ async function sendArticleEmail(id) {
             );
             if (match) {
                 autoFeed = match.feed;
-                // Look up feed label from subscriber feeds
                 const feedsRes = await fetch('/api/subscribers/feeds');
                 if (feedsRes.ok) {
                     const feedsData = await feedsRes.json();
@@ -490,7 +682,6 @@ async function sendArticleEmail(id) {
         }
     } catch (e) {}
 
-    // 3. Show confirmation
     let feedChoice = null;
     if (autoFeed) {
         const label = autoFeedLabel || autoFeed;
@@ -536,22 +727,22 @@ async function sendArticleEmail(id) {
     }
 }
 
-// Delete article
+// ===== Delete article =====
+
 async function deleteArticle(id) {
     if (!confirm('Are you sure you want to delete this article? This action cannot be undone.')) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/admin/news-editor/api/articles/${id}`, {
             method: 'DELETE'
         });
-        
+
         if (response.ok) {
             loadArticles();
             showMessage('Article deleted successfully.', 'success');
-            
-            // If we're currently editing this article, reset the form
+
             if (editingArticleId === id) {
                 resetForm();
             }
@@ -565,12 +756,14 @@ async function deleteArticle(id) {
     }
 }
 
-// Cancel edit
+// ===== Cancel edit =====
+
 function cancelEdit() {
     resetForm();
 }
 
-// Reset form
+// ===== Reset form =====
+
 function resetForm() {
     document.getElementById('articleForm').reset();
     document.getElementById('articleId').value = '';
@@ -581,38 +774,48 @@ function resetForm() {
     document.getElementById('statusIndicator').style.display = 'none';
     document.getElementById('imagePreview').style.display = 'none';
     document.getElementById('uploadProgress').style.display = 'none';
+
+    // Clear Quill
+    quill.setContents([]);
+
+    // Clear SEO & author fields
+    document.getElementById('excerpt').value = '';
+    document.getElementById('metaTitle').value = '';
+    document.getElementById('metaDescription').value = '';
+    document.getElementById('authorName').value = '';
+    document.getElementById('authorEmail').value = '';
+    document.getElementById('sourceId').value = '';
+    document.getElementById('sourceUrl').value = '';
+
     editingArticleId = null;
 }
 
-// Show message to user
+// ===== Show message =====
+
 function showMessage(message, type = 'info') {
-    // Remove any existing messages
     const existingMessage = document.querySelector('.message');
     if (existingMessage) {
         existingMessage.remove();
     }
-    
-    // Create message element
+
     const messageEl = document.createElement('div');
     messageEl.className = `message message-${type}`;
     messageEl.textContent = message;
-    
-    // Insert at top of editor container
+
     const container = document.querySelector('.editor-container');
     container.insertBefore(messageEl, container.firstChild);
-    
-    // Auto remove after 5 seconds
+
     setTimeout(() => {
         if (messageEl.parentNode) {
             messageEl.remove();
         }
     }, 5000);
-    
-    // Scroll to message
+
     messageEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// Utility functions
+// ===== Utility functions =====
+
 function formatDate(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
