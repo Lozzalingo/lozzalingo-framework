@@ -21,6 +21,9 @@
     {% if article.image_url %}
     <meta name="twitter:image" content="{{ article.image_url }}">
     {% endif %}
+
+    <!-- JSON-LD NewsArticle structured data for Google News -->
+    <script type="application/ld+json">{{ article_jsonld(article) | safe }}</script>
 </head>
 <body>
     <article class="blog-post">

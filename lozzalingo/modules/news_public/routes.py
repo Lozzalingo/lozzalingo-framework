@@ -1,5 +1,7 @@
 from flask import Blueprint, render_template, jsonify, redirect, url_for, flash, request, current_app, make_response
+import json
 import re
+from datetime import datetime, timedelta
 
 news_public_bp = Blueprint('news', __name__, url_prefix='/news', template_folder='templates')
 
@@ -98,6 +100,95 @@ def article_url(article):
     return url_for('news.blog_post', slug=slug)
 
 
+@news_public_bp.app_template_global()
+def article_jsonld(article):
+    """Generate JSON-LD NewsArticle structured data for Google News.
+
+    Uses app config for publisher info:
+    - SITE_URL: canonical domain
+    - brand_name: publisher name
+    - NEWS_PUBLISHER_LOGO: publisher logo URL (optional)
+    """
+    site_url = current_app.config.get('SITE_URL', request.host_url.rstrip('/'))
+    brand = current_app.config.get('brand_name', current_app.config.get('EMAIL_BRAND_NAME', 'News'))
+    logo = current_app.config.get('NEWS_PUBLISHER_LOGO', '')
+
+    title = article.get('title', '') if isinstance(article, dict) else getattr(article, 'title', '')
+    content = article.get('content', '') if isinstance(article, dict) else getattr(article, 'content', '')
+    image_url = article.get('image_url', '') if isinstance(article, dict) else getattr(article, 'image_url', '')
+    created_at = article.get('created_at', '') if isinstance(article, dict) else getattr(article, 'created_at', '')
+    updated_at = article.get('updated_at', '') if isinstance(article, dict) else getattr(article, 'updated_at', '')
+    author_name = article.get('author_name', '') if isinstance(article, dict) else getattr(article, 'author_name', '')
+    excerpt = article.get('excerpt', '') if isinstance(article, dict) else getattr(article, 'excerpt', '')
+
+    # Build description from excerpt or content
+    description = excerpt
+    if not description:
+        import re as _re
+        description = _re.sub(r'<[^>]+>', '', content or '')[:300]
+
+    # Format dates as ISO 8601
+    def to_iso(dt_str):
+        if not dt_str:
+            return ''
+        try:
+            dt_str = str(dt_str).strip()
+            for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d'):
+                try:
+                    return datetime.strptime(dt_str, fmt).strftime('%Y-%m-%dT%H:%M:%S+00:00')
+                except ValueError:
+                    continue
+            return dt_str
+        except Exception:
+            return ''
+
+    # Resolve image URL to absolute
+    img = image_url or ''
+    if img and not img.startswith('http'):
+        img = site_url + (img if img.startswith('/') else '/' + img)
+
+    # Build canonical URL
+    canonical = request.url
+
+    ld = {
+        '@context': 'https://schema.org',
+        '@type': 'NewsArticle',
+        'headline': title[:110],
+        'description': description[:300],
+        'mainEntityOfPage': {
+            '@type': 'WebPage',
+            '@id': canonical
+        },
+        'publisher': {
+            '@type': 'Organization',
+            'name': brand,
+        },
+        'datePublished': to_iso(created_at),
+    }
+
+    if to_iso(updated_at):
+        ld['dateModified'] = to_iso(updated_at)
+
+    if img:
+        ld['image'] = [img]
+
+    if logo:
+        if not logo.startswith('http'):
+            logo = site_url + (logo if logo.startswith('/') else '/' + logo)
+        ld['publisher']['logo'] = {
+            '@type': 'ImageObject',
+            'url': logo
+        }
+
+    if author_name:
+        ld['author'] = {
+            '@type': 'Person',
+            'name': author_name
+        }
+
+    return json.dumps(ld, ensure_ascii=False)
+
+
 # ===== Sitemap Generator =====
 
 def _generate_sitemap():
@@ -155,6 +246,80 @@ def _generate_sitemap():
         xml += f'        <changefreq>monthly</changefreq>\n'
         xml += f'        <priority>0.7</priority>\n'
         xml += f'    </url>\n'
+
+    xml += '</urlset>'
+
+    response = make_response(xml)
+    response.headers['Content-Type'] = 'application/xml'
+    return response
+
+
+def _generate_news_sitemap():
+    """Generate a Google News sitemap (/news-sitemap.xml).
+
+    Only includes articles published in the last 48 hours.
+    Uses <news:news> extension tags required by Google News.
+
+    Requires SITE_URL in app config. Uses brand_name for publication name.
+    Optional: NEWS_LANGUAGE (default 'en').
+    """
+    from lozzalingo.modules.news.routes import get_all_articles_db
+
+    site_url = current_app.config.get('SITE_URL', '').rstrip('/')
+    brand = current_app.config.get('brand_name', current_app.config.get('EMAIL_BRAND_NAME', 'News'))
+    language = current_app.config.get('NEWS_LANGUAGE', 'en')
+    categories = _get_categories_config()
+    _, name_to_slug = _get_category_maps()
+    default_slug = _get_default_category_slug()
+
+    cutoff = datetime.utcnow() - timedelta(hours=48)
+
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
+    xml += '        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n'
+
+    articles = get_all_articles_db(status='published')
+    for article in articles:
+        created_at = article.get('created_at', '')
+        if not created_at:
+            continue
+
+        # Parse date and check 48hr cutoff
+        pub_date = None
+        for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d'):
+            try:
+                pub_date = datetime.strptime(str(created_at).strip(), fmt)
+                break
+            except ValueError:
+                continue
+
+        if not pub_date or pub_date < cutoff:
+            continue
+
+        slug = article.get('slug', '')
+        cat_name = article.get('category_name', '')
+        title = article.get('title', '')
+
+        # Build URL
+        if categories:
+            cat_slug = name_to_slug.get(cat_name, default_slug or 'news')
+            loc = f'{site_url}/{cat_slug}/{slug}'
+        else:
+            loc = f'{site_url}/news/{slug}'
+
+        iso_date = pub_date.strftime('%Y-%m-%dT%H:%M:%S+00:00')
+
+        xml += '    <url>\n'
+        xml += f'        <loc>{loc}</loc>\n'
+        xml += '        <news:news>\n'
+        xml += '            <news:publication>\n'
+        xml += f'                <news:name>{brand}</news:name>\n'
+        xml += f'                <news:language>{language}</news:language>\n'
+        xml += '            </news:publication>\n'
+        xml += f'            <news:publication_date>{iso_date}</news:publication_date>\n'
+        xml += f'            <news:title>{title}</news:title>\n'
+        xml += '        </news:news>\n'
+        xml += '    </url>\n'
 
     xml += '</urlset>'
 
@@ -225,6 +390,11 @@ def register_category_routes(state):
             return _generate_sitemap()
         app.add_url_rule('/sitemap.xml', endpoint='sitemap_xml', view_func=sitemap_xml_view)
         print(f"[News] Registered /sitemap.xml for {site_url}")
+
+        def news_sitemap_xml_view():
+            return _generate_news_sitemap()
+        app.add_url_rule('/news-sitemap.xml', endpoint='news_sitemap_xml', view_func=news_sitemap_xml_view)
+        print(f"[News] Registered /news-sitemap.xml for {site_url}")
 
 
 # ===== Routes =====
