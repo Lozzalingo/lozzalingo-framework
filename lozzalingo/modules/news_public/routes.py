@@ -147,8 +147,8 @@ def article_jsonld(article):
     if img and not img.startswith('http'):
         img = site_url + (img if img.startswith('/') else '/' + img)
 
-    # Build canonical URL
-    canonical = request.url
+    # Build canonical URL using SITE_URL to ensure https://
+    canonical = site_url + request.path
 
     ld = {
         '@context': 'https://schema.org',
