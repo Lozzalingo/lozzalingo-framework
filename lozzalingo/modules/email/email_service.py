@@ -2,8 +2,8 @@
 Email Service Module
 ====================
 
-Configurable email service supporting Resend and Amazon SES.
-Provider is selected via EMAIL_PROVIDER config ('resend' or 'ses').
+Configurable email service supporting Resend, Amazon SES, and SMTP (e.g. Gmail).
+Provider is selected via EMAIL_PROVIDER config ('resend', 'ses', or 'smtp').
 All branding is configurable through Flask app config.
 """
 
@@ -42,12 +42,15 @@ except ImportError:
 
 class EmailService:
     """
-    Configurable email service supporting Resend and Amazon SES.
+    Configurable email service supporting Resend, Amazon SES, and SMTP (e.g. Gmail).
 
     Configuration (set in Flask app.config):
-        EMAIL_PROVIDER: 'resend' (default) or 'ses'
+        EMAIL_PROVIDER: 'resend' (default), 'ses', or 'smtp'
         RESEND_API_KEY: Your Resend API key (required if provider is 'resend')
         AWS_REGION: AWS region for SES (default: 'eu-west-1', only needed if provider is 'ses')
+        EMAIL_HOST: SMTP server host (default: 'smtp.gmail.com', only needed if provider is 'smtp')
+        EMAIL_PORT: SMTP server port (default: 587, only needed if provider is 'smtp')
+        EMAIL_PASSWORD: SMTP password/app password (required if provider is 'smtp')
         EMAIL_ADDRESS: Sender email address (default: onboarding@resend.dev)
         EMAIL_BRAND_NAME: Brand name for emails (default: 'Your Brand')
         EMAIL_BRAND_TAGLINE: Brand tagline (default: '')
@@ -94,10 +97,12 @@ class EmailService:
         logger.info(f"Sender email: {self.sender_email}")
         logger.info(f"Brand name: {self.brand_name}")
 
-        # INTEGRATION: Provider selection -- 'ses' uses boto3/AWS, anything else defaults to Resend.
-        # Only one provider is active at a time. Set EMAIL_PROVIDER in app.config to switch.
+        # INTEGRATION: Provider selection -- 'ses' uses boto3/AWS, 'smtp' uses SMTP (e.g. Gmail),
+        # anything else defaults to Resend. Only one provider is active at a time.
         if self.provider == 'ses':
             self._init_ses(app)
+        elif self.provider == 'smtp':
+            self._init_smtp(app)
         else:
             self._init_resend(app)
 
@@ -128,6 +133,18 @@ class EmailService:
             logger.info(f"SES client initialized successfully (region: {aws_region})")
         except Exception as e:
             logger.error(f"Failed to initialize SES client: {e}")
+
+    def _init_smtp(self, app):
+        """Initialize SMTP provider (e.g. Gmail)"""
+        self.smtp_host = app.config.get('EMAIL_HOST', 'smtp.gmail.com')
+        self.smtp_port = int(app.config.get('EMAIL_PORT', 587))
+        self.smtp_password = app.config.get('EMAIL_PASSWORD')
+
+        if not self.smtp_password:
+            logger.warning("EMAIL_PASSWORD not configured - SMTP email sending disabled")
+            return
+
+        logger.info(f"SMTP configured: {self.smtp_host}:{self.smtp_port}")
 
     def _get_db_path(self):
         """Get database path from config or environment"""
@@ -211,6 +228,8 @@ class EmailService:
             try:
                 if self.provider == 'ses':
                     success = self._send_via_ses(recipient, subject, html_body, text_body)
+                elif self.provider == 'smtp':
+                    success = self._send_via_smtp(recipient, subject, html_body, text_body)
                 else:
                     success = self._send_via_resend(recipient, subject, html_body, text_body)
 
@@ -299,6 +318,41 @@ class EmailService:
             return True
         except ClientError as e:
             logger.error(f"SES error for {recipient}: {e.response['Error']['Message']}")
+            return False
+
+    def _send_via_smtp(self, recipient: str, subject: str, html_body: str,
+                       text_body: Optional[str] = None) -> bool:
+        """Send a single email via SMTP (e.g. Gmail)"""
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+
+        if not getattr(self, 'smtp_password', None):
+            logger.error("SMTP password not configured")
+            return False
+
+        msg = MIMEMultipart('alternative')
+        msg['From'] = self.sender_email
+        msg['To'] = recipient
+        msg['Subject'] = subject
+
+        if text_body:
+            msg.attach(MIMEText(text_body, 'plain', 'utf-8'))
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+        try:
+            host = getattr(self, 'smtp_host', 'smtp.gmail.com')
+            port = getattr(self, 'smtp_port', 587)
+
+            with smtplib.SMTP(host, port) as server:
+                server.starttls()
+                server.login(self.sender_email, self.smtp_password)
+                server.send_message(msg)
+
+            logger.info(f"SMTP email sent to {recipient}")
+            return True
+        except Exception as e:
+            logger.error(f"SMTP error for {recipient}: {e}")
             return False
 
     def _get_email_type_from_subject(self, subject: str) -> str:
