@@ -31,6 +31,12 @@ When adding a new module:
 - Framework SQL queries MUST detect available columns dynamically using `PRAGMA table_info`
 - Never assume optional columns exist — use safe defaults
 
+### Admin Creation Security
+- The "Create one here" link on the login page is ONLY shown when `DEBUG=True` (localhost)
+- In production (`DEBUG=False`), the link is hidden — admins can only be created by logged-in admins via the dashboard
+- The `/admin/create-admin` route still allows unauthenticated access when zero admins exist (bootstrap case)
+- NEVER make the create-admin link publicly visible in production
+
 ### Dependencies
 - `flask-cors` is required by `merchandise_public` — host apps must have it in their requirements.txt
 - Core deps: Flask, Flask-SQLAlchemy, Flask-CORS, python-dotenv, requests, PyYAML
