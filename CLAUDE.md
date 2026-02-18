@@ -32,8 +32,8 @@ When adding a new module:
 - Never assume optional columns exist — use safe defaults
 
 ### Admin Creation Security
-- The "Create one here" link on the login page is ONLY shown when `DEBUG=True` (localhost)
-- In production (`DEBUG=False`), the link is hidden — admins can only be created by logged-in admins via the dashboard
+- The "Create one here" link on the login page is ONLY shown when the host is localhost/127.0.0.1
+- In production, the link is hidden — admins can only be created by logged-in admins via the dashboard
 - The `/admin/create-admin` route still allows unauthenticated access when zero admins exist (bootstrap case)
 - NEVER make the create-admin link publicly visible in production
 

@@ -220,7 +220,7 @@
                 <button type="submit" class="submit-btn">Sign In</button>
             </form>
 
-            {% if config.DEBUG %}
+            {% if request.host.startswith('localhost') or request.host.startswith('127.0.0.1') %}
             <div class="login-footer">
                 <p>Need an admin account? <a href="{{ url_for('admin.create_admin') }}">Create one here</a></p>
             </div>
