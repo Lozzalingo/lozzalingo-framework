@@ -14,7 +14,9 @@ from flask import Blueprint
 merchandise_public_bp = Blueprint(
     'merchandise_public',
     __name__,
-    url_prefix='/api/products'
+    url_prefix='/api/products',
+    static_folder='static',
+    static_url_path='/merchandise-public-static'
 )
 
 from . import routes
