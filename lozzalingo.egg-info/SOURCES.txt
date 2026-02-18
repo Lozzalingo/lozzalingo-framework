@@ -90,6 +90,7 @@ lozzalingo/modules/dashboard/templates/dashboard/login.html
 lozzalingo/modules/email/__init__.py
 lozzalingo/modules/email/email_service.py
 lozzalingo/modules/email/routes.py
+lozzalingo/modules/email/templates/email/email_logs.html
 lozzalingo/modules/external_api/__init__.py
 lozzalingo/modules/external_api/routes.py
 lozzalingo/modules/external_api/templates/external_api/api_keys_manager.html
@@ -98,6 +99,8 @@ lozzalingo/modules/inkthreadable/service.py
 lozzalingo/modules/merchandise/__init__.py
 lozzalingo/modules/merchandise/routes.py
 lozzalingo/modules/merchandise/templates/merchandise/merchandise_editor.html
+lozzalingo/modules/merchandise_public/__init__.py
+lozzalingo/modules/merchandise_public/routes.py
 lozzalingo/modules/news/__init__.py
 lozzalingo/modules/news/routes.py
 lozzalingo/modules/news/static/.DS_Store
@@ -117,3 +120,14 @@ lozzalingo/modules/settings/database.py
 lozzalingo/modules/settings/helpers.py
 lozzalingo/modules/settings/routes.py
 lozzalingo/modules/settings/templates/settings/settings.html
+lozzalingo/modules/subscribers/__init__.py
+lozzalingo/modules/subscribers/routes.py
+lozzalingo/modules/subscribers/static/css/subscribers.css
+lozzalingo/modules/subscribers/static/css/subscription-popup.css
+lozzalingo/modules/subscribers/static/js/subscribers.js
+lozzalingo/modules/subscribers/static/js/subscription-popup.js
+lozzalingo/modules/subscribers/templates/subscribers/manage.html
+lozzalingo/modules/subscribers/templates/subscribers/subscribers.html
+lozzalingo/modules/subscribers/templates/subscribers/unsubscribe.html
+tests/__init__.py
+tests/test_critical.py

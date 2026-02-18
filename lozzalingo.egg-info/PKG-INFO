@@ -1,4 +1,4 @@
-Metadata-Version: 2.4
+Metadata-Version: 2.1
 Name: lozzalingo
 Version: 0.2.0
 Summary: A modular Flask admin dashboard framework with analytics, authentication, and more
@@ -35,16 +35,6 @@ Requires-Dist: cryptography>=41.0.0; extra == "all"
 Requires-Dist: stripe>=7.0.0; extra == "all"
 Requires-Dist: resend>=0.7.0; extra == "all"
 Requires-Dist: authlib>=1.2.0; extra == "all"
-Dynamic: author
-Dynamic: author-email
-Dynamic: classifier
-Dynamic: description
-Dynamic: description-content-type
-Dynamic: home-page
-Dynamic: provides-extra
-Dynamic: requires-dist
-Dynamic: requires-python
-Dynamic: summary
 
 # Lozzalingo
 
