@@ -66,6 +66,7 @@ class Lozzalingo:
             'email': True,
             'customer_spotlight': True,
             'merchandise': True,
+            'merchandise_public': True,
             'orders': True,
             'external_api': True,
             'settings': True,
@@ -345,6 +346,10 @@ class Lozzalingo:
         if features.get('merchandise', True):
             self._register_merchandise()
 
+        # Merchandise Public API (product embed)
+        if features.get('merchandise_public', True):
+            self._register_merchandise_public()
+
         # Orders
         if features.get('orders', True):
             self._register_orders()
@@ -448,6 +453,16 @@ class Lozzalingo:
             self.app.logger.debug("Registered merchandise module")
         except Exception as e:
             self.app.logger.error(f"Failed to register merchandise module: {e}")
+
+    def _register_merchandise_public(self):
+        """Register the public merchandise API module."""
+        try:
+            from .modules.merchandise_public import merchandise_public_bp
+            self.app.register_blueprint(merchandise_public_bp)
+            self._registered_blueprints.append('merchandise_public')
+            self.app.logger.debug("Registered merchandise_public module")
+        except Exception as e:
+            self.app.logger.error(f"Failed to register merchandise_public module: {e}")
 
     def _register_orders(self):
         """Register the orders module."""

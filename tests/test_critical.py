@@ -138,6 +138,7 @@ EXPECTED_MODULES = [
     "email",
     "customer_spotlight",
     "merchandise",
+    "merchandise_public",
     "orders",
     "external_api",
     "settings",
