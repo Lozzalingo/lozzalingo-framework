@@ -133,25 +133,42 @@ def products_embed():
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        query = '''
-            SELECT id, name, description, price, image_urls,
-                   stock_quantity, is_preorder, is_active,
-                   category, shop_name, sex, limited_edition,
-                   print_on_demand, sort_order
+        # Detect available columns to handle different DB schemas
+        cursor.execute("PRAGMA table_info(products)")
+        available_cols = {row[1] for row in cursor.fetchall()}
+
+        # Core columns (must exist)
+        select_cols = ['id', 'name', 'description', 'price', 'image_urls',
+                       'stock_quantity', 'is_preorder', 'is_active']
+        # Optional columns (may not exist in all deployments)
+        optional_cols = ['category', 'shop_name', 'sex', 'limited_edition',
+                         'print_on_demand', 'sort_order']
+        for col in optional_cols:
+            if col in available_cols:
+                select_cols.append(col)
+
+        query = f'''
+            SELECT {', '.join(select_cols)}
             FROM products
             WHERE is_active = 1
             AND name IS NOT NULL AND name != ''
         '''
         params = []
 
-        if shop_filter:
+        if shop_filter and 'shop_name' in available_cols:
             query += ' AND shop_name = ?'
             params.append(shop_filter)
 
         # Only include in-stock or preorder or print-on-demand
-        query += ' AND (stock_quantity > 0 OR is_preorder = 1 OR print_on_demand = 1)'
+        if 'print_on_demand' in available_cols:
+            query += ' AND (stock_quantity > 0 OR is_preorder = 1 OR print_on_demand = 1)'
+        else:
+            query += ' AND (stock_quantity > 0 OR is_preorder = 1)'
 
-        query += ' ORDER BY COALESCE(sort_order, 999), id'
+        if 'sort_order' in available_cols:
+            query += ' ORDER BY COALESCE(sort_order, 999), id'
+        else:
+            query += ' ORDER BY id'
         query += ' LIMIT ?'
         params.append(limit)
 
@@ -223,6 +240,13 @@ def products_embed():
                 except (json.JSONDecodeError, TypeError):
                     pass
 
+            # Safe access for optional columns
+            def _get(r, col, default=None):
+                try:
+                    return r[col]
+                except (IndexError, KeyError):
+                    return default
+
             products.append({
                 'id': row['id'],
                 'name': row['name'],
@@ -231,10 +255,10 @@ def products_embed():
                 'price_pence': price,
                 'image_url': image_url,
                 'product_url': product_url,
-                'limited_edition': bool(row['limited_edition']),
+                'limited_edition': bool(_get(row, 'limited_edition', False)),
                 'is_preorder': bool(row['is_preorder']),
-                'category': row['category'],
-                'shop_name': row['shop_name'],
+                'category': _get(row, 'category', ''),
+                'shop_name': _get(row, 'shop_name', ''),
                 'color_count': color_count,
             })
 
