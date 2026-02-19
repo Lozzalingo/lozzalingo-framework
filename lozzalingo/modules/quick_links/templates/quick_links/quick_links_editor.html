@@ -51,9 +51,31 @@
 
                     <!-- Crop Area -->
                     <div id="cropArea" style="display: none;">
+                        <div class="mode-toggle">
+                            <button type="button" class="mode-btn active" id="modeCropBtn">Crop</button>
+                            <button type="button" class="mode-btn" id="modePadBtn">Pad</button>
+                        </div>
+
                         <div class="crop-container">
                             <img id="cropImage" src="" alt="Crop preview">
                         </div>
+
+                        <!-- Pad preview (hidden by default) -->
+                        <div id="padPreview" style="display: none;">
+                            <canvas id="padCanvas" width="200" height="200"></canvas>
+                        </div>
+
+                        <div id="padOptions" style="display: none;">
+                            <label class="color-label">Background colour</label>
+                            <div class="color-swatches">
+                                <button type="button" class="swatch active" data-color="#000000" style="background:#000000;" title="Black"></button>
+                                <button type="button" class="swatch" data-color="#ffffff" style="background:#ffffff;" title="White"></button>
+                                <button type="button" class="swatch" data-color="#0a0a0a" style="background:#0a0a0a;" title="Near black"></button>
+                                <button type="button" class="swatch" data-color="#1a1a2e" style="background:#1a1a2e;" title="Dark navy"></button>
+                                <input type="color" id="customColor" value="#000000" title="Custom colour">
+                            </div>
+                        </div>
+
                         <div class="crop-actions">
                             <button type="button" class="btn-primary" id="cropConfirmBtn">Crop & Upload</button>
                             <button type="button" class="btn-secondary" id="cropCancelBtn">Cancel</button>
@@ -93,20 +115,101 @@
         let editingId = null;
         let allLinks = [];
         let cropper = null;
+        let currentMode = 'crop';  // 'crop' or 'pad'
+        let padColor = '#000000';
+        let originalImageData = null;  // store for pad preview
 
         loadLinks();
 
         document.getElementById('saveBtn').addEventListener('click', saveLink);
         document.getElementById('cancelBtn').addEventListener('click', resetForm);
 
+        // Mode toggle
+        document.getElementById('modeCropBtn').addEventListener('click', function() {
+            switchMode('crop');
+        });
+        document.getElementById('modePadBtn').addEventListener('click', function() {
+            switchMode('pad');
+        });
+
+        function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('modeCropBtn').classList.toggle('active', mode === 'crop');
+            document.getElementById('modePadBtn').classList.toggle('active', mode === 'pad');
+            document.getElementById('padOptions').style.display = mode === 'pad' ? 'flex' : 'none';
+            document.getElementById('cropConfirmBtn').textContent = mode === 'crop' ? 'Crop & Upload' : 'Pad & Upload';
+
+            const cropContainer = document.querySelector('.crop-container');
+            const padPreview = document.getElementById('padPreview');
+
+            if (mode === 'pad') {
+                if (cropper) { cropper.destroy(); cropper = null; }
+                cropContainer.style.display = 'none';
+                padPreview.style.display = 'block';
+                drawPadPreview();
+            } else {
+                padPreview.style.display = 'none';
+                cropContainer.style.display = 'block';
+                if (originalImageData) {
+                    const cropImage = document.getElementById('cropImage');
+                    cropImage.src = originalImageData;
+                    cropper = new Cropper(cropImage, {
+                        aspectRatio: 1, viewMode: 1, dragMode: 'move',
+                        autoCropArea: 1, cropBoxResizable: true, cropBoxMovable: true,
+                        guides: true, highlight: true
+                    });
+                }
+            }
+        }
+
+        // Colour swatches
+        document.querySelectorAll('.swatch').forEach(btn => {
+            btn.addEventListener('click', function() {
+                padColor = this.dataset.color;
+                document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('customColor').value = padColor;
+                drawPadPreview();
+            });
+        });
+        document.getElementById('customColor').addEventListener('input', function() {
+            padColor = this.value;
+            document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+            drawPadPreview();
+        });
+
+        function drawPadPreview() {
+            if (!originalImageData) return;
+            const canvas = document.getElementById('padCanvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.onload = function() {
+                const size = Math.max(img.width, img.height);
+                canvas.width = size;
+                canvas.height = size;
+                canvas.style.maxWidth = '100%';
+                canvas.style.maxHeight = '400px';
+                ctx.fillStyle = padColor;
+                ctx.fillRect(0, 0, size, size);
+                const x = (size - img.width) / 2;
+                const y = (size - img.height) / 2;
+                ctx.drawImage(img, x, y);
+            };
+            img.src = originalImageData;
+        }
+
         // Image file selection → show cropper
         document.getElementById('imageFile').addEventListener('change', function() {
             if (!this.files[0]) return;
             const reader = new FileReader();
             reader.onload = function(e) {
+                originalImageData = e.target.result;
                 const cropImage = document.getElementById('cropImage');
                 cropImage.src = e.target.result;
                 document.getElementById('cropArea').style.display = 'block';
+
+                // Reset to crop mode
+                switchMode('crop');
 
                 if (cropper) cropper.destroy();
                 cropper = new Cropper(cropImage, {
@@ -123,19 +226,25 @@
             reader.readAsDataURL(this.files[0]);
         });
 
-        // Crop confirm → upload with crop data
+        // Confirm → upload with crop or pad data
         document.getElementById('cropConfirmBtn').addEventListener('click', async function() {
-            if (!cropper) return;
-            const cropData = cropper.getData(true);
             const fileInput = document.getElementById('imageFile');
             if (!fileInput.files[0]) return;
 
             const formData = new FormData();
             formData.append('image', fileInput.files[0]);
-            formData.append('crop_x', Math.round(cropData.x));
-            formData.append('crop_y', Math.round(cropData.y));
-            formData.append('crop_width', Math.round(cropData.width));
-            formData.append('crop_height', Math.round(cropData.height));
+            formData.append('mode', currentMode);
+
+            if (currentMode === 'crop') {
+                if (!cropper) return;
+                const cropData = cropper.getData(true);
+                formData.append('crop_x', Math.round(cropData.x));
+                formData.append('crop_y', Math.round(cropData.y));
+                formData.append('crop_width', Math.round(cropData.width));
+                formData.append('crop_height', Math.round(cropData.height));
+            } else {
+                formData.append('pad_color', padColor);
+            }
 
             try {
                 const res = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
@@ -169,7 +278,11 @@
 
         function hideCropper() {
             if (cropper) { cropper.destroy(); cropper = null; }
+            originalImageData = null;
+            currentMode = 'crop';
             document.getElementById('cropArea').style.display = 'none';
+            document.getElementById('padPreview').style.display = 'none';
+            document.querySelector('.crop-container').style.display = 'block';
             document.getElementById('imageFile').value = '';
         }
 
@@ -381,6 +494,90 @@
     }
     .status-active { background: #2ecc40; color: #fff; }
     .status-inactive { background: #aaa; color: #fff; }
+
+    /* Mode toggle */
+    .mode-toggle {
+        display: flex;
+        gap: 0;
+        margin: 12px 0 8px;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.15);
+        width: fit-content;
+    }
+    .mode-btn {
+        padding: 6px 18px;
+        background: rgba(255,255,255,0.05);
+        color: rgba(255,255,255,0.6);
+        border: none;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+    }
+    .mode-btn.active {
+        background: #4a90d9;
+        color: #fff;
+    }
+    .mode-btn:hover:not(.active) {
+        background: rgba(255,255,255,0.1);
+    }
+
+    /* Colour options */
+    #padOptions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 8px 0;
+    }
+    .color-label {
+        font-size: 0.85rem;
+        opacity: 0.7;
+        white-space: nowrap;
+    }
+    .color-swatches {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+    .swatch {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.15);
+        cursor: pointer;
+        padding: 0;
+        transition: border-color 0.2s;
+    }
+    .swatch.active {
+        border-color: #4a90d9;
+        box-shadow: 0 0 0 2px rgba(74,144,217,0.4);
+    }
+    .swatch:hover {
+        border-color: rgba(255,255,255,0.4);
+    }
+    #customColor {
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 50%;
+        padding: 0;
+        cursor: pointer;
+        background: none;
+    }
+
+    /* Pad preview */
+    #padPreview {
+        margin: 12px 0;
+        background: #111;
+        border-radius: 6px;
+        overflow: hidden;
+        text-align: center;
+    }
+    #padCanvas {
+        max-width: 100%;
+        max-height: 400px;
+        border-radius: 6px;
+    }
 
     /* Crop area */
     .crop-container {

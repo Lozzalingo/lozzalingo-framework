@@ -376,28 +376,49 @@ def upload_image():
         # Save raw file first
         file.save(filepath)
 
-        # Server-side square crop using crop data from client
-        crop_x = request.form.get('crop_x')
-        crop_y = request.form.get('crop_y')
-        crop_w = request.form.get('crop_width')
-        crop_h = request.form.get('crop_height')
+        # Server-side image processing
+        mode = request.form.get('mode', 'crop')
 
-        if crop_x is not None and crop_w is not None:
-            try:
-                from PIL import Image
-                img = Image.open(filepath)
-                x = int(float(crop_x))
-                y = int(float(crop_y))
-                w = int(float(crop_w))
-                h = int(float(crop_h))
-                img = img.crop((x, y, x + w, y + h))
-                img = img.resize((200, 200), Image.LANCZOS)
-                img.save(filepath)
-            except ImportError:
-                # Pillow not installed - client-side crop will have to do
-                pass
-            except Exception as e:
-                print(f"Crop failed (using original): {e}")
+        try:
+            from PIL import Image
+
+            if mode == 'pad':
+                # Pad: place image centered on a coloured square
+                pad_color = request.form.get('pad_color', '#000000')
+                # Parse hex colour to RGB tuple
+                pad_color = pad_color.lstrip('#')
+                rgb = tuple(int(pad_color[i:i+2], 16) for i in (0, 2, 4))
+
+                img = Image.open(filepath).convert('RGBA')
+                size = max(img.width, img.height)
+                bg = Image.new('RGBA', (size, size), rgb + (255,))
+                x = (size - img.width) // 2
+                y = (size - img.height) // 2
+                bg.paste(img, (x, y), img)
+                bg = bg.convert('RGB')
+                bg = bg.resize((200, 200), Image.LANCZOS)
+                bg.save(filepath)
+            else:
+                # Crop mode
+                crop_x = request.form.get('crop_x')
+                crop_y = request.form.get('crop_y')
+                crop_w = request.form.get('crop_width')
+                crop_h = request.form.get('crop_height')
+
+                if crop_x is not None and crop_w is not None:
+                    img = Image.open(filepath)
+                    x = int(float(crop_x))
+                    y = int(float(crop_y))
+                    w = int(float(crop_w))
+                    h = int(float(crop_h))
+                    img = img.crop((x, y, x + w, y + h))
+                    img = img.resize((200, 200), Image.LANCZOS)
+                    img.save(filepath)
+        except ImportError:
+            # Pillow not installed - client-side will have to do
+            pass
+        except Exception as e:
+            print(f"Image processing failed (using original): {e}")
 
         image_url = f"/static/quick-links/{unique_filename}"
 
