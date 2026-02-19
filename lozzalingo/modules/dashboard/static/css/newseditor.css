@@ -1031,3 +1031,32 @@
         max-height: 90vh;
     }
 }
+
+/* ===== Image Browser Folder Tabs & Actions (shared across gallery/browser) ===== */
+.ib-tabs {
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--noir-gray);
+    padding: 0 24px;
+    margin-bottom: 8px;
+}
+.ib-tab {
+    padding: 10px 18px; background: none; border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--noir-silver); cursor: pointer; font-size: 0.85rem;
+    transition: all 0.2s;
+}
+.ib-tab.active { color: #4a90d9; border-bottom-color: #4a90d9; }
+.ib-tab:hover:not(.active) { color: var(--noir-white); }
+
+.ib-actions { display: flex; gap: 4px; padding: 4px 8px 8px; }
+.ib-select-btn {
+    flex: 1; padding: 4px 8px; background: #4a90d9; color: #fff;
+    border: none; border-radius: 4px; font-size: 0.75rem; cursor: pointer;
+}
+.ib-select-btn:hover { background: #3a7bc8; }
+.ib-delete-btn {
+    padding: 4px 8px; background: rgba(231,76,60,0.15); color: #e74c3c;
+    border: 1px solid rgba(231,76,60,0.3); border-radius: 4px;
+    font-size: 0.75rem; cursor: pointer;
+}
+.ib-delete-btn:hover { background: rgba(231,76,60,0.3); }

@@ -626,38 +626,50 @@ def upload_image():
 
 @news_bp.route('/list-images', methods=['GET'])
 def list_images():
-    """List uploaded images in the blog folder for gallery selection"""
+    """List uploaded images for the image browser modal"""
     if 'admin_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
 
     try:
-        from flask import current_app
-        blog_folder = os.path.join(current_app.static_folder, 'blog')
-
-        if not os.path.isdir(blog_folder):
-            return jsonify([])
-
-        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-        images = []
-
-        for filename in os.listdir(blog_folder):
-            ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-            if ext in allowed_extensions:
-                images.append({
-                    'url': f'/static/blog/{filename}',
-                    'filename': filename
-                })
-
-        # Sort by modification time, newest first
-        images.sort(
-            key=lambda img: os.path.getmtime(os.path.join(blog_folder, img['filename'])),
-            reverse=True
-        )
-
+        from lozzalingo.core.storage import list_files
+        folder = request.args.get('folder', 'blog')
+        if folder not in ('quick-links', 'blog', 'projects'):
+            folder = 'blog'
+        images = list_files(folder)
         return jsonify(images)
     except Exception as e:
         print(f"Error listing images: {e}")
         return jsonify({'error': 'Failed to list images'}), 500
+
+
+@news_bp.route('/delete-image', methods=['POST'])
+def delete_image():
+    """Delete an image file, with in-use safety check"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    try:
+        from lozzalingo.core.storage import delete_file, check_image_in_use
+        data = request.json
+        url = data.get('url', '')
+        force = data.get('force', False)
+
+        if not url:
+            return jsonify({'error': 'URL required'}), 400
+
+        refs = check_image_in_use(url)
+        if refs and not force:
+            return jsonify({
+                'in_use': True,
+                'references': refs,
+                'message': f'Image is used by {len(refs)} item(s)'
+            })
+
+        delete_file(url)
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error deleting image: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 # ================================

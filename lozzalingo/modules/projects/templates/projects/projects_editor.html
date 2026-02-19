@@ -54,7 +54,10 @@
 
                     <div class="form-group">
                         <label for="imageFile">Upload Image</label>
-                        <input type="file" id="imageFile" name="image" accept="image/*">
+                        <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                            <input type="file" id="imageFile" name="image" accept="image/*" style="flex:1;">
+                            <button type="button" class="btn-secondary" id="browseImagesBtn" style="white-space:nowrap;">Browse Images</button>
+                        </div>
                         <div class="upload-progress" id="uploadProgress" style="display: none;">
                             <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                             <span class="progress-text" id="progressText">Uploading...</span>
@@ -117,11 +120,31 @@
         </div>
     </div>
 
+    <!-- Image Browser Modal -->
+    <div id="imageBrowserModal" class="ib-overlay" style="display:none;">
+        <div class="ib-card">
+            <div class="ib-header">
+                <h3>Browse Images</h3>
+                <button type="button" class="ib-close" id="ibCloseBtn">&times;</button>
+            </div>
+            <div class="ib-tabs">
+                <button type="button" class="ib-tab" data-folder="quick-links">Quick Links</button>
+                <button type="button" class="ib-tab" data-folder="blog">Blog</button>
+                <button type="button" class="ib-tab active" data-folder="projects">Projects</button>
+            </div>
+            <div class="ib-body">
+                <div id="ibGrid" class="ib-grid"></div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <script>
     (function() {
         const API_BASE = '/admin/projects-editor/api/projects';
         const UPLOAD_URL = '/admin/projects-editor/upload-image';
+        const LIST_URL = '/admin/projects-editor/list-images';
+        const DELETE_URL = '/admin/projects-editor/delete-image';
 
         const quill = new Quill('#editor', {
             theme: 'snow',
@@ -141,6 +164,107 @@
         let editingId = null;
 
         loadProjects();
+
+        // === Image Browser Modal ===
+        const ibModal = document.getElementById('imageBrowserModal');
+        const ibGrid = document.getElementById('ibGrid');
+        let ibCurrentFolder = 'projects';
+
+        document.getElementById('browseImagesBtn').addEventListener('click', () => {
+            ibModal.style.display = 'flex';
+            loadBrowserImages(ibCurrentFolder);
+        });
+
+        document.getElementById('ibCloseBtn').addEventListener('click', () => {
+            ibModal.style.display = 'none';
+        });
+
+        ibModal.addEventListener('click', (e) => {
+            if (e.target === ibModal) ibModal.style.display = 'none';
+        });
+
+        document.querySelectorAll('.ib-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.ib-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                ibCurrentFolder = this.dataset.folder;
+                loadBrowserImages(ibCurrentFolder);
+            });
+        });
+
+        async function loadBrowserImages(folder) {
+            ibGrid.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.6;">Loading...</p>';
+            try {
+                const res = await fetch(`${LIST_URL}?folder=${folder}`);
+                const images = await res.json();
+                if (images.length === 0) {
+                    ibGrid.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.6;">No images in this folder.</p>';
+                    return;
+                }
+                ibGrid.innerHTML = images.map(img => `
+                    <div class="ib-item" data-url="${img.url}">
+                        <img src="${img.url}" alt="${img.filename}" loading="lazy">
+                        <span class="ib-filename">${img.filename}</span>
+                        <div class="ib-actions">
+                            <button type="button" class="ib-select-btn" data-url="${img.url}">Select</button>
+                            <button type="button" class="ib-delete-btn" data-url="${img.url}" title="Delete">&#128465;</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                ibGrid.querySelectorAll('.ib-select-btn').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        document.getElementById('imageUrl').value = this.dataset.url;
+                        showPreview(this.dataset.url);
+                        ibModal.style.display = 'none';
+                    });
+                });
+
+                ibGrid.querySelectorAll('.ib-delete-btn').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        handleDeleteImage(this.dataset.url);
+                    });
+                });
+            } catch (e) {
+                ibGrid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#e74c3c;">Failed to load images.</p>';
+            }
+        }
+
+        async function handleDeleteImage(url) {
+            try {
+                const res = await fetch(DELETE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await res.json();
+
+                if (data.in_use) {
+                    const refs = data.references.map(r => `- ${r.type}: ${r.title}`).join('\n');
+                    if (!confirm(`This image is in use:\n${refs}\n\nDelete anyway?`)) return;
+                    const res2 = await fetch(DELETE_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url, force: true })
+                    });
+                    const data2 = await res2.json();
+                    if (!data2.success) { alert('Delete failed: ' + (data2.error || 'Unknown error')); return; }
+                } else if (!data.success) {
+                    alert('Delete failed: ' + (data.error || 'Unknown error'));
+                    return;
+                }
+
+                const item = ibGrid.querySelector(`.ib-item[data-url="${CSS.escape(url)}"]`);
+                if (item) item.remove();
+                if (!ibGrid.querySelector('.ib-item')) {
+                    ibGrid.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.6;">No images in this folder.</p>';
+                }
+            } catch (e) {
+                alert('Delete error: ' + e.message);
+            }
+        }
 
         // Image upload
         document.getElementById('imageFile')?.addEventListener('change', async function() {
@@ -344,6 +468,68 @@
     .status-draft { background: #f0ad4e; color: #fff; }
     .ps-active { background: #2ecc40; color: #fff; }
     .ps-inactive { background: #e74c3c; color: #fff; }
+
+    /* Image Browser Modal */
+    .ib-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.7); z-index: 1000;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+    .ib-card {
+        background: var(--noir-charcoal, #1a1a2e); border: 1px solid var(--noir-gray, rgba(255,255,255,0.1));
+        border-radius: 12px; width: 90%; max-width: 700px; max-height: 80vh;
+        display: flex; flex-direction: column;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .ib-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .ib-header h3 { margin: 0; font-size: 1.1rem; }
+    .ib-close {
+        background: none; border: none; color: rgba(255,255,255,0.6);
+        font-size: 1.5rem; cursor: pointer; padding: 4px 8px; border-radius: 4px;
+    }
+    .ib-close:hover { color: #fff; background: rgba(255,255,255,0.1); }
+    .ib-tabs {
+        display: flex; gap: 0; border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding: 0 20px;
+    }
+    .ib-tab {
+        padding: 10px 18px; background: none; border: none; border-bottom: 2px solid transparent;
+        color: rgba(255,255,255,0.5); cursor: pointer; font-size: 0.85rem; transition: all 0.2s;
+    }
+    .ib-tab.active { color: #4a90d9; border-bottom-color: #4a90d9; }
+    .ib-tab:hover:not(.active) { color: rgba(255,255,255,0.8); }
+    .ib-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+    .ib-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .ib-item {
+        background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px; overflow: hidden; transition: all 0.2s;
+    }
+    .ib-item:hover { border-color: rgba(255,255,255,0.2); }
+    .ib-item img { width: 100%; height: 100px; object-fit: cover; display: block; }
+    .ib-filename {
+        display: block; padding: 4px 8px; font-size: 0.7rem;
+        color: rgba(255,255,255,0.5); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .ib-actions { display: flex; gap: 4px; padding: 4px 8px 8px; }
+    .ib-select-btn {
+        flex: 1; padding: 4px 8px; background: #4a90d9; color: #fff;
+        border: none; border-radius: 4px; font-size: 0.75rem; cursor: pointer;
+    }
+    .ib-select-btn:hover { background: #3a7bc8; }
+    .ib-delete-btn {
+        padding: 4px 8px; background: rgba(231,76,60,0.15); color: #e74c3c;
+        border: 1px solid rgba(231,76,60,0.3); border-radius: 4px;
+        font-size: 0.75rem; cursor: pointer;
+    }
+    .ib-delete-btn:hover { background: rgba(231,76,60,0.3); }
+    @media (max-width: 600px) {
+        .ib-grid { grid-template-columns: repeat(2, 1fr); }
+        .ib-card { width: 95%; max-height: 90vh; }
+    }
     </style>
 </body>
 </html>

@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', function() {
     setupImageUpload();
     setupFilters();
     setupInlineImageUpload();
+    setupGalleryFolderTabs();
+    setupCoverBrowser();
 });
 
 // ===== Quill Initialization =====
@@ -45,14 +47,107 @@ function initQuill() {
 // ===== Custom Image Handler =====
 
 function imageHandler() {
+    galleryMode = 'inline';
+    document.getElementById('imageModalTitle').textContent = 'Insert Image';
     document.getElementById('imageModal').style.display = 'flex';
     // Reset gallery state
     document.getElementById('imageGalleryGrid').style.display = 'none';
     document.getElementById('imageGalleryGrid').innerHTML = '';
+    var tabs = document.getElementById('galleryFolderTabs');
+    if (tabs) tabs.style.display = 'none';
 }
 
 function closeImageModal() {
     document.getElementById('imageModal').style.display = 'none';
+    galleryMode = 'inline';
+}
+
+function setupGalleryFolderTabs() {
+    const tabs = document.getElementById('galleryFolderTabs');
+    if (!tabs) return;
+    tabs.querySelectorAll('.ib-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            galleryCurrentFolder = this.dataset.folder;
+            loadImageGallery(galleryCurrentFolder);
+        });
+    });
+}
+
+function setupCoverBrowser() {
+    const btn = document.getElementById('browseCoverImagesBtn');
+    if (!btn) return;
+
+    // Cover browser uses the same inline modal but in 'cover' mode
+    btn.addEventListener('click', function() {
+        galleryMode = 'cover';
+        document.getElementById('imageModalTitle').textContent = 'Browse Images';
+        document.getElementById('imageModal').style.display = 'flex';
+        // Auto-load gallery
+        loadImageGallery('blog');
+    });
+
+    // Also set up the separate cover browser modal if it exists
+    const coverModal = document.getElementById('coverBrowserModal');
+    if (coverModal) {
+        const coverGrid = document.getElementById('coverBrowserGrid');
+        const closeBtn = document.getElementById('coverBrowserClose');
+        let coverFolder = 'blog';
+
+        closeBtn.addEventListener('click', () => { coverModal.style.display = 'none'; });
+        coverModal.addEventListener('click', (e) => {
+            if (e.target === coverModal) coverModal.style.display = 'none';
+        });
+
+        document.getElementById('coverBrowserTabs').querySelectorAll('.ib-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.getElementById('coverBrowserTabs').querySelectorAll('.ib-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                coverFolder = this.dataset.folder;
+                loadCoverBrowserImages(coverFolder, coverGrid, coverModal);
+            });
+        });
+
+        async function loadCoverBrowserImages(folder, grid, modal) {
+            grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.6;">Loading...</p>';
+            try {
+                const res = await fetch(`/admin/news-editor/list-images?folder=${folder}`);
+                const images = await res.json();
+                if (images.length === 0) {
+                    grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.6;">No images in this folder.</p>';
+                    return;
+                }
+                grid.innerHTML = images.map(img => `
+                    <div class="ib-item" data-url="${escapeHtml(img.url)}">
+                        <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.filename)}" loading="lazy">
+                        <span class="ib-filename">${escapeHtml(img.filename)}</span>
+                        <div class="ib-actions">
+                            <button type="button" class="ib-select-btn" data-url="${escapeHtml(img.url)}">Select</button>
+                            <button type="button" class="ib-delete-btn" data-url="${escapeHtml(img.url)}" title="Delete">&#128465;</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                grid.querySelectorAll('.ib-select-btn').forEach(b => {
+                    b.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        document.getElementById('imageUrl').value = this.dataset.url;
+                        const event = new Event('input');
+                        document.getElementById('imageUrl').dispatchEvent(event);
+                        modal.style.display = 'none';
+                    });
+                });
+
+                grid.querySelectorAll('.ib-delete-btn').forEach(b => {
+                    b.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        deleteGalleryImage(this.dataset.url, grid);
+                    });
+                });
+            } catch (e) {
+                grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#e74c3c;">Failed to load images.</p>';
+            }
+        }
+    }
 }
 
 function triggerInlineUpload() {
@@ -110,37 +205,106 @@ function setupInlineImageUpload() {
     });
 }
 
-async function loadImageGallery() {
+let galleryCurrentFolder = 'blog';
+let galleryMode = 'inline'; // 'inline' (for Quill) or 'cover' (for cover image)
+
+async function loadImageGallery(folder) {
     const grid = document.getElementById('imageGalleryGrid');
+    const tabs = document.getElementById('galleryFolderTabs');
     grid.style.display = 'grid';
+    tabs.style.display = 'flex';
+
+    if (folder) galleryCurrentFolder = folder;
+
+    // Update active tab
+    tabs.querySelectorAll('.ib-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.folder === galleryCurrentFolder);
+    });
+
     grid.innerHTML = '<p style="color: var(--noir-silver); grid-column: 1/-1; text-align: center;">Loading images...</p>';
 
     try {
-        const response = await fetch('/admin/news-editor/list-images');
+        const response = await fetch(`/admin/news-editor/list-images?folder=${galleryCurrentFolder}`);
         if (!response.ok) throw new Error('Failed to load images');
 
         const images = await response.json();
 
         if (images.length === 0) {
-            grid.innerHTML = '<p style="color: var(--noir-silver); grid-column: 1/-1; text-align: center;">No images uploaded yet.</p>';
+            grid.innerHTML = '<p style="color: var(--noir-silver); grid-column: 1/-1; text-align: center;">No images in this folder.</p>';
             return;
         }
 
         grid.innerHTML = images.map(img => `
-            <div class="gallery-item" onclick="selectGalleryImage('${img.url}')">
-                <img src="${img.url}" alt="${img.filename}" loading="lazy">
-                <span class="gallery-filename">${img.filename}</span>
+            <div class="gallery-item" data-url="${escapeHtml(img.url)}">
+                <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.filename)}" loading="lazy">
+                <span class="gallery-filename">${escapeHtml(img.filename)}</span>
+                <div class="ib-actions">
+                    <button type="button" class="ib-select-btn" data-url="${escapeHtml(img.url)}">Select</button>
+                    <button type="button" class="ib-delete-btn" data-url="${escapeHtml(img.url)}" title="Delete">&#128465;</button>
+                </div>
             </div>
         `).join('');
+
+        grid.querySelectorAll('.ib-select-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                selectGalleryImage(this.dataset.url);
+            });
+        });
+
+        grid.querySelectorAll('.ib-delete-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                deleteGalleryImage(this.dataset.url, grid);
+            });
+        });
     } catch (error) {
         console.error('Error loading gallery:', error);
         grid.innerHTML = '<p style="color: #e74c3c; grid-column: 1/-1; text-align: center;">Failed to load images.</p>';
     }
 }
 
+async function deleteGalleryImage(url, grid) {
+    try {
+        const res = await fetch('/admin/news-editor/delete-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+
+        if (data.in_use) {
+            const refs = data.references.map(r => `- ${r.type}: ${r.title}`).join('\n');
+            if (!confirm(`This image is in use:\n${refs}\n\nDelete anyway?`)) return;
+            const res2 = await fetch('/admin/news-editor/delete-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url, force: true })
+            });
+            const data2 = await res2.json();
+            if (!data2.success) { alert('Delete failed: ' + (data2.error || 'Unknown error')); return; }
+        } else if (!data.success) {
+            alert('Delete failed: ' + (data.error || 'Unknown error'));
+            return;
+        }
+
+        // Reload grid
+        loadImageGallery(galleryCurrentFolder);
+    } catch (e) {
+        alert('Delete error: ' + e.message);
+    }
+}
+
 function selectGalleryImage(url) {
-    insertImageIntoEditor(url);
-    closeImageModal();
+    if (galleryMode === 'cover') {
+        document.getElementById('imageUrl').value = url;
+        const event = new Event('input');
+        document.getElementById('imageUrl').dispatchEvent(event);
+        closeImageModal();
+    } else {
+        insertImageIntoEditor(url);
+        closeImageModal();
+    }
 }
 
 function promptImageUrl() {
