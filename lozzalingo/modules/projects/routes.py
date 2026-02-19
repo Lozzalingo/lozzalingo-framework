@@ -529,16 +529,13 @@ def upload_image():
         return jsonify({'error': 'Invalid file type'}), 400
 
     try:
-        from flask import current_app
-        UPLOAD_FOLDER = os.path.join(current_app.static_folder, 'projects')
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        from lozzalingo.core.storage import upload_file
 
         file_ext = file.filename.rsplit('.', 1)[1].lower()
         unique_filename = f"{uuid.uuid4().hex}.{file_ext}"
-        filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
 
-        file.save(filepath)
-        image_url = f"/static/projects/{unique_filename}"
+        file_bytes = file.read()
+        image_url = upload_file(file_bytes, unique_filename, 'projects')
 
         return jsonify({
             'success': True,

@@ -364,17 +364,17 @@ def upload_image():
         return jsonify({'error': 'Invalid file type'}), 400
 
     try:
+        import tempfile
         from flask import current_app
-
-        UPLOAD_FOLDER = os.path.join(current_app.static_folder, 'quick-links')
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        from lozzalingo.core.storage import upload_file
 
         file_ext = file.filename.rsplit('.', 1)[1].lower()
         unique_filename = f"{uuid.uuid4().hex}.{file_ext}"
-        filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
 
-        # Save raw file first
-        file.save(filepath)
+        # Save to temp file for PIL processing
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=f'.{file_ext}')
+        file.save(tmp.name)
+        tmp.close()
 
         # Server-side image processing
         mode = request.form.get('mode', 'crop')
@@ -389,7 +389,7 @@ def upload_image():
                 pad_color = pad_color.lstrip('#')
                 rgb = tuple(int(pad_color[i:i+2], 16) for i in (0, 2, 4))
 
-                img = Image.open(filepath).convert('RGBA')
+                img = Image.open(tmp.name).convert('RGBA')
                 size = max(img.width, img.height)
                 bg = Image.new('RGBA', (size, size), rgb + (255,))
                 x = (size - img.width) // 2
@@ -397,7 +397,7 @@ def upload_image():
                 bg.paste(img, (x, y), img)
                 bg = bg.convert('RGB')
                 bg = bg.resize((200, 200), Image.LANCZOS)
-                bg.save(filepath)
+                bg.save(tmp.name)
             else:
                 # Crop mode
                 crop_x = request.form.get('crop_x')
@@ -406,21 +406,25 @@ def upload_image():
                 crop_h = request.form.get('crop_height')
 
                 if crop_x is not None and crop_w is not None:
-                    img = Image.open(filepath)
+                    img = Image.open(tmp.name)
                     x = int(float(crop_x))
                     y = int(float(crop_y))
                     w = int(float(crop_w))
                     h = int(float(crop_h))
                     img = img.crop((x, y, x + w, y + h))
                     img = img.resize((200, 200), Image.LANCZOS)
-                    img.save(filepath)
+                    img.save(tmp.name)
         except ImportError:
             # Pillow not installed - client-side will have to do
             pass
         except Exception as e:
             print(f"Image processing failed (using original): {e}")
 
-        image_url = f"/static/quick-links/{unique_filename}"
+        with open(tmp.name, 'rb') as f:
+            file_bytes = f.read()
+        os.unlink(tmp.name)
+
+        image_url = upload_file(file_bytes, unique_filename, 'quick-links')
 
         return jsonify({
             'success': True,
