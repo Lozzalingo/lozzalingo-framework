@@ -33,9 +33,17 @@
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="year">Year</label>
+                            <label for="year">Year (Start)</label>
                             <input type="number" id="year" name="year" placeholder="e.g. 2024" min="1990" max="2099">
                         </div>
+                        <div class="form-group">
+                            <label for="yearEnd">Year End</label>
+                            <input type="number" id="yearEnd" name="year_end" placeholder="Leave blank for ongoing" min="1990" max="2099">
+                            <small class="form-hint">Leave blank for ongoing projects</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
                         <div class="form-group">
                             <label for="projectStatus">Activity</label>
                             <select id="projectStatus" name="project_status">
@@ -43,6 +51,17 @@
                                 <option value="inactive">Inactive</option>
                             </select>
                             <small class="form-hint">Shown as a label on the public page</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="grossEarnings">Gross Earnings</label>
+                            <div style="display: flex; gap: 8px;">
+                                <select id="earningsCurrency" name="earnings_currency" style="width: 70px; flex-shrink: 0;">
+                                    <option value="£">£</option>
+                                    <option value="$">$</option>
+                                    <option value="€">€</option>
+                                </select>
+                                <input type="number" id="grossEarnings" name="gross_earnings" placeholder="e.g. 50000" min="0" step="0.01" style="flex: 1;">
+                            </div>
                         </div>
                     </div>
 
@@ -367,11 +386,14 @@
                 title, content,
                 image_url: document.getElementById('imageUrl').value.trim(),
                 year: document.getElementById('year').value || null,
+                year_end: document.getElementById('yearEnd').value || null,
                 status: status,
                 project_status: document.getElementById('projectStatus').value,
                 technologies: document.getElementById('technologies').value.trim() || null,
                 excerpt: document.getElementById('excerpt').value.trim() || null,
-                meta_description: document.getElementById('metaDescription').value.trim() || null
+                meta_description: document.getElementById('metaDescription').value.trim() || null,
+                gross_earnings: document.getElementById('grossEarnings').value || null,
+                earnings_currency: document.getElementById('earningsCurrency').value || null
             };
 
             try {
@@ -392,11 +414,14 @@
                 document.getElementById('projectId').value = id;
                 document.getElementById('title').value = p.title || '';
                 document.getElementById('year').value = p.year || '';
+                document.getElementById('yearEnd').value = p.year_end || '';
                 document.getElementById('projectStatus').value = p.project_status || 'active';
                 document.getElementById('technologies').value = p.technologies || '';
                 document.getElementById('imageUrl').value = p.image_url || '';
                 document.getElementById('excerpt').value = p.excerpt || '';
                 document.getElementById('metaDescription').value = p.meta_description || '';
+                document.getElementById('grossEarnings').value = p.gross_earnings || '';
+                document.getElementById('earningsCurrency').value = p.earnings_currency || '£';
                 quill.root.innerHTML = p.content || '';
                 if (p.image_url) showPreview(p.image_url);
 
@@ -441,12 +466,15 @@
             document.getElementById('projectId').value = '';
             document.getElementById('title').value = '';
             document.getElementById('year').value = '';
+            document.getElementById('yearEnd').value = '';
             document.getElementById('projectStatus').value = 'active';
             document.getElementById('technologies').value = '';
             document.getElementById('imageUrl').value = '';
             document.getElementById('imageFile').value = '';
             document.getElementById('excerpt').value = '';
             document.getElementById('metaDescription').value = '';
+            document.getElementById('grossEarnings').value = '';
+            document.getElementById('earningsCurrency').value = '£';
             quill.root.innerHTML = '';
             hidePreview();
             document.getElementById('formTitle').textContent = 'Create New Project';

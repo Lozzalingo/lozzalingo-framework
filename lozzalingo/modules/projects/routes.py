@@ -82,6 +82,9 @@ def init_projects_db():
                 ('excerpt', 'TEXT'),
                 ('meta_description', 'TEXT'),
                 ('technologies', 'TEXT'),
+                ('year_end', 'INTEGER'),
+                ('gross_earnings', 'REAL'),
+                ('earnings_currency', 'TEXT DEFAULT "£"'),
             ]
             for col_name, col_type in new_columns:
                 if col_name not in columns:
@@ -102,16 +105,22 @@ def init_projects_db():
         raise
 
 _SELECT_COLS = '''id, title, slug, content, image_url, year, status, project_status,
-                  excerpt, meta_description, technologies, created_at, updated_at'''
+                  excerpt, meta_description, technologies, created_at, updated_at,
+                  year_end, gross_earnings, earnings_currency'''
 
 def _row_to_dict(row):
     """Convert a DB row to a project dict"""
-    return {
+    d = {
         'id': row[0], 'title': row[1], 'slug': row[2], 'content': row[3],
         'image_url': row[4], 'year': row[5], 'status': row[6],
         'project_status': row[7], 'excerpt': row[8], 'meta_description': row[9],
         'technologies': row[10], 'created_at': row[11], 'updated_at': row[12],
     }
+    # New columns may not exist in older DBs — guard with len checks
+    d['year_end'] = row[13] if len(row) > 13 else None
+    d['gross_earnings'] = row[14] if len(row) > 14 else None
+    d['earnings_currency'] = row[15] if len(row) > 15 else None
+    return d
 
 def create_slug(title):
     """Create URL-friendly slug with uniqueness checking"""
@@ -172,7 +181,8 @@ def get_all_projects_db(status=None, project_status=None):
 
 def create_project_db(title, content, image_url=None, year=None,
                       status='draft', project_status='active', excerpt=None,
-                      meta_description=None, technologies=None):
+                      meta_description=None, technologies=None,
+                      year_end=None, gross_earnings=None, earnings_currency=None):
     """Create new project in database"""
     projects_db = get_db_config()
     db_connect = get_db_connection()
@@ -184,10 +194,12 @@ def create_project_db(title, content, image_url=None, year=None,
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO projects (title, slug, content, image_url, year,
-                    status, project_status, excerpt, meta_description, technologies)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    status, project_status, excerpt, meta_description, technologies,
+                    year_end, gross_earnings, earnings_currency)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (title, slug, content, image_url, year,
-                  status, project_status, excerpt, meta_description, technologies))
+                  status, project_status, excerpt, meta_description, technologies,
+                  year_end, gross_earnings, earnings_currency))
             conn.commit()
             return cursor.lastrowid, slug
     except Exception as e:
@@ -196,7 +208,8 @@ def create_project_db(title, content, image_url=None, year=None,
 
 def update_project_db(project_id, title, content, image_url=None, year=None,
                       status=None, project_status=None, excerpt=None,
-                      meta_description=None, technologies=None):
+                      meta_description=None, technologies=None,
+                      year_end=None, gross_earnings=None, earnings_currency=None):
     """Update existing project"""
     projects_db = get_db_config()
     db_connect = get_db_connection()
@@ -230,11 +243,13 @@ def update_project_db(project_id, title, content, image_url=None, year=None,
                 UPDATE projects
                 SET title = ?, slug = ?, content = ?, image_url = ?, year = ?,
                     status = ?, project_status = ?, excerpt = ?, meta_description = ?,
-                    technologies = ?, updated_at = CURRENT_TIMESTAMP
+                    technologies = ?, year_end = ?, gross_earnings = ?,
+                    earnings_currency = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (title.strip(), slug, content.strip(), image_url, year,
                   status, project_status, excerpt, meta_description,
-                  technologies, project_id))
+                  technologies, year_end, gross_earnings, earnings_currency,
+                  project_id))
             conn.commit()
 
             return cursor.rowcount > 0
@@ -335,6 +350,37 @@ def toggle_publish_status_db(project_id):
         print(f"Error toggling publish status: {e}")
         return None
 
+def _auto_seo(content, excerpt, meta_description):
+    """Auto-generate excerpt/meta_description from content when left blank."""
+    if excerpt and meta_description:
+        return excerpt, meta_description
+
+    # Strip HTML tags to get plain text
+    plain = re.sub(r'<[^>]+>', '', content or '').strip()
+    plain = re.sub(r'\s+', ' ', plain)
+
+    if not excerpt and plain:
+        if len(plain) <= 200:
+            excerpt = plain
+        else:
+            truncated = plain[:200]
+            last_space = truncated.rfind(' ')
+            if last_space > 100:
+                truncated = truncated[:last_space]
+            excerpt = truncated + '...'
+
+    if not meta_description and plain:
+        if len(plain) <= 160:
+            meta_description = plain
+        else:
+            truncated = plain[:160]
+            last_space = truncated.rfind(' ')
+            if last_space > 80:
+                truncated = truncated[:last_space]
+            meta_description = truncated + '...'
+
+    return excerpt, meta_description
+
 # ===== Routes =====
 
 @projects_bp.route('/')
@@ -395,6 +441,10 @@ def create_project():
         meta_description = data.get('meta_description') or None
         technologies = data.get('technologies') or None
 
+        year_end = data.get('year_end')
+        gross_earnings = data.get('gross_earnings')
+        earnings_currency = data.get('earnings_currency') or None
+
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
 
@@ -404,10 +454,26 @@ def create_project():
             except (ValueError, TypeError):
                 return jsonify({'error': 'Year must be a number'}), 400
 
+        if year_end:
+            try:
+                year_end = int(year_end)
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Year End must be a number'}), 400
+
+        if gross_earnings:
+            try:
+                gross_earnings = float(gross_earnings)
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Gross Earnings must be a number'}), 400
+
+        # SEO auto-fallback: generate excerpt/meta_description from content
+        excerpt, meta_description = _auto_seo(content, excerpt, meta_description)
+
         project_id, slug = create_project_db(
             title, content, image_url, year, status, project_status,
             excerpt=excerpt, meta_description=meta_description,
-            technologies=technologies
+            technologies=technologies, year_end=year_end,
+            gross_earnings=gross_earnings, earnings_currency=earnings_currency
         )
 
         return jsonify({
@@ -440,6 +506,10 @@ def update_project(project_id):
         meta_description = data.get('meta_description') or None
         technologies = data.get('technologies') or None
 
+        year_end = data.get('year_end')
+        gross_earnings = data.get('gross_earnings')
+        earnings_currency = data.get('earnings_currency') or None
+
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
 
@@ -449,10 +519,26 @@ def update_project(project_id):
             except (ValueError, TypeError):
                 return jsonify({'error': 'Year must be a number'}), 400
 
+        if year_end:
+            try:
+                year_end = int(year_end)
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Year End must be a number'}), 400
+
+        if gross_earnings:
+            try:
+                gross_earnings = float(gross_earnings)
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Gross Earnings must be a number'}), 400
+
+        # SEO auto-fallback: generate excerpt/meta_description from content
+        excerpt, meta_description = _auto_seo(content, excerpt, meta_description)
+
         success = update_project_db(
             project_id, title, content, image_url, year, status, project_status,
             excerpt=excerpt, meta_description=meta_description,
-            technologies=technologies
+            technologies=technologies, year_end=year_end,
+            gross_earnings=gross_earnings, earnings_currency=earnings_currency
         )
 
         if success:
