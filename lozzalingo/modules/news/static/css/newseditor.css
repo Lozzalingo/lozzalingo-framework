@@ -280,7 +280,61 @@
     background: var(--noir-gray);
 }
 
-/* Article Items */
+/* Article Cards (quick links, projects list) */
+.article-card {
+    background: var(--noir-dark);
+    border: 1px solid var(--noir-gray);
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.article-card:hover {
+    border-color: var(--noir-light-gray);
+}
+
+.article-card:last-child {
+    margin-bottom: 0;
+}
+
+.article-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.article-card-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--noir-white);
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.article-card .article-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    font-size: 0.8rem;
+    color: var(--noir-light-gray);
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.article-card .article-meta span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* Article Items (news editor) */
 .article-item {
     background: var(--noir-dark);
     border: 1px solid var(--noir-gray);
