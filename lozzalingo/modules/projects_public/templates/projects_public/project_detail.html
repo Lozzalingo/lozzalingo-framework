@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project.title }}</title>
+</head>
+<body>
+    <h1>{{ project.title }}</h1>
+    {% if project.year %}<span>{{ project.year }}</span>{% endif %}
+    {% if project.project_status %}<span>{{ project.project_status }}</span>{% endif %}
+    {% if project.image_url %}<img src="{{ project.image_url }}" alt="{{ project.title }}">{% endif %}
+    <div>{{ project.content | safe }}</div>
+    {% if project.technologies %}
+    <div>
+        <strong>Technologies:</strong>
+        {% for tech in project.technologies.split(',') %}
+        <span>{{ tech.strip() }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+</body>
+</html>

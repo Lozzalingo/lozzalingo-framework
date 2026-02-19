@@ -70,6 +70,9 @@ class Lozzalingo:
             'orders': True,
             'external_api': True,
             'settings': True,
+            'projects': False,
+            'projects_public': False,
+            'quick_links': False,
         },
 
         # Analytics settings
@@ -288,6 +291,8 @@ class Lozzalingo:
         self.app.config.setdefault('USER_DB', os.path.join(db_dir, 'users.db'))
         self.app.config.setdefault('NEWS_DB', os.path.join(db_dir, 'news.db'))
         self.app.config.setdefault('ANALYTICS_DB', os.path.join(db_dir, 'analytics.db'))
+        self.app.config.setdefault('PROJECTS_DB', os.path.join(db_dir, 'projects.db'))
+        self.app.config.setdefault('QUICK_LINKS_DB', os.path.join(db_dir, 'quick_links.db'))
 
         # Auth configuration
         auth_config = self._config.get('auth', {})
@@ -361,6 +366,18 @@ class Lozzalingo:
         # Settings
         if features.get('settings', True):
             self._register_settings()
+
+        # Projects (admin)
+        if features.get('projects', False):
+            self._register_projects()
+
+        # Projects Public
+        if features.get('projects_public', False):
+            self._register_projects_public()
+
+        # Quick Links
+        if features.get('quick_links', False):
+            self._register_quick_links()
 
     def _register_dashboard(self):
         """Register the admin dashboard module."""
@@ -494,6 +511,37 @@ class Lozzalingo:
             self.app.logger.debug("Registered settings module")
         except Exception as e:
             self.app.logger.error(f"Failed to register settings module: {e}")
+
+    def _register_projects(self):
+        """Register the projects admin module."""
+        try:
+            from .modules.projects import projects_bp
+            self.app.register_blueprint(projects_bp)
+            self._registered_blueprints.append('projects')
+            self.app.logger.debug("Registered projects module")
+        except Exception as e:
+            self.app.logger.error(f"Failed to register projects module: {e}")
+
+    def _register_projects_public(self):
+        """Register the public projects module."""
+        try:
+            from .modules.projects_public import projects_public_bp
+            self.app.register_blueprint(projects_public_bp)
+            self._registered_blueprints.append('projects_public')
+            self.app.logger.debug("Registered projects_public module")
+        except Exception as e:
+            self.app.logger.error(f"Failed to register projects_public module: {e}")
+
+    def _register_quick_links(self):
+        """Register the quick links module."""
+        try:
+            from .modules.quick_links import quick_links_admin_bp, quick_links_bp
+            self.app.register_blueprint(quick_links_admin_bp)
+            self.app.register_blueprint(quick_links_bp)
+            self._registered_blueprints.append('quick_links')
+            self.app.logger.debug("Registered quick_links module")
+        except Exception as e:
+            self.app.logger.error(f"Failed to register quick_links module: {e}")
 
     def _setup_auto_injection(self):
         """Set up automatic script injection for analytics."""

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projects</title>
+</head>
+<body>
+    <h1>Projects</h1>
+    {% for project in projects %}
+    <div>
+        <h2><a href="{{ url_for('projects.project_detail', slug=project.slug) }}">{{ project.title }}</a></h2>
+        {% if project.year %}<span>{{ project.year }}</span>{% endif %}
+        {% if project.excerpt %}<p>{{ project.excerpt }}</p>{% endif %}
+    </div>
+    {% endfor %}
+</body>
+</html>

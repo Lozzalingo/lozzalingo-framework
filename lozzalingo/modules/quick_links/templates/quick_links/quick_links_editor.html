@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Links Editor - Admin</title>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/newseditor.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+</head>
+<body>
+    {% include 'header.html' ignore missing %}
+
+    <div class="editor-container">
+        <header class="editor-header">
+            <h1>Quick Links Editor</h1>
+            <div class="header-actions">
+                <a href="{{ url_for('admin.dashboard') }}" class="back-link">Back to Dashboard</a>
+            </div>
+        </header>
+
+        <div class="editor-content">
+            <!-- Add Link Form -->
+            <div class="editor-form">
+                <h2 id="formTitle">Add New Link</h2>
+
+                <form id="linkForm">
+                    <input type="hidden" id="linkId">
+                    <input type="hidden" id="imageUrl">
+
+                    <div class="form-group">
+                        <label for="title">Title *</label>
+                        <input type="text" id="title" name="title" required placeholder="Link title">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="url">URL *</label>
+                        <input type="url" id="url" name="url" required placeholder="https://example.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <input type="text" id="description" name="description" placeholder="Short description (optional)">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="imageFile">Image (square crop)</label>
+                        <input type="file" id="imageFile" accept="image/png,image/jpeg,image/gif,image/webp">
+                        <small class="form-hint">Select an image and crop to a square</small>
+                    </div>
+
+                    <!-- Crop Area -->
+                    <div id="cropArea" style="display: none;">
+                        <div class="crop-container">
+                            <img id="cropImage" src="" alt="Crop preview">
+                        </div>
+                        <div class="crop-actions">
+                            <button type="button" class="btn-primary" id="cropConfirmBtn">Crop & Upload</button>
+                            <button type="button" class="btn-secondary" id="cropCancelBtn">Cancel</button>
+                        </div>
+                    </div>
+
+                    <!-- Image Preview -->
+                    <div id="imagePreview" style="display: none;" class="ql-image-preview">
+                        <img id="previewImg" src="" alt="Link image">
+                        <button type="button" class="btn-small btn-delete" id="removeImageBtn">Remove</button>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-primary" id="saveBtn">Add Link</button>
+                        <button type="button" class="btn-secondary" id="cancelBtn" style="display: none;">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Links List -->
+            <div class="articles-list">
+                <div class="list-header">
+                    <h2>Manage Links</h2>
+                    <span id="linkCount" class="item-count"></span>
+                </div>
+                <div id="linksList"></div>
+                <p style="margin-top: 12px; opacity: 0.6; font-size: 0.85rem;">Drag and drop to reorder links</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+    <script>
+    (function() {
+        const API_BASE = '/admin/quick-links-editor/api/links';
+        const UPLOAD_URL = '/admin/quick-links-editor/upload-image';
+        let editingId = null;
+        let allLinks = [];
+        let cropper = null;
+
+        loadLinks();
+
+        document.getElementById('saveBtn').addEventListener('click', saveLink);
+        document.getElementById('cancelBtn').addEventListener('click', resetForm);
+
+        // Image file selection → show cropper
+        document.getElementById('imageFile').addEventListener('change', function() {
+            if (!this.files[0]) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const cropImage = document.getElementById('cropImage');
+                cropImage.src = e.target.result;
+                document.getElementById('cropArea').style.display = 'block';
+
+                if (cropper) cropper.destroy();
+                cropper = new Cropper(cropImage, {
+                    aspectRatio: 1,
+                    viewMode: 1,
+                    dragMode: 'move',
+                    autoCropArea: 1,
+                    cropBoxResizable: true,
+                    cropBoxMovable: true,
+                    guides: true,
+                    highlight: true
+                });
+            };
+            reader.readAsDataURL(this.files[0]);
+        });
+
+        // Crop confirm → upload with crop data
+        document.getElementById('cropConfirmBtn').addEventListener('click', async function() {
+            if (!cropper) return;
+            const cropData = cropper.getData(true);
+            const fileInput = document.getElementById('imageFile');
+            if (!fileInput.files[0]) return;
+
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            formData.append('crop_x', Math.round(cropData.x));
+            formData.append('crop_y', Math.round(cropData.y));
+            formData.append('crop_width', Math.round(cropData.width));
+            formData.append('crop_height', Math.round(cropData.height));
+
+            try {
+                const res = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('imageUrl').value = data.image_url;
+                    showPreview(data.image_url);
+                    hideCropper();
+                } else {
+                    alert('Upload failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Upload error: ' + e.message);
+            }
+        });
+
+        // Cancel crop
+        document.getElementById('cropCancelBtn').addEventListener('click', hideCropper);
+
+        // Remove image
+        document.getElementById('removeImageBtn').addEventListener('click', function() {
+            document.getElementById('imageUrl').value = '';
+            document.getElementById('imagePreview').style.display = 'none';
+            document.getElementById('imageFile').value = '';
+        });
+
+        function showPreview(url) {
+            document.getElementById('previewImg').src = url;
+            document.getElementById('imagePreview').style.display = 'flex';
+        }
+
+        function hideCropper() {
+            if (cropper) { cropper.destroy(); cropper = null; }
+            document.getElementById('cropArea').style.display = 'none';
+            document.getElementById('imageFile').value = '';
+        }
+
+        async function loadLinks() {
+            try {
+                const res = await fetch(API_BASE);
+                allLinks = await res.json();
+                renderLinks();
+            } catch (e) {
+                console.error('[QUICK-LINKS] Error loading links:', e);
+            }
+        }
+
+        function renderLinks() {
+            const container = document.getElementById('linksList');
+            document.getElementById('linkCount').textContent = `${allLinks.length} link${allLinks.length !== 1 ? 's' : ''}`;
+
+            if (allLinks.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No links yet. Add your first link above.</p></div>';
+                return;
+            }
+
+            container.innerHTML = allLinks.map(link => `
+                <div class="article-card" data-id="${link.id}" draggable="true"
+                     style="cursor: grab; ${!link.is_active ? 'opacity: 0.5;' : ''}">
+                    <div class="article-card-header">
+                        <h3 class="article-title" style="display: flex; align-items: center; gap: 10px;">
+                            ${link.image_url ? `<img src="${link.image_url}" alt="" class="link-thumb">` : ''}
+                            ${link.title}
+                        </h3>
+                        <span class="status-badge status-${link.is_active ? 'active' : 'inactive'}">
+                            ${link.is_active ? 'Active' : 'Hidden'}
+                        </span>
+                    </div>
+                    <div class="article-meta">
+                        <span>${link.url}</span>
+                        ${link.description ? `<span>${link.description}</span>` : ''}
+                    </div>
+                    <div class="article-actions">
+                        <button class="btn-small btn-edit" onclick="window._editLink(${link.id})">Edit</button>
+                        <button class="btn-small btn-toggle" onclick="window._toggleLink(${link.id})">
+                            ${link.is_active ? 'Hide' : 'Show'}
+                        </button>
+                        <button class="btn-small btn-delete" onclick="window._deleteLink(${link.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+
+            setupDragDrop();
+        }
+
+        function setupDragDrop() {
+            const cards = document.querySelectorAll('#linksList .article-card');
+            let dragSrc = null;
+
+            cards.forEach(card => {
+                card.addEventListener('dragstart', function(e) {
+                    dragSrc = this;
+                    this.style.opacity = '0.4';
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', this.dataset.id);
+                });
+
+                card.addEventListener('dragend', function() {
+                    this.style.opacity = this.querySelector('.status-badge').classList.contains('status-inactive') ? '0.5' : '1';
+                    document.querySelectorAll('#linksList .article-card').forEach(c => c.classList.remove('drag-over'));
+                });
+
+                card.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    this.classList.add('drag-over');
+                });
+
+                card.addEventListener('dragleave', function() {
+                    this.classList.remove('drag-over');
+                });
+
+                card.addEventListener('drop', async function(e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+                    if (dragSrc === this) return;
+
+                    const container = document.getElementById('linksList');
+                    const allCards = [...container.querySelectorAll('.article-card')];
+                    const fromIdx = allCards.indexOf(dragSrc);
+                    const toIdx = allCards.indexOf(this);
+
+                    if (fromIdx < toIdx) {
+                        this.after(dragSrc);
+                    } else {
+                        this.before(dragSrc);
+                    }
+
+                    const newOrder = [...container.querySelectorAll('.article-card')].map(c => parseInt(c.dataset.id));
+                    await fetch(`${API_BASE}/reorder`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ order: newOrder })
+                    });
+
+                    loadLinks();
+                });
+            });
+        }
+
+        async function saveLink() {
+            const title = document.getElementById('title').value.trim();
+            const url = document.getElementById('url').value.trim();
+            const imageUrl = document.getElementById('imageUrl').value.trim();
+            const description = document.getElementById('description').value.trim();
+
+            if (!title || !url) {
+                alert('Title and URL are required');
+                return;
+            }
+
+            const body = { title, url, image_url: imageUrl, description };
+
+            try {
+                const endpoint = editingId ? `${API_BASE}/${editingId}` : API_BASE;
+                const method = editingId ? 'PUT' : 'POST';
+
+                const res = await fetch(endpoint, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await res.json();
+                if (data.success || data.id) {
+                    resetForm();
+                    loadLinks();
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Error saving link: ' + e.message);
+            }
+        }
+
+        window._editLink = function(id) {
+            const link = allLinks.find(l => l.id === id);
+            if (!link) return;
+
+            editingId = id;
+            document.getElementById('linkId').value = id;
+            document.getElementById('title').value = link.title;
+            document.getElementById('url').value = link.url;
+            document.getElementById('imageUrl').value = link.image_url || '';
+            document.getElementById('description').value = link.description || '';
+
+            if (link.image_url) {
+                showPreview(link.image_url);
+            } else {
+                document.getElementById('imagePreview').style.display = 'none';
+            }
+
+            document.getElementById('formTitle').textContent = 'Edit Link';
+            document.getElementById('saveBtn').textContent = 'Update Link';
+            document.getElementById('cancelBtn').style.display = 'inline-block';
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window._toggleLink = async function(id) {
+            try {
+                const res = await fetch(`${API_BASE}/${id}/toggle`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) loadLinks();
+                else alert('Error: ' + (data.error || 'Unknown error'));
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        };
+
+        window._deleteLink = async function(id) {
+            if (!confirm('Delete this link?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) loadLinks();
+                else alert('Error: ' + (data.error || 'Unknown error'));
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        };
+
+        function resetForm() {
+            editingId = null;
+            document.getElementById('linkId').value = '';
+            document.getElementById('title').value = '';
+            document.getElementById('url').value = '';
+            document.getElementById('imageUrl').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('imageFile').value = '';
+            document.getElementById('imagePreview').style.display = 'none';
+            hideCropper();
+            document.getElementById('formTitle').textContent = 'Add New Link';
+            document.getElementById('saveBtn').textContent = 'Add Link';
+            document.getElementById('cancelBtn').style.display = 'none';
+        }
+    })();
+    </script>
+
+    <style>
+    .drag-over {
+        border-top: 3px solid #4a90d9 !important;
+    }
+    .status-active { background: #2ecc40; color: #fff; }
+    .status-inactive { background: #aaa; color: #fff; }
+
+    /* Crop area */
+    .crop-container {
+        max-width: 100%;
+        max-height: 400px;
+        margin: 12px 0;
+        background: #111;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    .crop-container img {
+        display: block;
+        max-width: 100%;
+    }
+    .crop-actions {
+        display: flex;
+        gap: 10px;
+        margin: 10px 0 16px;
+    }
+
+    /* Image preview */
+    .ql-image-preview {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 10px 0;
+        padding: 10px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 6px;
+    }
+    .ql-image-preview img {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 6px;
+    }
+
+    /* Link thumbnail in list */
+    .link-thumb {
+        width: 32px;
+        height: 32px;
+        object-fit: cover;
+        border-radius: 4px;
+        flex-shrink: 0;
+    }
+    </style>
+</body>
+</html>

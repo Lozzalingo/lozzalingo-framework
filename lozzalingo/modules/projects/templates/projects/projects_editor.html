@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projects Editor - Admin</title>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/newseditor.css') }}">
+</head>
+<body>
+    {% include 'header.html' ignore missing %}
+
+    <div class="editor-container">
+        <header class="editor-header">
+            <h1>Projects Editor</h1>
+            <div class="header-actions">
+                <a href="{{ url_for('admin.dashboard') }}" class="back-link">Back to Dashboard</a>
+            </div>
+        </header>
+
+        <div class="editor-content">
+            <div class="editor-form">
+                <h2 id="formTitle">Create New Project</h2>
+
+                <form id="projectForm" enctype="multipart/form-data">
+                    <input type="hidden" id="projectId">
+
+                    <div class="form-group">
+                        <label for="title">Project Title *</label>
+                        <input type="text" id="title" name="title" required placeholder="Enter project title...">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="year">Year</label>
+                            <input type="number" id="year" name="year" placeholder="e.g. 2024" min="1990" max="2099">
+                        </div>
+                        <div class="form-group">
+                            <label for="projectStatus">Activity</label>
+                            <select id="projectStatus" name="project_status">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                            <small class="form-hint">Shown as a label on the public page</small>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="technologies">Technologies</label>
+                        <input type="text" id="technologies" name="technologies" placeholder="e.g. Python, Flask, React, PostgreSQL">
+                        <small class="form-hint">Comma-separated list</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="imageFile">Upload Image</label>
+                        <input type="file" id="imageFile" name="image" accept="image/*">
+                        <div class="upload-progress" id="uploadProgress" style="display: none;">
+                            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                            <span class="progress-text" id="progressText">Uploading...</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="imageUrl">Or Image URL</label>
+                        <input type="text" id="imageUrl" name="image_url" placeholder="Image URL or path">
+                    </div>
+
+                    <div class="image-preview" id="imagePreview" style="display: none;">
+                        <img id="previewImg" src="" alt="Preview">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="content">Project Description *</label>
+                        <div id="editor"></div>
+                        <input type="hidden" id="content" name="content">
+                    </div>
+
+                    <div class="form-section">
+                        <h3 class="form-section-title">SEO & Metadata</h3>
+                        <div class="form-group">
+                            <label for="excerpt">Excerpt</label>
+                            <textarea id="excerpt" name="excerpt" rows="2" placeholder="Short description for previews (optional)"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="metaDescription">Meta Description</label>
+                            <textarea id="metaDescription" name="meta_description" rows="2" placeholder="SEO description (optional)"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-primary" id="publishBtn">Publish Project</button>
+                        <button type="button" class="btn-secondary" id="draftBtn">Save as Draft</button>
+                        <button type="button" class="btn-secondary" id="cancelBtn" style="display: none;">Cancel Edit</button>
+                    </div>
+                    <div id="statusIndicator" class="status-indicator" style="display: none;">
+                        Visibility: <span id="currentStatus"></span> &nbsp;|&nbsp; Activity: <span id="currentProjectStatus"></span>
+                    </div>
+                </form>
+            </div>
+
+            <div class="articles-list">
+                <div class="list-header">
+                    <h2>Manage Projects</h2>
+                    <div class="filter-controls">
+                        <input type="text" id="projectSearch" class="filter-input" placeholder="Search projects...">
+                        <select id="projectFilter" class="filter-select">
+                            <option value="all">All</option>
+                            <option value="published">Published</option>
+                            <option value="draft">Drafts</option>
+                        </select>
+                        <span id="projectCount" class="item-count"></span>
+                    </div>
+                </div>
+                <div id="projectsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <script>
+    (function() {
+        const API_BASE = '/admin/projects-editor/api/projects';
+        const UPLOAD_URL = '/admin/projects-editor/upload-image';
+
+        const quill = new Quill('#editor', {
+            theme: 'snow',
+            placeholder: 'Write project description...',
+            modules: {
+                toolbar: [
+                    [{ 'header': [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    ['blockquote', 'code-block'],
+                    ['link', 'image'],
+                    ['clean']
+                ]
+            }
+        });
+
+        let editingId = null;
+
+        loadProjects();
+
+        // Image upload
+        document.getElementById('imageFile')?.addEventListener('change', async function() {
+            if (!this.files[0]) return;
+            const formData = new FormData();
+            formData.append('image', this.files[0]);
+            const progress = document.getElementById('uploadProgress');
+            progress.style.display = 'block';
+            try {
+                const res = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('imageUrl').value = data.image_url;
+                    showPreview(data.image_url);
+                } else {
+                    alert('Upload failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) { alert('Upload error: ' + e.message); }
+            finally { progress.style.display = 'none'; }
+        });
+
+        document.getElementById('imageUrl')?.addEventListener('input', function() {
+            if (this.value) showPreview(this.value); else hidePreview();
+        });
+
+        function showPreview(url) {
+            document.getElementById('previewImg').src = url;
+            document.getElementById('imagePreview').style.display = 'block';
+        }
+        function hidePreview() { document.getElementById('imagePreview').style.display = 'none'; }
+
+        // Save buttons
+        document.getElementById('publishBtn').addEventListener('click', () => saveProject('published'));
+        document.getElementById('draftBtn').addEventListener('click', () => saveProject('draft'));
+        document.getElementById('cancelBtn').addEventListener('click', resetForm);
+
+        async function loadProjects() {
+            try {
+                const res = await fetch(API_BASE);
+                const projects = await res.json();
+                renderProjects(projects);
+            } catch (e) { console.error('Error loading projects:', e); }
+        }
+
+        function renderProjects(projects) {
+            const container = document.getElementById('projectsList');
+            const search = document.getElementById('projectSearch').value.toLowerCase();
+            const filter = document.getElementById('projectFilter').value;
+
+            let filtered = projects.filter(p => {
+                if (filter !== 'all' && p.status !== filter) return false;
+                if (search && !p.title.toLowerCase().includes(search)) return false;
+                return true;
+            });
+
+            document.getElementById('projectCount').textContent = `${filtered.length} project${filtered.length !== 1 ? 's' : ''}`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No projects found</p></div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(p => `
+                <div class="article-card" data-id="${p.id}">
+                    <div class="article-card-header">
+                        <h3 class="article-title">${p.title}</h3>
+                        <div>
+                            <span class="status-badge status-${p.status}">${p.status}</span>
+                            <span class="status-badge ps-${p.project_status}">${p.project_status}</span>
+                        </div>
+                    </div>
+                    <div class="article-meta">
+                        ${p.year ? `<span>Year: ${p.year}</span>` : ''}
+                        ${p.technologies ? `<span>Tech: ${p.technologies}</span>` : ''}
+                        <span>Updated: ${new Date(p.updated_at).toLocaleDateString()}</span>
+                    </div>
+                    <div class="article-actions">
+                        <button class="btn-small btn-edit" onclick="window._editProject(${p.id})">Edit</button>
+                        <button class="btn-small btn-toggle" onclick="window._togglePublish(${p.id})">
+                            ${p.status === 'published' ? 'Unpublish' : 'Publish'}
+                        </button>
+                        <button class="btn-small btn-toggle" onclick="window._toggleActivity(${p.id})">
+                            ${p.project_status === 'active' ? 'Set Inactive' : 'Set Active'}
+                        </button>
+                        <button class="btn-small btn-delete" onclick="window._deleteProject(${p.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('projectSearch').addEventListener('input', () => fetch(API_BASE).then(r => r.json()).then(renderProjects));
+        document.getElementById('projectFilter').addEventListener('change', () => fetch(API_BASE).then(r => r.json()).then(renderProjects));
+
+        async function saveProject(status) {
+            const title = document.getElementById('title').value.trim();
+            const content = quill.root.innerHTML;
+            if (!title || !content || content === '<p><br></p>') { alert('Title and content are required'); return; }
+
+            const body = {
+                title, content,
+                image_url: document.getElementById('imageUrl').value.trim(),
+                year: document.getElementById('year').value || null,
+                status: status,
+                project_status: document.getElementById('projectStatus').value,
+                technologies: document.getElementById('technologies').value.trim() || null,
+                excerpt: document.getElementById('excerpt').value.trim() || null,
+                meta_description: document.getElementById('metaDescription').value.trim() || null
+            };
+
+            try {
+                const url = editingId ? `${API_BASE}/${editingId}` : API_BASE;
+                const method = editingId ? 'PUT' : 'POST';
+                const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+                if (data.success || data.id) { resetForm(); loadProjects(); }
+                else alert('Error: ' + (data.error || 'Unknown error'));
+            } catch (e) { alert('Error saving project: ' + e.message); }
+        }
+
+        window._editProject = async function(id) {
+            try {
+                const res = await fetch(`${API_BASE}/${id}`);
+                const p = await res.json();
+                editingId = id;
+                document.getElementById('projectId').value = id;
+                document.getElementById('title').value = p.title || '';
+                document.getElementById('year').value = p.year || '';
+                document.getElementById('projectStatus').value = p.project_status || 'active';
+                document.getElementById('technologies').value = p.technologies || '';
+                document.getElementById('imageUrl').value = p.image_url || '';
+                document.getElementById('excerpt').value = p.excerpt || '';
+                document.getElementById('metaDescription').value = p.meta_description || '';
+                quill.root.innerHTML = p.content || '';
+                if (p.image_url) showPreview(p.image_url);
+
+                document.getElementById('formTitle').textContent = 'Edit Project';
+                document.getElementById('publishBtn').textContent = 'Update & Publish';
+                document.getElementById('draftBtn').textContent = 'Update as Draft';
+                document.getElementById('cancelBtn').style.display = 'inline-block';
+                document.getElementById('statusIndicator').style.display = 'block';
+                document.getElementById('currentStatus').textContent = p.status;
+                document.getElementById('currentProjectStatus').textContent = p.project_status;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (e) { alert('Error loading project: ' + e.message); }
+        };
+
+        window._togglePublish = async function(id) {
+            try {
+                const res = await fetch(`${API_BASE}/${id}/toggle-publish`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) loadProjects(); else alert('Error: ' + (data.error || 'Unknown error'));
+            } catch (e) { alert('Error: ' + e.message); }
+        };
+
+        window._toggleActivity = async function(id) {
+            try {
+                const res = await fetch(`${API_BASE}/${id}/toggle-status`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) loadProjects(); else alert('Error: ' + (data.error || 'Unknown error'));
+            } catch (e) { alert('Error: ' + e.message); }
+        };
+
+        window._deleteProject = async function(id) {
+            if (!confirm('Delete this project?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) loadProjects(); else alert('Error: ' + (data.error || 'Unknown error'));
+            } catch (e) { alert('Error: ' + e.message); }
+        };
+
+        function resetForm() {
+            editingId = null;
+            document.getElementById('projectId').value = '';
+            document.getElementById('title').value = '';
+            document.getElementById('year').value = '';
+            document.getElementById('projectStatus').value = 'active';
+            document.getElementById('technologies').value = '';
+            document.getElementById('imageUrl').value = '';
+            document.getElementById('imageFile').value = '';
+            document.getElementById('excerpt').value = '';
+            document.getElementById('metaDescription').value = '';
+            quill.root.innerHTML = '';
+            hidePreview();
+            document.getElementById('formTitle').textContent = 'Create New Project';
+            document.getElementById('publishBtn').textContent = 'Publish Project';
+            document.getElementById('draftBtn').textContent = 'Save as Draft';
+            document.getElementById('cancelBtn').style.display = 'none';
+            document.getElementById('statusIndicator').style.display = 'none';
+        }
+    })();
+    </script>
+
+    <style>
+    .form-section { margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--noir-gray); }
+    .form-section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; color: var(--noir-silver); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 768px) { .form-row { grid-template-columns: 1fr; } }
+    #excerpt, #metaDescription { min-height: 60px; resize: vertical; }
+    .status-published { background: #2ecc40; color: #fff; }
+    .status-draft { background: #f0ad4e; color: #fff; }
+    .ps-active { background: #2ecc40; color: #fff; }
+    .ps-inactive { background: #e74c3c; color: #fff; }
+    </style>
+</body>
+</html>
