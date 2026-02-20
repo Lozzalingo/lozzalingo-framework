@@ -1,0 +1,450 @@
+/* ============================================================
+   Lozzalingo Admin Theme — Unified Light/Dark Mode
+   Load LAST on all admin pages to override module-specific CSS.
+   ============================================================ */
+
+/* --- Dark Mode (default) --- */
+[data-theme="dark"] {
+    --lz-bg: #0a0a0a;
+    --lz-bg-card: #151515;
+    --lz-bg-elevated: #1e1e1e;
+    --lz-bg-hover: #252525;
+    --lz-text: #f0f0f0;
+    --lz-text-secondary: #a0a0a0;
+    --lz-text-muted: #666666;
+    --lz-accent: #c4788a;
+    --lz-accent-hover: #d48a9c;
+    --lz-accent-subtle: rgba(196,120,138,0.12);
+    --lz-border: #2a2a2a;
+    --lz-border-subtle: #1e1e1e;
+    --lz-input-bg: #111111;
+    --lz-input-border: #333333;
+    --lz-success: #4ade80;
+    --lz-danger: #f87171;
+    --lz-warning: #fbbf24;
+    --lz-info: #60a5fa;
+    --lz-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    --lz-shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+
+    /* Backward-compat aliases — noir */
+    --noir-black: var(--lz-bg);
+    --noir-dark: var(--lz-input-bg);
+    --noir-charcoal: var(--lz-bg-card);
+    --noir-gray: var(--lz-input-border);
+    --noir-light-gray: var(--lz-text-muted);
+    --noir-silver: var(--lz-text-secondary);
+    --noir-white: var(--lz-text);
+    --noir-accent: var(--lz-accent);
+    --noir-gold: var(--lz-accent);
+
+    /* Backward-compat aliases — admin */
+    --admin-primary: var(--lz-accent);
+    --admin-secondary: var(--lz-text-muted);
+    --admin-success: var(--lz-success);
+    --admin-danger: var(--lz-danger);
+    --admin-warning: var(--lz-warning);
+    --admin-info: var(--lz-info);
+    --admin-light: var(--lz-bg-card);
+    --admin-dark: var(--lz-text);
+    --admin-border: var(--lz-border);
+    --admin-shadow: var(--lz-shadow);
+    --admin-shadow-lg: var(--lz-shadow-lg);
+
+    --gradient-text: linear-gradient(135deg, var(--lz-accent) 0%, var(--lz-accent-hover) 100%);
+    --shadow-subtle: var(--lz-shadow);
+
+    color-scheme: dark;
+}
+
+/* --- Light Mode --- */
+[data-theme="light"] {
+    --lz-bg: #f7f7f5;
+    --lz-bg-card: #ffffff;
+    --lz-bg-elevated: #f0f0ee;
+    --lz-bg-hover: #f0eeec;
+    --lz-text: #1a1a1a;
+    --lz-text-secondary: #666666;
+    --lz-text-muted: #aaaaaa;
+    --lz-accent: #b5617a;
+    --lz-accent-hover: #a0546b;
+    --lz-accent-subtle: rgba(181,97,122,0.08);
+    --lz-border: #e2e0de;
+    --lz-border-subtle: #eeedeb;
+    --lz-input-bg: #ffffff;
+    --lz-input-border: #d4d2d0;
+    --lz-success: #16a34a;
+    --lz-danger: #dc2626;
+    --lz-warning: #d97706;
+    --lz-info: #2563eb;
+    --lz-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    --lz-shadow-lg: 0 8px 24px rgba(0,0,0,0.1);
+
+    /* Backward-compat aliases — noir */
+    --noir-black: var(--lz-bg);
+    --noir-dark: var(--lz-input-bg);
+    --noir-charcoal: var(--lz-bg-card);
+    --noir-gray: var(--lz-input-border);
+    --noir-light-gray: var(--lz-text-muted);
+    --noir-silver: var(--lz-text-secondary);
+    --noir-white: var(--lz-text);
+    --noir-accent: var(--lz-accent);
+    --noir-gold: var(--lz-accent);
+
+    /* Backward-compat aliases — admin */
+    --admin-primary: var(--lz-accent);
+    --admin-secondary: var(--lz-text-muted);
+    --admin-success: var(--lz-success);
+    --admin-danger: var(--lz-danger);
+    --admin-warning: var(--lz-warning);
+    --admin-info: var(--lz-info);
+    --admin-light: var(--lz-bg-card);
+    --admin-dark: var(--lz-text);
+    --admin-border: var(--lz-border);
+    --admin-shadow: var(--lz-shadow);
+    --admin-shadow-lg: var(--lz-shadow-lg);
+
+    --gradient-text: linear-gradient(135deg, var(--lz-accent) 0%, var(--lz-accent-hover) 100%);
+    --shadow-subtle: var(--lz-shadow);
+
+    color-scheme: light;
+}
+
+/* --- System preference fallback (no data-theme set) --- */
+:root {
+    /* Default to dark */
+    --lz-bg: #0a0a0a;
+    --lz-bg-card: #151515;
+    --lz-bg-elevated: #1e1e1e;
+    --lz-bg-hover: #252525;
+    --lz-text: #f0f0f0;
+    --lz-text-secondary: #a0a0a0;
+    --lz-text-muted: #666666;
+    --lz-accent: #c4788a;
+    --lz-accent-hover: #d48a9c;
+    --lz-accent-subtle: rgba(196,120,138,0.12);
+    --lz-border: #2a2a2a;
+    --lz-border-subtle: #1e1e1e;
+    --lz-input-bg: #111111;
+    --lz-input-border: #333333;
+    --lz-success: #4ade80;
+    --lz-danger: #f87171;
+    --lz-warning: #fbbf24;
+    --lz-info: #60a5fa;
+    --lz-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    --lz-shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+    color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme]) {
+        --lz-bg: #f7f7f5;
+        --lz-bg-card: #ffffff;
+        --lz-bg-elevated: #f0f0ee;
+        --lz-bg-hover: #f0eeec;
+        --lz-text: #1a1a1a;
+        --lz-text-secondary: #666666;
+        --lz-text-muted: #aaaaaa;
+        --lz-accent: #b5617a;
+        --lz-accent-hover: #a0546b;
+        --lz-accent-subtle: rgba(181,97,122,0.08);
+        --lz-border: #e2e0de;
+        --lz-border-subtle: #eeedeb;
+        --lz-input-bg: #ffffff;
+        --lz-input-border: #d4d2d0;
+        --lz-success: #16a34a;
+        --lz-danger: #dc2626;
+        --lz-warning: #d97706;
+        --lz-info: #2563eb;
+        --lz-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        --lz-shadow-lg: 0 8px 24px rgba(0,0,0,0.1);
+        color-scheme: light;
+    }
+}
+
+/* ============================================================
+   Global overrides
+   ============================================================ */
+
+body {
+    background-color: var(--lz-bg);
+    color: var(--lz-text);
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+::selection {
+    background: var(--lz-accent);
+    color: #ffffff;
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--lz-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--lz-border);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--lz-text-muted);
+}
+
+/* ============================================================
+   Theme toggle button
+   ============================================================ */
+
+.lz-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid var(--lz-border);
+    border-radius: 8px;
+    background: var(--lz-bg-card);
+    color: var(--lz-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.lz-theme-toggle:hover {
+    background: var(--lz-bg-hover);
+    color: var(--lz-text);
+    border-color: var(--lz-accent);
+}
+
+.lz-theme-toggle .theme-icon::before {
+    font-size: 16px;
+    line-height: 1;
+}
+
+[data-theme="dark"] .lz-theme-toggle .theme-icon::before {
+    content: "\2600"; /* sun */
+}
+
+[data-theme="light"] .lz-theme-toggle .theme-icon::before {
+    content: "\263E"; /* moon */
+}
+
+/* Fallback when no data-theme */
+.lz-theme-toggle .theme-icon::before {
+    content: "\2600";
+}
+
+/* ============================================================
+   Quill editor overrides
+   ============================================================ */
+
+.ql-toolbar.ql-snow {
+    background: var(--lz-bg-card) !important;
+    border-color: var(--lz-border) !important;
+    border-radius: 8px 8px 0 0;
+}
+
+.ql-toolbar .ql-stroke {
+    stroke: var(--lz-text-secondary) !important;
+}
+
+.ql-toolbar .ql-fill {
+    fill: var(--lz-text-secondary) !important;
+}
+
+.ql-toolbar .ql-picker-label {
+    color: var(--lz-text-secondary) !important;
+}
+
+.ql-toolbar .ql-picker-options {
+    background: var(--lz-bg-elevated) !important;
+    border-color: var(--lz-border) !important;
+}
+
+.ql-toolbar .ql-picker-item {
+    color: var(--lz-text) !important;
+}
+
+.ql-toolbar button:hover .ql-stroke,
+.ql-toolbar button.ql-active .ql-stroke {
+    stroke: var(--lz-accent) !important;
+}
+
+.ql-toolbar button:hover .ql-fill,
+.ql-toolbar button.ql-active .ql-fill {
+    fill: var(--lz-accent) !important;
+}
+
+.ql-container.ql-snow {
+    background: var(--lz-input-bg) !important;
+    border-color: var(--lz-border) !important;
+    border-radius: 0 0 8px 8px;
+    color: var(--lz-text) !important;
+}
+
+.ql-editor {
+    color: var(--lz-text) !important;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.ql-editor.ql-blank::before {
+    color: var(--lz-text-muted) !important;
+    font-style: italic;
+}
+
+.ql-snow .ql-tooltip {
+    background: var(--lz-bg-elevated) !important;
+    border-color: var(--lz-border) !important;
+    color: var(--lz-text) !important;
+    box-shadow: var(--lz-shadow-lg);
+    border-radius: 8px;
+}
+
+.ql-snow .ql-tooltip input[type="text"] {
+    background: var(--lz-input-bg) !important;
+    border-color: var(--lz-input-border) !important;
+    color: var(--lz-text) !important;
+    border-radius: 6px;
+}
+
+/* ============================================================
+   Inline-style replacement classes (for templates)
+   ============================================================ */
+
+.lz-status-success {
+    color: var(--lz-success);
+}
+
+.lz-status-danger {
+    color: var(--lz-danger);
+}
+
+.lz-status-warning {
+    color: var(--lz-warning);
+}
+
+.lz-status-info {
+    color: var(--lz-info);
+}
+
+.lz-bg-success {
+    background-color: var(--lz-success);
+    color: #ffffff;
+}
+
+.lz-bg-danger {
+    background-color: var(--lz-danger);
+    color: #ffffff;
+}
+
+.lz-bg-warning {
+    background-color: var(--lz-warning);
+    color: #1a1a1a;
+}
+
+.lz-bg-info {
+    background-color: var(--lz-info);
+    color: #ffffff;
+}
+
+.lz-bg-accent {
+    background: var(--lz-accent);
+    color: #ffffff;
+}
+
+.lz-bg-accent-subtle {
+    background: var(--lz-accent-subtle);
+    color: var(--lz-accent);
+}
+
+.lz-card {
+    background: var(--lz-bg-card);
+    border: 1px solid var(--lz-border);
+    border-radius: 12px;
+    box-shadow: var(--lz-shadow);
+}
+
+.lz-elevated {
+    background: var(--lz-bg-elevated);
+    border: 1px solid var(--lz-border);
+    border-radius: 12px;
+    box-shadow: var(--lz-shadow-lg);
+}
+
+/* Create admin page styling */
+.lz-admin-create-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--lz-bg);
+    padding: 20px;
+}
+
+.lz-admin-create-card {
+    background: var(--lz-bg-card);
+    border: 1px solid var(--lz-border);
+    border-radius: 16px;
+    padding: 48px;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: var(--lz-shadow-lg);
+}
+
+.lz-admin-create-card h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--lz-text);
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.lz-admin-create-card .subtitle {
+    color: var(--lz-text-secondary);
+    margin-bottom: 32px;
+}
+
+.lz-admin-create-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    background: var(--lz-accent-subtle);
+    color: var(--lz-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    margin-bottom: 24px;
+}
+
+/* ============================================================
+   Print mode — force light
+   ============================================================ */
+
+@media print {
+    :root,
+    [data-theme="dark"],
+    [data-theme="light"] {
+        --lz-bg: #ffffff;
+        --lz-bg-card: #ffffff;
+        --lz-bg-elevated: #ffffff;
+        --lz-bg-hover: #f5f5f5;
+        --lz-text: #000000;
+        --lz-text-secondary: #333333;
+        --lz-text-muted: #666666;
+        --lz-accent: #b5617a;
+        --lz-border: #cccccc;
+        --lz-border-subtle: #eeeeee;
+        --lz-shadow: none;
+        --lz-shadow-lg: none;
+    }
+
+    .lz-theme-toggle {
+        display: none !important;
+    }
+}

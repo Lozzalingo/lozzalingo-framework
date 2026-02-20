@@ -17,21 +17,21 @@
 }
 
 .message-success {
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
+    background: rgba(74, 222, 128, 0.1);
+    color: var(--lz-success, #4ade80);
+    border: 1px solid var(--lz-success, #4ade80);
 }
 
 .message-error {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+    background: rgba(248, 113, 113, 0.1);
+    color: var(--lz-danger, #f87171);
+    border: 1px solid var(--lz-danger, #f87171);
 }
 
 .message-info {
-    background: #d1ecf1;
-    color: #0c5460;
-    border: 1px solid #bee5eb;
+    background: rgba(96, 165, 250, 0.1);
+    color: var(--lz-info, #60a5fa);
+    border: 1px solid var(--lz-info, #60a5fa);
 }
 
 @keyframes slideIn {
@@ -158,9 +158,9 @@
 .form-group textarea:focus,
 .form-group select:focus {
     outline: none;
-    border-color: var(--noir-light-gray);
-    background-color: rgba(255, 255, 255, 0.02);
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+    border-color: var(--lz-accent, #c4788a);
+    background-color: var(--lz-input-bg, #111111);
+    box-shadow: 0 0 0 3px var(--lz-accent-subtle, rgba(196,120,138,0.12));
 }
 
 .form-group select:focus {
@@ -435,41 +435,41 @@
 }
 
 .edit-btn {
-    background: rgba(52, 152, 219, 0.8);
-    color: white;
-    border: 1px solid rgba(52, 152, 219, 0.3);
+    background: var(--lz-info, #60a5fa);
+    color: #ffffff;
+    border: 1px solid transparent;
 }
 
 .edit-btn:hover {
-    background: rgba(52, 152, 219, 1);
+    opacity: 0.85;
     transform: translateY(-1px);
 }
 
 .email-btn {
-    background: rgba(46, 204, 113, 0.8);
-    color: white;
-    border: 1px solid rgba(46, 204, 113, 0.3);
+    background: var(--lz-success, #4ade80);
+    color: #ffffff;
+    border: 1px solid transparent;
 }
 
 .email-btn:hover {
-    background: rgba(46, 204, 113, 1);
+    opacity: 0.85;
     transform: translateY(-1px);
 }
 
 .email-btn:disabled {
-    background: rgba(46, 204, 113, 0.5);
+    opacity: 0.5;
     cursor: not-allowed;
     transform: none;
 }
 
 .delete-btn {
-    background: rgba(231, 76, 60, 0.8);
-    color: white;
-    border: 1px solid rgba(231, 76, 60, 0.3);
+    background: var(--lz-danger, #f87171);
+    color: #ffffff;
+    border: 1px solid transparent;
 }
 
 .delete-btn:hover {
-    background: rgba(231, 76, 60, 1);
+    opacity: 0.85;
     transform: translateY(-1px);
 }
 
@@ -485,7 +485,7 @@
 }
 
 .articles-error {
-    color: #e74c3c;
+    color: var(--lz-danger, #f87171);
 }
 
 /* List Header & Filter Controls */
@@ -566,37 +566,37 @@
 }
 
 .status-published {
-    background: rgba(46, 204, 113, 0.2);
-    color: #2ecc71;
-    border: 1px solid rgba(46, 204, 113, 0.3);
+    background: rgba(74, 222, 128, 0.15);
+    color: var(--lz-success, #4ade80);
+    border: 1px solid var(--lz-success, #4ade80);
 }
 
 .status-draft {
-    background: rgba(241, 196, 15, 0.2);
-    color: #f1c40f;
-    border: 1px solid rgba(241, 196, 15, 0.3);
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--lz-warning, #fbbf24);
+    border: 1px solid var(--lz-warning, #fbbf24);
 }
 
 /* Publish/Unpublish Buttons */
 .publish-btn {
-    background: rgba(46, 204, 113, 0.8);
-    color: white;
-    border: 1px solid rgba(46, 204, 113, 0.3);
+    background: var(--lz-success, #4ade80);
+    color: #ffffff;
+    border: 1px solid transparent;
 }
 
 .publish-btn:hover {
-    background: rgba(46, 204, 113, 1);
+    opacity: 0.85;
     transform: translateY(-1px);
 }
 
 .draft-btn-small {
-    background: rgba(241, 196, 15, 0.8);
-    color: var(--noir-black);
-    border: 1px solid rgba(241, 196, 15, 0.3);
+    background: var(--lz-warning, #fbbf24);
+    color: #1a1a1a;
+    border: 1px solid transparent;
 }
 
 .draft-btn-small:hover {
-    background: rgba(241, 196, 15, 1);
+    opacity: 0.85;
     transform: translateY(-1px);
 }
 
@@ -717,7 +717,7 @@
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #4CAF50, #45a049);
+    background: var(--lz-success, #4ade80);
     width: 0%;
     transition: width 0.3s ease;
 }
@@ -738,8 +738,8 @@
 }
 
 #imageFile:hover {
-    border-color: var(--noir-light-gray);
-    background: rgba(255, 255, 255, 0.02);
+    border-color: var(--lz-accent, #c4788a);
+    background: var(--lz-bg-hover, #252525);
 }
 
 .form-group input[type="file"]::-webkit-file-upload-button {
@@ -812,12 +812,12 @@
 }
 
 .ql-snow button.ql-active .ql-stroke {
-    stroke: #7ec8e3;
+    stroke: var(--lz-accent, #c4788a);
 }
 
 .ql-snow button.ql-active .ql-fill,
 .ql-snow button.ql-active .ql-stroke.ql-fill {
-    fill: #7ec8e3;
+    fill: var(--lz-accent, #c4788a);
 }
 
 /* Toolbar dropdowns */
@@ -866,7 +866,7 @@
 }
 
 .ql-snow .ql-picker-item.ql-selected {
-    color: #7ec8e3;
+    color: var(--lz-accent, #c4788a);
 }
 
 /* Quill tooltip (link/video) */
@@ -888,7 +888,7 @@
 }
 
 .ql-snow .ql-tooltip a {
-    color: #7ec8e3;
+    color: var(--lz-accent, #c4788a);
 }
 
 .ql-snow .ql-tooltip a.ql-action::after,
@@ -1014,8 +1014,8 @@
 }
 
 .image-modal-btn:hover {
-    border-color: var(--noir-light-gray);
-    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--lz-accent, #c4788a);
+    background: var(--lz-bg-hover, #252525);
     transform: translateY(-1px);
 }
 
@@ -1099,18 +1099,18 @@
     color: var(--noir-silver); cursor: pointer; font-size: 0.85rem;
     transition: all 0.2s;
 }
-.ib-tab.active { color: #4a90d9; border-bottom-color: #4a90d9; }
+.ib-tab.active { color: var(--lz-accent, #c4788a); border-bottom-color: var(--lz-accent, #c4788a); }
 .ib-tab:hover:not(.active) { color: var(--noir-white); }
 
 .ib-actions { display: flex; gap: 4px; padding: 4px 8px 8px; }
 .ib-select-btn {
-    flex: 1; padding: 4px 8px; background: #4a90d9; color: #fff;
+    flex: 1; padding: 4px 8px; background: var(--lz-accent, #c4788a); color: #fff;
     border: none; border-radius: 4px; font-size: 0.75rem; cursor: pointer;
 }
-.ib-select-btn:hover { background: #3a7bc8; }
+.ib-select-btn:hover { opacity: 0.85; }
 .ib-delete-btn {
-    padding: 4px 8px; background: rgba(231,76,60,0.15); color: #e74c3c;
-    border: 1px solid rgba(231,76,60,0.3); border-radius: 4px;
+    padding: 4px 8px; background: rgba(248,113,113,0.15); color: var(--lz-danger, #f87171);
+    border: 1px solid var(--lz-danger, #f87171); border-radius: 4px;
     font-size: 0.75rem; cursor: pointer;
 }
-.ib-delete-btn:hover { background: rgba(231,76,60,0.3); }
+.ib-delete-btn:hover { background: rgba(248,113,113,0.3); }

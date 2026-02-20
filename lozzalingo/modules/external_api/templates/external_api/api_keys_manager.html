@@ -3,9 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
     <title>API Keys Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
+    <style>
+        body { background: var(--lz-bg, #f3f4f6) !important; color: var(--lz-text, #111827) !important; }
+        .bg-gray-100 { background: var(--lz-bg, #f3f4f6) !important; }
+        .bg-white { background: var(--lz-bg-card, #ffffff) !important; }
+        .bg-gray-50 { background: var(--lz-bg-elevated, #f9fafb) !important; }
+        .text-gray-900 { color: var(--lz-text, #111827) !important; }
+        .text-gray-600, .text-gray-500 { color: var(--lz-text-secondary, #6b7280) !important; }
+        .text-gray-400 { color: var(--lz-text-muted, #9ca3af) !important; }
+        .border-gray-200, .border { border-color: var(--lz-border, #e5e7eb) !important; }
+        .bg-blue-600 { background: var(--lz-accent, #c4788a) !important; }
+        .hover\:bg-blue-700:hover { background: var(--lz-accent-hover, #a0546b) !important; }
+        .bg-blue-50 { background: var(--lz-accent-subtle, rgba(196,120,138,0.12)) !important; }
+        .border-blue-200 { border-color: var(--lz-accent, #c4788a) !important; }
+        .text-blue-900, .text-blue-800 { color: var(--lz-accent, #c4788a) !important; }
+        .bg-blue-100 { background: var(--lz-accent-subtle, rgba(196,120,138,0.12)) !important; }
+        .text-blue-600 { color: var(--lz-accent, #c4788a) !important; }
+        .bg-red-600 { background: var(--lz-danger, #f87171) !important; }
+        .hover\:bg-red-700:hover { background: var(--lz-danger, #dc2626) !important; }
+        .bg-green-100 { background: rgba(74,222,128,0.15) !important; }
+        .text-green-800 { color: var(--lz-success, #4ade80) !important; }
+        .bg-red-100 { background: rgba(248,113,113,0.15) !important; }
+        .text-red-800 { color: var(--lz-danger, #f87171) !important; }
+        .shadow-lg { box-shadow: var(--lz-shadow-lg) !important; }
+        .shadow { box-shadow: var(--lz-shadow) !important; }
+        .divide-gray-200 > * + * { border-color: var(--lz-border) !important; }
+        .hover\:bg-gray-50:hover { background: var(--lz-bg-hover) !important; }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <div class="max-w-6xl mx-auto p-6">
@@ -15,6 +44,7 @@
                 <h1 class="text-3xl font-bold text-gray-900">API Keys</h1>
                 <p class="text-gray-600 mt-1">Manage API keys for external integrations</p>
             </div>
+            <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
             <button onclick="showCreateModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
                 <i class="fas fa-plus"></i>
                 Create API Key

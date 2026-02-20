@@ -2,18 +2,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 
 :root {
-    --noir-black: #000000;
-    --noir-dark: #111111;
-    --noir-charcoal: #1a1a1a;
-    --noir-gray: #333333;
-    --noir-light-gray: #666666;
-    --noir-silver: #999999;
-    --noir-white: #ffffff;
-    --noir-accent: #ff6b6b;
-    --noir-gold: #ffd700;
-    
-    --gradient-text: linear-gradient(135deg, #ffd700 0%, #ff6b6b 100%);
-    --shadow-subtle: 0 2px 20px rgba(0, 0, 0, 0.6);
+    /* Noir aliases — remapped by admin-theme.css */
+    --noir-black: var(--lz-bg, #000000);
+    --noir-dark: var(--lz-input-bg, #111111);
+    --noir-charcoal: var(--lz-bg-card, #1a1a1a);
+    --noir-gray: var(--lz-input-border, #333333);
+    --noir-light-gray: var(--lz-text-muted, #666666);
+    --noir-silver: var(--lz-text-secondary, #999999);
+    --noir-white: var(--lz-text, #ffffff);
+    --noir-accent: var(--lz-accent, #c4788a);
+    --noir-gold: var(--lz-accent, #c4788a);
+
+    --gradient-text: linear-gradient(135deg, var(--lz-accent, #c4788a) 0%, var(--lz-accent-hover, #d48a9c) 100%);
+    --shadow-subtle: var(--lz-shadow, 0 2px 20px rgba(0, 0, 0, 0.6));
 }
 
 * {
@@ -604,7 +605,7 @@ body {
 }
 
 .footer-credit .footer-link {
-    color: white;
+    color: var(--noir-white);
     text-decoration: none;
 }
 

@@ -7,17 +7,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
     <style>
         :root {
-            --noir-black: #0a0a0a;
-            --noir-charcoal: #1a1a1a;
-            --noir-dark: #2a2a2a;
-            --noir-gray: #3a3a3a;
-            --noir-light-gray: #666666;
-            --noir-white: #ffffff;
-            --accent-green: #2d5016;
-            --accent-red: #8b2635;
-            --accent-blue: #1a4d2e;
+            --noir-black: var(--lz-bg, #0a0a0a);
+            --noir-charcoal: var(--lz-bg-card, #1a1a1a);
+            --noir-dark: var(--lz-bg-elevated, #2a2a2a);
+            --noir-gray: var(--lz-border, #3a3a3a);
+            --noir-light-gray: var(--lz-text-muted, #666666);
+            --noir-white: var(--lz-text, #ffffff);
+            --accent-green: var(--lz-success, #4ade80);
+            --accent-red: var(--lz-danger, #f87171);
+            --accent-blue: var(--lz-info, #60a5fa);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -93,9 +94,9 @@
             font-size: 0.9em;
         }
 
-        .stat-card.success h3 { color: #22c55e; }
-        .stat-card.danger h3 { color: #ef4444; }
-        .stat-card.info h3 { color: #3b82f6; }
+        .stat-card.success h3 { color: var(--accent-green); }
+        .stat-card.danger h3 { color: var(--accent-red); }
+        .stat-card.info h3 { color: var(--accent-blue); }
 
         .log-filters {
             background: var(--noir-charcoal);
@@ -165,7 +166,7 @@
 
         .email-table td {
             padding: 12px 16px;
-            border-bottom: 1px solid #222;
+            border-bottom: 1px solid var(--noir-gray);
             font-size: 0.9rem;
         }
 
@@ -184,12 +185,12 @@
 
         .status-badge.sent {
             background: rgba(34, 197, 94, 0.15);
-            color: #22c55e;
+            color: var(--accent-green);
         }
 
         .status-badge.failed {
             background: rgba(239, 68, 68, 0.15);
-            color: #ef4444;
+            color: var(--accent-red);
         }
 
         .type-badge {
@@ -197,11 +198,11 @@
             border-radius: 4px;
             font-size: 0.8em;
             background: rgba(59, 130, 246, 0.15);
-            color: #60a5fa;
+            color: var(--accent-blue);
         }
 
         .error-cell {
-            color: #ef4444;
+            color: var(--accent-red);
             font-size: 0.85em;
             max-width: 300px;
             overflow: hidden;
@@ -222,14 +223,18 @@
             .email-table { overflow-x: auto; }
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
 </head>
 <body>
     <div class="container">
         <a href="/admin/email-preview/" class="back-link">&larr; Back to Email Templates</a>
 
-        <div class="header">
-            <h1 class="title">Email Logs</h1>
-            <p class="subtitle">Monitor sent and failed emails</p>
+        <div class="header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h1 class="title">Email Logs</h1>
+                <p class="subtitle">Monitor sent and failed emails</p>
+            </div>
+            <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
         </div>
 
         <!-- Statistics Cards -->
@@ -349,7 +354,7 @@
                     console.error('Error loading email logs:', error);
                     document.getElementById('emailLogsBody').innerHTML = `
                         <tr>
-                            <td colspan="6" style="text-align: center; padding: 40px; color: #ef4444;">
+                            <td colspan="6" style="text-align: center; padding: 40px; color: var(--accent-red);">
                                 Error loading email logs
                             </td>
                         </tr>

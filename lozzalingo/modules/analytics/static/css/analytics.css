@@ -1,16 +1,17 @@
-/* === Analytics Dashboard - Clean Professional Theme === */
+/* === Analytics Dashboard === */
         :root {
-            --primary-white: #ffffff;
-            --background-gray: #f8fafc;
-            --light-gray: #f1f5f9;
-            --border-gray: #e2e8f0;
-            --text-dark: #1e293b;
-            --text-medium: #475569;
-            --text-light: #64748b;
-            --accent-blue: #3b82f6;
-            --accent-dark: #1e40af;
-            --success-green: #10b981;
-            --danger-red: #ef4444;
+            /* Analytics aliases — remapped by admin-theme.css */
+            --primary-white: var(--lz-bg-card, #ffffff);
+            --background-gray: var(--lz-bg, #f8fafc);
+            --light-gray: var(--lz-bg-elevated, #f1f5f9);
+            --border-gray: var(--lz-border, #e2e8f0);
+            --text-dark: var(--lz-text, #1e293b);
+            --text-medium: var(--lz-text-secondary, #475569);
+            --text-light: var(--lz-text-muted, #64748b);
+            --accent-blue: var(--lz-accent, #c4788a);
+            --accent-dark: var(--lz-accent-hover, #a0546b);
+            --success-green: var(--lz-success, #10b981);
+            --danger-red: var(--lz-danger, #ef4444);
         }
 
         * {
@@ -20,7 +21,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--background-gray);
             min-height: 100vh;
             color: var(--text-dark);
@@ -95,7 +96,7 @@
         .controls select:focus {
             outline: none;
             border-color: var(--accent-blue);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 3px var(--lz-accent-subtle, rgba(196,120,138,0.12));
         }
 
         .refresh-btn {
@@ -148,7 +149,7 @@
             background: var(--primary-white);
             border-radius: 8px;
             margin: 16px 0;
-            border: 1px solid rgba(239, 68, 68, 0.2);
+            border: 1px solid var(--lz-danger, #ef4444);
             font-size: 14px;
         }
 
@@ -346,13 +347,13 @@
         }
 
         .badge-human {
-            background: #dcfce7;
-            color: #166534;
+            background: rgba(74, 222, 128, 0.15);
+            color: var(--lz-success, #4ade80);
         }
 
         .badge-bot {
-            background: #fef3c7;
-            color: #92400e;
+            background: rgba(251, 191, 36, 0.15);
+            color: var(--lz-warning, #fbbf24);
         }
 
         .badge-unknown {
@@ -361,13 +362,13 @@
         }
 
         .badge-active {
-            background: #dcfce7;
-            color: #166534;
+            background: rgba(74, 222, 128, 0.15);
+            color: var(--lz-success, #4ade80);
         }
 
         .badge-inactive {
-            background: #fee2e2;
-            color: #991b1b;
+            background: rgba(248, 113, 113, 0.15);
+            color: var(--lz-danger, #f87171);
         }
 
         .chart-fallback {

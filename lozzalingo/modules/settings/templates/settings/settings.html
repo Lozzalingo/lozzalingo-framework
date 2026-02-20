@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
     <title>Settings - {{ brand_name if brand_name else 'Lozzalingo' }} Admin</title>
     <style>
         * {
@@ -13,9 +14,9 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: #f5f7fa;
+            background: var(--lz-bg, #f5f7fa);
             min-height: 100vh;
-            color: #1a1a2e;
+            color: var(--lz-text, #1a1a2e);
         }
 
         .settings-container {
@@ -34,7 +35,7 @@
         .settings-header h1 {
             font-size: 2rem;
             font-weight: 700;
-            color: #1a1a2e;
+            color: var(--lz-text, #1a1a2e);
         }
 
         .back-btn {
@@ -42,8 +43,8 @@
             align-items: center;
             gap: 8px;
             padding: 10px 20px;
-            background: #e5e7eb;
-            color: #374151;
+            background: var(--lz-bg-elevated, #e5e7eb);
+            color: var(--lz-text, #374151);
             text-decoration: none;
             border-radius: 8px;
             font-weight: 500;
@@ -51,7 +52,7 @@
         }
 
         .back-btn:hover {
-            background: #d1d5db;
+            background: var(--lz-border, #d1d5db);
         }
 
         .flash-messages {
@@ -66,20 +67,20 @@
         }
 
         .flash-message.success {
-            background: #f0fdf4;
-            color: #16a34a;
-            border: 1px solid #bbf7d0;
+            background: var(--lz-success-bg, #f0fdf4);
+            color: var(--lz-success, #16a34a);
+            border: 1px solid var(--lz-success-border, #bbf7d0);
         }
 
         .flash-message.error {
-            background: #fef2f2;
-            color: #dc2626;
-            border: 1px solid #fecaca;
+            background: var(--lz-danger-bg, #fef2f2);
+            color: var(--lz-danger, #dc2626);
+            border: 1px solid var(--lz-danger-border, #fecaca);
         }
 
         .encryption-notice {
-            background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
-            border: 1px solid #93c5fd;
+            background: linear-gradient(135deg, var(--lz-accent-subtle, #dbeafe) 0%, var(--lz-accent-subtle, #e0e7ff) 100%);
+            border: 1px solid var(--lz-accent, #93c5fd);
             border-radius: 12px;
             padding: 14px 16px;
             margin-bottom: 25px;
@@ -89,8 +90,8 @@
         }
 
         .encryption-notice.warning {
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            border-color: #f59e0b;
+            background: linear-gradient(135deg, var(--lz-warning-bg, #fef3c7) 0%, var(--lz-warning-bg, #fde68a) 100%);
+            border-color: var(--lz-warning, #f59e0b);
         }
 
         .encryption-notice .icon {
@@ -99,22 +100,22 @@
 
         .encryption-notice p {
             font-size: 0.875rem;
-            color: #1e40af;
+            color: var(--lz-accent, #1e40af);
         }
 
         .encryption-notice.warning p {
-            color: #92400e;
+            color: var(--lz-warning-text, #92400e);
         }
 
         .settings-form {
-            background: white;
+            background: var(--lz-bg-card, #ffffff);
             border-radius: 16px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             overflow: hidden;
         }
 
         .category-section {
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid var(--lz-border, #e2e0de);
         }
 
         .category-section:last-child {
@@ -126,14 +127,14 @@
             align-items: center;
             gap: 12px;
             padding: 20px 24px;
-            background: #f9fafb;
+            background: var(--lz-bg-elevated, #f0f0ee);
             cursor: pointer;
             user-select: none;
             transition: background 0.2s;
         }
 
         .category-header:hover {
-            background: #f3f4f6;
+            background: var(--lz-bg-elevated, #f3f4f6);
         }
 
         .category-icon {
@@ -148,7 +149,7 @@
 
         .category-toggle {
             font-size: 1.2rem;
-            color: #9ca3af;
+            color: var(--lz-text-secondary, #666666);
             transition: transform 0.2s;
         }
 
@@ -159,7 +160,7 @@
         .category-content {
             display: none;
             padding: 20px 24px;
-            background: white;
+            background: var(--lz-bg-card, #ffffff);
         }
 
         .category-section.expanded .category-content {
@@ -180,7 +181,7 @@
 
         .setting-label {
             font-weight: 500;
-            color: #374151;
+            color: var(--lz-text, #1a1a1a);
             padding-top: 10px;
         }
 
@@ -188,7 +189,7 @@
             display: block;
             font-weight: 400;
             font-size: 0.8rem;
-            color: #6b7280;
+            color: var(--lz-text-secondary, #666666);
             margin-top: 4px;
         }
 
@@ -196,17 +197,18 @@
             width: 100%;
             padding: 12px 16px;
             font-size: 0.95rem;
-            border: 2px solid #e5e7eb;
+            border: 2px solid var(--lz-input-border, #e5e7eb);
             border-radius: 10px;
             transition: all 0.2s;
-            background: #f9fafb;
+            background: var(--lz-input-bg, #f9fafb);
+            color: var(--lz-text, #1a1a1a);
         }
 
         .setting-input:focus {
             outline: none;
-            border-color: #667eea;
-            background: white;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            border-color: var(--lz-accent, #667eea);
+            background: var(--lz-bg-card, #ffffff);
+            box-shadow: 0 0 0 4px var(--lz-accent-subtle, rgba(102, 126, 234, 0.1));
         }
 
         .setting-input[type="password"] {
@@ -214,7 +216,7 @@
         }
 
         .setting-input.has-value {
-            border-color: #10b981;
+            border-color: var(--lz-success, #10b981);
         }
 
         select.setting-input {
@@ -234,46 +236,46 @@
             border: none;
             cursor: pointer;
             font-size: 1.2rem;
-            color: #9ca3af;
+            color: var(--lz-text-secondary, #666666);
             padding: 4px;
         }
 
         .input-group .toggle-visibility:hover {
-            color: #6b7280;
+            color: var(--lz-text, #1a1a1a);
         }
 
         .test-btn {
             margin-top: 12px;
             padding: 8px 16px;
-            background: #f3f4f6;
-            border: 1px solid #e5e7eb;
+            background: var(--lz-bg-elevated, #f0f0ee);
+            border: 1px solid var(--lz-border, #e2e0de);
             border-radius: 6px;
             cursor: pointer;
             font-size: 0.85rem;
-            color: #374151;
+            color: var(--lz-text, #1a1a1a);
             transition: all 0.2s;
         }
 
         .test-btn:hover {
-            background: #e5e7eb;
+            background: var(--lz-border, #e2e0de);
         }
 
         .test-btn.success {
-            background: #d1fae5;
-            border-color: #10b981;
-            color: #065f46;
+            background: var(--lz-success-bg, #d1fae5);
+            border-color: var(--lz-success, #10b981);
+            color: var(--lz-success, #065f46);
         }
 
         .test-btn.error {
-            background: #fee2e2;
-            border-color: #ef4444;
-            color: #991b1b;
+            background: var(--lz-danger-bg, #fee2e2);
+            border-color: var(--lz-danger, #ef4444);
+            color: var(--lz-danger, #991b1b);
         }
 
         .form-actions {
             padding: 24px;
-            background: #f9fafb;
-            border-top: 1px solid #e5e7eb;
+            background: var(--lz-bg-elevated, #f0f0ee);
+            border-top: 1px solid var(--lz-border, #e2e0de);
             display: flex;
             justify-content: flex-end;
             gap: 12px;
@@ -284,7 +286,7 @@
             font-size: 1rem;
             font-weight: 600;
             color: white;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--lz-accent, #667eea) 0%, var(--lz-accent-hover, #764ba2) 100%);
             border: none;
             border-radius: 10px;
             cursor: pointer;
@@ -293,24 +295,24 @@
 
         .save-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 30px -5px rgba(102, 126, 234, 0.5);
+            box-shadow: 0 10px 30px -5px var(--lz-accent-subtle, rgba(102, 126, 234, 0.5));
         }
 
         .reset-btn {
             padding: 12px 24px;
             font-size: 1rem;
             font-weight: 500;
-            color: #6b7280;
-            background: white;
-            border: 2px solid #e5e7eb;
+            color: var(--lz-text-secondary, #666666);
+            background: var(--lz-bg-card, #ffffff);
+            border: 2px solid var(--lz-border, #e2e0de);
             border-radius: 10px;
             cursor: pointer;
             transition: all 0.2s;
         }
 
         .reset-btn:hover {
-            border-color: #d1d5db;
-            background: #f9fafb;
+            border-color: var(--lz-border, #d1d5db);
+            background: var(--lz-bg-elevated, #f0f0ee);
         }
 
         @media (max-width: 768px) {
@@ -330,14 +332,18 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
 </head>
 <body>
     <div class="settings-container">
         <div class="settings-header">
             <h1>Site Settings</h1>
-            <a href="{{ url_for('admin.dashboard') }}" class="back-btn">
-                <span>&larr;</span> Back to Dashboard
-            </a>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+                <a href="{{ url_for('admin.dashboard') }}" class="back-btn">
+                    <span>&larr;</span> Back to Dashboard
+                </a>
+            </div>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}

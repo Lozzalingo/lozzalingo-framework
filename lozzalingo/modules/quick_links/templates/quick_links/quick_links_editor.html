@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quick Links Editor - Admin</title>
+    <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.css') }}">
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/newseditor.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
 </head>
 <body>
     {% include 'header.html' ignore missing %}
@@ -15,6 +17,7 @@
         <header class="editor-header">
             <h1>Quick Links Editor</h1>
             <div class="header-actions">
+                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 <a href="{{ url_for('admin.dashboard') }}" class="back-link">Back to Dashboard</a>
             </div>
         </header>
@@ -107,6 +110,45 @@
                 <div id="linksList"></div>
                 <p style="margin-top: 12px; opacity: 0.6; font-size: 0.85rem;">Drag and drop to reorder links</p>
             </div>
+
+            <!-- Page Profile Settings -->
+            <div class="editor-form profile-settings-panel">
+                <h2>Page Profile</h2>
+                <div class="form-group">
+                    <label>Avatar</label>
+                    <div class="profile-avatar-row">
+                        <img id="avatarPreview" src="/static/img/logo.png" alt="Avatar preview" class="profile-avatar-preview">
+                        <div class="profile-avatar-actions">
+                            <input type="file" id="avatarFile" accept="image/png,image/jpeg,image/gif,image/webp">
+                            <button type="button" class="btn-secondary" id="avatarBrowseBtn" style="white-space:nowrap;">Browse Images</button>
+                            <button type="button" class="btn-small btn-delete" id="avatarRemoveBtn" style="display:none;">Remove</button>
+                        </div>
+                    </div>
+                    <input type="hidden" id="avatarUrl">
+                    <small class="form-hint">Square image recommended. Will be cropped to a circle on the public page.</small>
+                </div>
+
+                <!-- Avatar Crop Area -->
+                <div id="avatarCropArea" style="display: none;">
+                    <div class="crop-container">
+                        <img id="avatarCropImage" src="" alt="Crop preview">
+                    </div>
+                    <div class="crop-actions">
+                        <button type="button" class="btn-primary" id="avatarCropConfirmBtn">Crop & Upload</button>
+                        <button type="button" class="btn-secondary" id="avatarCropCancelBtn">Cancel</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="bioText">Bio Text</label>
+                    <input type="text" id="bioText" placeholder="e.g. Business | Coder | Fitness | Music">
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-primary" id="saveSettingsBtn">Save Settings</button>
+                    <span id="settingsStatus" class="settings-status"></span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -132,6 +174,7 @@
     <script>
     (function() {
         const API_BASE = '/admin/quick-links-editor/api/links';
+        const SETTINGS_API = '/admin/quick-links-editor/api/settings';
         const UPLOAD_URL = '/admin/quick-links-editor/upload-image';
         const LIST_URL = '/admin/quick-links-editor/list-images';
         const DELETE_URL = '/admin/quick-links-editor/delete-image';
@@ -141,6 +184,127 @@
         let currentMode = 'crop';  // 'crop' or 'pad'
         let padColor = '#000000';
         let originalImageData = null;  // store for pad preview
+        let avatarCropper = null;
+
+        // === Page Profile Settings ===
+        loadSettings();
+
+        async function loadSettings() {
+            try {
+                const res = await fetch(SETTINGS_API);
+                const settings = await res.json();
+                document.getElementById('avatarUrl').value = settings.avatar_url || '';
+                document.getElementById('bioText').value = settings.bio_text || '';
+                if (settings.avatar_url) {
+                    document.getElementById('avatarPreview').src = settings.avatar_url;
+                    document.getElementById('avatarRemoveBtn').style.display = 'inline-block';
+                }
+            } catch (e) {
+                console.error('[QUICK-LINKS] Error loading settings:', e);
+            }
+        }
+
+        document.getElementById('saveSettingsBtn').addEventListener('click', async function() {
+            const avatarUrl = document.getElementById('avatarUrl').value.trim();
+            const bioText = document.getElementById('bioText').value.trim();
+            const statusEl = document.getElementById('settingsStatus');
+
+            try {
+                const res = await fetch(SETTINGS_API, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ avatar_url: avatarUrl, bio_text: bioText })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    statusEl.textContent = 'Saved!';
+                    statusEl.style.color = '#2ecc40';
+                } else {
+                    statusEl.textContent = 'Error: ' + (data.error || 'Unknown');
+                    statusEl.style.color = '#e74c3c';
+                }
+                setTimeout(() => statusEl.textContent = '', 3000);
+            } catch (e) {
+                statusEl.textContent = 'Error: ' + e.message;
+                statusEl.style.color = '#e74c3c';
+            }
+        });
+
+        // Avatar file upload → show cropper
+        document.getElementById('avatarFile').addEventListener('change', function() {
+            if (!this.files[0]) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const cropImage = document.getElementById('avatarCropImage');
+                cropImage.src = e.target.result;
+                document.getElementById('avatarCropArea').style.display = 'block';
+
+                if (avatarCropper) avatarCropper.destroy();
+                avatarCropper = new Cropper(cropImage, {
+                    aspectRatio: 1, viewMode: 1, dragMode: 'move',
+                    autoCropArea: 1, cropBoxResizable: true, cropBoxMovable: true,
+                    guides: true, highlight: true
+                });
+            };
+            reader.readAsDataURL(this.files[0]);
+        });
+
+        // Avatar crop confirm
+        document.getElementById('avatarCropConfirmBtn').addEventListener('click', async function() {
+            const fileInput = document.getElementById('avatarFile');
+            if (!fileInput.files[0] || !avatarCropper) return;
+
+            const cropData = avatarCropper.getData(true);
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            formData.append('mode', 'crop');
+            formData.append('crop_x', Math.round(cropData.x));
+            formData.append('crop_y', Math.round(cropData.y));
+            formData.append('crop_width', Math.round(cropData.width));
+            formData.append('crop_height', Math.round(cropData.height));
+
+            try {
+                const res = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('avatarUrl').value = data.image_url;
+                    document.getElementById('avatarPreview').src = data.image_url;
+                    document.getElementById('avatarPreview').style.display = 'block';
+                    document.getElementById('avatarRemoveBtn').style.display = 'inline-block';
+                    hideAvatarCropper();
+                } else {
+                    alert('Upload failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Upload error: ' + e.message);
+            }
+        });
+
+        document.getElementById('avatarCropCancelBtn').addEventListener('click', hideAvatarCropper);
+
+        function hideAvatarCropper() {
+            if (avatarCropper) { avatarCropper.destroy(); avatarCropper = null; }
+            document.getElementById('avatarCropArea').style.display = 'none';
+            document.getElementById('avatarFile').value = '';
+        }
+
+        // Avatar browse from existing images
+        document.getElementById('avatarBrowseBtn').addEventListener('click', () => {
+            // Reuse the same image browser modal, but override select behaviour
+            ibModal.style.display = 'flex';
+            loadBrowserImages(ibCurrentFolder);
+            ibSelectTarget = 'avatar';
+        });
+
+        // Avatar remove
+        document.getElementById('avatarRemoveBtn').addEventListener('click', function() {
+            document.getElementById('avatarUrl').value = '';
+            document.getElementById('avatarPreview').src = '/static/img/logo.png';
+            this.style.display = 'none';
+            document.getElementById('avatarFile').value = '';
+        });
+
+        let ibSelectTarget = 'link';  // 'link' or 'avatar'
 
         loadLinks();
 
@@ -150,6 +314,7 @@
         let ibCurrentFolder = 'quick-links';
 
         document.getElementById('browseImagesBtn').addEventListener('click', () => {
+            ibSelectTarget = 'link';
             ibModal.style.display = 'flex';
             loadBrowserImages(ibCurrentFolder);
         });
@@ -194,9 +359,18 @@
                 ibGrid.querySelectorAll('.ib-select-btn').forEach(btn => {
                     btn.addEventListener('click', function(e) {
                         e.stopPropagation();
-                        document.getElementById('imageUrl').value = this.dataset.url;
-                        showPreview(this.dataset.url);
+                        const url = this.dataset.url;
+                        if (ibSelectTarget === 'avatar') {
+                            document.getElementById('avatarUrl').value = url;
+                            document.getElementById('avatarPreview').src = url;
+                            document.getElementById('avatarPreview').style.display = 'block';
+                            document.getElementById('avatarRemoveBtn').style.display = 'inline-block';
+                        } else {
+                            document.getElementById('imageUrl').value = url;
+                            showPreview(url);
+                        }
                         ibModal.style.display = 'none';
+                        ibSelectTarget = 'link';
                     });
                 });
 
@@ -813,6 +987,34 @@
     @media (max-width: 600px) {
         .ib-grid { grid-template-columns: repeat(2, 1fr); }
         .ib-card { width: 95%; max-height: 90vh; }
+    }
+
+    /* Page Profile Settings */
+    .profile-settings-panel { grid-column: 2; }
+    .profile-avatar-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 6px;
+    }
+    .profile-avatar-preview {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid rgba(255,255,255,0.15);
+        flex-shrink: 0;
+    }
+    .profile-avatar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+    .settings-status {
+        font-size: 0.85rem;
+        margin-left: 10px;
+        transition: opacity 0.3s;
     }
     </style>
 </body>

@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login - {{ brand_name if brand_name else 'Lozzalingo' }}</title>
+    <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -12,13 +14,14 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--lz-bg, #0a0a0a);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            transition: background-color 0.2s ease;
         }
 
         .login-container {
@@ -27,11 +30,11 @@
         }
 
         .login-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
+            background: var(--lz-bg-card, #151515);
+            border: 1px solid var(--lz-border, #2a2a2a);
+            border-radius: 16px;
             padding: 40px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(10px);
+            box-shadow: var(--lz-shadow-lg, 0 8px 24px rgba(0,0,0,0.4));
         }
 
         .login-header {
@@ -40,32 +43,32 @@
         }
 
         .login-icon {
-            width: 70px;
-            height: 70px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 20px;
+            width: 64px;
+            height: 64px;
+            background: var(--lz-accent-subtle, rgba(196,120,138,0.12));
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 20px;
-            box-shadow: 0 10px 30px -5px rgba(102, 126, 234, 0.5);
         }
 
         .login-icon svg {
-            width: 35px;
-            height: 35px;
-            fill: white;
+            width: 32px;
+            height: 32px;
+            fill: var(--lz-accent, #c4788a);
         }
 
         .login-header h1 {
+            font-family: 'Space Grotesk', sans-serif;
             font-size: 1.75rem;
-            color: #1a1a2e;
+            color: var(--lz-text, #f0f0f0);
             font-weight: 700;
             margin-bottom: 8px;
         }
 
         .login-header p {
-            color: #64748b;
+            color: var(--lz-text-secondary, #a0a0a0);
             font-size: 0.95rem;
         }
 
@@ -75,21 +78,21 @@
 
         .flash-message {
             padding: 12px 16px;
-            border-radius: 10px;
+            border-radius: 8px;
             font-size: 0.9rem;
             margin-bottom: 10px;
         }
 
         .flash-message.error, .flash-message.danger {
-            background: #fef2f2;
-            color: #dc2626;
-            border: 1px solid #fecaca;
+            background: rgba(248, 113, 113, 0.1);
+            color: var(--lz-danger, #f87171);
+            border: 1px solid var(--lz-danger, #f87171);
         }
 
         .flash-message.success {
-            background: #f0fdf4;
-            color: #16a34a;
-            border: 1px solid #bbf7d0;
+            background: rgba(74, 222, 128, 0.1);
+            color: var(--lz-success, #4ade80);
+            border: 1px solid var(--lz-success, #4ade80);
         }
 
         .form-group {
@@ -99,8 +102,8 @@
         .form-group label {
             display: block;
             font-size: 0.875rem;
-            font-weight: 600;
-            color: #374151;
+            font-weight: 500;
+            color: var(--lz-text-secondary, #a0a0a0);
             margin-bottom: 8px;
         }
 
@@ -108,21 +111,22 @@
             width: 100%;
             padding: 14px 16px;
             font-size: 1rem;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
+            border: 1px solid var(--lz-input-border, #333333);
+            border-radius: 8px;
             transition: all 0.2s ease;
-            background: #f9fafb;
+            background: var(--lz-input-bg, #111111);
+            color: var(--lz-text, #f0f0f0);
+            font-family: inherit;
         }
 
         .form-group input:focus {
             outline: none;
-            border-color: #667eea;
-            background: white;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            border-color: var(--lz-accent, #c4788a);
+            box-shadow: 0 0 0 3px var(--lz-accent-subtle, rgba(196,120,138,0.12));
         }
 
         .form-group input::placeholder {
-            color: #9ca3af;
+            color: var(--lz-text-muted, #666666);
         }
 
         .submit-btn {
@@ -130,18 +134,20 @@
             padding: 14px 24px;
             font-size: 1rem;
             font-weight: 600;
-            color: white;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            background: var(--lz-accent, #c4788a);
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.2s ease;
             margin-top: 10px;
+            font-family: inherit;
         }
 
         .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px -5px rgba(102, 126, 234, 0.5);
+            background: var(--lz-accent-hover, #d48a9c);
+            transform: translateY(-1px);
+            box-shadow: var(--lz-shadow, 0 2px 8px rgba(0,0,0,0.3));
         }
 
         .submit-btn:active {
@@ -152,36 +158,38 @@
             text-align: center;
             margin-top: 25px;
             padding-top: 25px;
-            border-top: 1px solid #e5e7eb;
+            border-top: 1px solid var(--lz-border, #2a2a2a);
         }
 
         .login-footer p {
-            color: #64748b;
+            color: var(--lz-text-secondary, #a0a0a0);
             font-size: 0.9rem;
         }
 
         .login-footer a {
-            color: #667eea;
+            color: var(--lz-accent, #c4788a);
             text-decoration: none;
             font-weight: 600;
         }
 
         .login-footer a:hover {
+            color: var(--lz-accent-hover, #d48a9c);
             text-decoration: underline;
         }
 
         .brand-footer {
             text-align: center;
             margin-top: 30px;
-            color: rgba(255, 255, 255, 0.6);
+            color: var(--lz-text-muted, #666666);
             font-size: 0.85rem;
         }
 
         .brand-footer a {
-            color: rgba(255, 255, 255, 0.8);
+            color: var(--lz-text-secondary, #a0a0a0);
             text-decoration: none;
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
 </head>
 <body>
     <div class="login-container">

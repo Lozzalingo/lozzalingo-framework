@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analytics Dashboard</title>
+    <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('analytics.static', filename='css/analytics.css') }}">
     <link rel="stylesheet" href="{{ url_for('analytics.static', filename='css/admin.min.css') }}">
-
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
 </head>
 <body>
     <!-- Admin Navigation -->
@@ -16,6 +17,7 @@
             <p class="admin-welcome">Welcome, {{ session.admin_email }}</p>
         </div>
         <div class="admin-actions">
+            <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
             <a href="{{ url_for('admin.dashboard') }}" class="admin-btn admin-btn-secondary">
                 🏠 Main Dashboard
             </a>

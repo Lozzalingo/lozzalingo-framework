@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Mario Pinto</title>
+    <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for(auth_bp_name ~ '.static', filename='css/main.min.css') }}">
     <link rel="stylesheet" href="{{ url_for(auth_bp_name ~ '.static', filename='css/admin.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
 </head>
 <body>
     {% include 'header.html' %}
@@ -26,6 +28,7 @@
                 <p class="admin-welcome">Welcome, {{ session.admin_email }}</p>
             </div>
             <div class="admin-actions">
+                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="admin-btn admin-btn-secondary">
                     🔒 Change Password
                 </a>

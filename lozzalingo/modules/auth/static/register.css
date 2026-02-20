@@ -2,42 +2,43 @@
     display: none !important;
 }
 
-/* Custom checkbox styling - more specific to override form.css */
+/* Custom checkbox styling */
 input[type="checkbox"]#terms {
     appearance: none !important;
     -webkit-appearance: none !important;
     width: 18px !important;
     height: 18px !important;
-    padding: 0 !important; /* Remove the 15px padding from form.css */
-    border: 2px solid #2c2c2c !important;
-    background: #f7f5f0 !important;
+    padding: 0 !important;
+    border: 1px solid var(--lz-input-border, #333333) !important;
+    border-radius: 4px !important;
+    background: var(--lz-input-bg, #111111) !important;
     position: relative;
     cursor: pointer;
     margin-right: 10px;
     margin-top: 4px;
-    transition: all 0.3s ease;
-    flex-shrink: 0; /* Prevent flexbox from changing size */
+    transition: all 0.2s ease;
+    flex-shrink: 0;
 }
 
 input[type="checkbox"]#terms:focus {
     outline: none !important;
-    border-color: #d4a574 !important;
-    box-shadow: none !important; /* Remove the box-shadow from form.css */
-    transform: none !important; /* Remove the transform from form.css */
+    border-color: var(--lz-accent, #c4788a) !important;
+    box-shadow: none !important;
+    transform: none !important;
 }
 
 input[type="checkbox"]#terms:checked {
-    background: #f7f5f0 !important;
-    border-color: #2c2c2c !important;
+    background: var(--lz-accent, #c4788a) !important;
+    border-color: var(--lz-accent, #c4788a) !important;
 }
 
 input[type="checkbox"]#terms:checked::after {
-    content: '✓';
+    content: '\2713';
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: #2c2c2c;
-    font-size: 14px;
+    color: #ffffff;
+    font-size: 13px;
     font-weight: bold;
 }

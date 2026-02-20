@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
     <title>Customer Spotlight Manager</title>
     <style>
         * {
@@ -12,9 +13,9 @@
         }
 
         body {
-            font-family: 'Georgia', serif;
-            background: #f5f0e8;
-            color: #2a2a2a;
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--lz-bg, #f5f0e8);
+            color: var(--lz-text, #2a2a2a);
             min-height: 100vh;
         }
 
@@ -40,19 +41,19 @@
         }
 
         .back-link {
-            color: #666;
+            color: var(--lz-text-secondary, #666);
             text-decoration: none;
             font-size: 14px;
         }
 
         .back-link:hover {
-            color: #2a2a2a;
+            color: var(--lz-text, #2a2a2a);
         }
 
         /* Add Form */
         .add-form {
-            background: white;
-            border: 1px solid #d4c5a0;
+            background: var(--lz-bg-card, #ffffff);
+            border: 1px solid var(--lz-border, #e2e0de);
             padding: 30px;
             margin-bottom: 40px;
         }
@@ -61,7 +62,7 @@
             font-size: 18px;
             font-weight: normal;
             margin-bottom: 20px;
-            color: #4a4a4a;
+            color: var(--lz-text-secondary, #666);
         }
 
         .form-row {
@@ -80,14 +81,15 @@
             display: block;
             margin-bottom: 8px;
             font-size: 14px;
-            color: #666;
+            color: var(--lz-text-secondary, #666);
         }
 
         .form-group input[type="text"] {
             width: 100%;
             padding: 12px;
-            border: 1px solid #d4c5a0;
-            background: #faf8f4;
+            border: 1px solid var(--lz-input-border, #d4c5a0);
+            background: var(--lz-input-bg, #faf8f4);
+            color: var(--lz-text, #2a2a2a);
             font-family: inherit;
             font-size: 14px;
         }
@@ -95,15 +97,15 @@
         .form-group input[type="file"] {
             width: 100%;
             padding: 10px;
-            border: 1px dashed #d4c5a0;
-            background: #faf8f4;
+            border: 1px dashed var(--lz-input-border, #d4c5a0);
+            background: var(--lz-input-bg, #faf8f4);
             cursor: pointer;
         }
 
         .add-btn {
             padding: 12px 30px;
-            background: #2a2a2a;
-            color: #f5f0e8;
+            background: var(--lz-accent, #2a2a2a);
+            color: var(--lz-bg, #f5f0e8);
             border: none;
             cursor: pointer;
             font-family: inherit;
@@ -112,7 +114,8 @@
         }
 
         .add-btn:hover {
-            background: #4a4a4a;
+            background: var(--lz-accent, #4a4a4a);
+            opacity: 0.85;
         }
 
         /* Spotlight Grid */
@@ -123,8 +126,8 @@
         }
 
         .spotlight-card {
-            background: white;
-            border: 1px solid #d4c5a0;
+            background: var(--lz-bg-card, #ffffff);
+            border: 1px solid var(--lz-border, #e2e0de);
             overflow: hidden;
         }
 
@@ -140,13 +143,13 @@
 
         .spotlight-handle {
             font-size: 16px;
-            color: #2a2a2a;
+            color: var(--lz-text, #2a2a2a);
             margin-bottom: 10px;
         }
 
         .spotlight-meta {
             font-size: 12px;
-            color: #888;
+            color: var(--lz-text-secondary, #666);
             margin-bottom: 15px;
         }
 
@@ -159,25 +162,26 @@
         .spotlight-actions button {
             padding: 8px 16px;
             font-size: 12px;
-            border: 1px solid #d4c5a0;
-            background: #faf8f4;
+            border: 1px solid var(--lz-border, #e2e0de);
+            background: var(--lz-bg-elevated, #f0f0ee);
+            color: var(--lz-text, #2a2a2a);
             cursor: pointer;
             font-family: inherit;
         }
 
         .spotlight-actions button:hover {
-            background: #2a2a2a;
-            color: #f5f0e8;
-            border-color: #2a2a2a;
+            background: var(--lz-accent, #2a2a2a);
+            color: var(--lz-bg, #f5f0e8);
+            border-color: var(--lz-accent, #2a2a2a);
         }
 
         .spotlight-actions button.delete {
-            color: #c44;
+            color: var(--lz-danger, #c44);
         }
 
         .spotlight-actions button.delete:hover {
-            background: #c44;
-            border-color: #c44;
+            background: var(--lz-danger, #c44);
+            border-color: var(--lz-danger, #c44);
             color: white;
         }
 
@@ -189,7 +193,7 @@
         .empty-state {
             text-align: center;
             padding: 60px 20px;
-            color: #888;
+            color: var(--lz-text-secondary, #666);
         }
 
         /* Status message */
@@ -201,23 +205,25 @@
         }
 
         .status-message.success {
-            background: #e8f5e9;
-            border-color: #81c784;
-            color: #2e7d32;
+            background: color-mix(in srgb, var(--lz-success, #4caf50) 12%, var(--lz-bg-card, #ffffff));
+            border-color: var(--lz-success, #4caf50);
+            color: var(--lz-success, #2e7d32);
         }
 
         .status-message.error {
-            background: #ffebee;
-            border-color: #e57373;
-            color: #c62828;
+            background: color-mix(in srgb, var(--lz-danger, #dc3545) 12%, var(--lz-bg-card, #ffffff));
+            border-color: var(--lz-danger, #dc3545);
+            color: var(--lz-danger, #c62828);
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>Customer Spotlight Manager</h1>
             <a href="{{ url_for('admin.dashboard') }}" class="back-link">← Back to Dashboard</a>
+            <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
         </div>
 
         <div id="statusMessage" class="status-message"></div>

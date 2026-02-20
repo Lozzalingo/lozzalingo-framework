@@ -1,16 +1,17 @@
-/* Admin Panel Styles - Noir Theme */
+/* Admin Panel Styles */
 :root {
-    --admin-primary: #ffd700;
-    --admin-secondary: #666666;
-    --admin-success: #28a745;
-    --admin-danger: #ff6b6b;
-    --admin-warning: #ffc107;
-    --admin-info: #17a2b8;
-    --admin-light: #1a1a1a;
-    --admin-dark: #ffffff;
-    --admin-border: #333333;
-    --admin-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    --admin-shadow-lg: 0 4px 20px rgba(0,0,0,0.4);
+    /* Admin aliases — remapped by admin-theme.css */
+    --admin-primary: var(--lz-accent, #c4788a);
+    --admin-secondary: var(--lz-text-muted, #666666);
+    --admin-success: var(--lz-success, #4ade80);
+    --admin-danger: var(--lz-danger, #f87171);
+    --admin-warning: var(--lz-warning, #fbbf24);
+    --admin-info: var(--lz-info, #60a5fa);
+    --admin-light: var(--lz-bg-card, #1a1a1a);
+    --admin-dark: var(--lz-text, #ffffff);
+    --admin-border: var(--lz-border, #333333);
+    --admin-shadow: var(--lz-shadow, 0 2px 10px rgba(0,0,0,0.3));
+    --admin-shadow-lg: var(--lz-shadow-lg, 0 4px 20px rgba(0,0,0,0.4));
 }
 
 /* Base Admin Container */
@@ -88,9 +89,9 @@
 }
 
 .admin-message-success {
-    background: rgba(40, 167, 69, 0.1);
-    color: #28a745;
-    border-color: #28a745;
+    background: rgba(74, 222, 128, 0.1);
+    color: var(--lz-success);
+    border-color: var(--lz-success);
 }
 
 .admin-message-success::before {
@@ -98,9 +99,9 @@
 }
 
 .admin-message-error {
-    background: rgba(255, 107, 107, 0.1);
-    color: var(--admin-danger);
-    border-color: var(--admin-danger);
+    background: rgba(248, 113, 113, 0.1);
+    color: var(--lz-danger);
+    border-color: var(--lz-danger);
 }
 
 .admin-message-error::before {
@@ -108,9 +109,9 @@
 }
 
 .admin-message-warning {
-    background: rgba(255, 193, 7, 0.1);
-    color: var(--admin-warning);
-    border-color: var(--admin-warning);
+    background: rgba(251, 191, 36, 0.1);
+    color: var(--lz-warning);
+    border-color: var(--lz-warning);
 }
 
 .admin-message-warning::before {
@@ -118,9 +119,9 @@
 }
 
 .admin-message-info {
-    background: rgba(23, 162, 184, 0.1);
-    color: var(--admin-info);
-    border-color: var(--admin-info);
+    background: rgba(96, 165, 250, 0.1);
+    color: var(--lz-info);
+    border-color: var(--lz-info);
 }
 
 .admin-message-info::before {
@@ -286,12 +287,12 @@
 }
 
 .admin-btn-primary {
-    background: var(--admin-primary);
-    color: var(--noir-black);
+    background: var(--lz-accent);
+    color: #ffffff;
 }
 
 .admin-btn-primary:hover {
-    background: #e6c200;
+    background: var(--lz-accent-hover);
 }
 
 .admin-btn-secondary {
@@ -306,30 +307,30 @@
 }
 
 .admin-btn-success {
-    background: var(--admin-success);
-    color: white;
+    background: var(--lz-success);
+    color: #ffffff;
 }
 
 .admin-btn-success:hover {
-    background: #218838;
+    opacity: 0.85;
 }
 
 .admin-btn-danger {
-    background: var(--admin-danger);
-    color: white;
+    background: var(--lz-danger);
+    color: #ffffff;
 }
 
 .admin-btn-danger:hover {
-    background: #e55a5a;
+    opacity: 0.85;
 }
 
 .admin-btn-warning {
-    background: var(--admin-warning);
-    color: var(--noir-black);
+    background: var(--lz-warning);
+    color: #1a1a1a;
 }
 
 .admin-btn-warning:hover {
-    background: #e0a800;
+    opacity: 0.85;
 }
 
 .admin-btn:disabled {
@@ -395,9 +396,9 @@
 
 .admin-form-input:focus {
     outline: none;
-    border-color: var(--admin-primary);
-    background: rgba(255, 255, 255, 0.02);
-    box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+    border-color: var(--lz-accent);
+    background: var(--lz-input-bg);
+    box-shadow: 0 0 0 3px var(--lz-accent-subtle);
 }
 
 .admin-form-input::placeholder {
@@ -493,7 +494,7 @@
 }
 
 .admin-table tbody tr:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--lz-bg-hover);
 }
 
 /* Loading States */

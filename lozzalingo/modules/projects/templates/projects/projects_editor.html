@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Projects Editor - Admin</title>
+    <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css">
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/newseditor.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
 </head>
 <body>
     {% include 'header.html' ignore missing %}
@@ -15,6 +17,7 @@
         <header class="editor-header">
             <h1>Projects Editor</h1>
             <div class="header-actions">
+                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 <a href="{{ url_for('admin.dashboard') }}" class="back-link">Back to Dashboard</a>
             </div>
         </header>

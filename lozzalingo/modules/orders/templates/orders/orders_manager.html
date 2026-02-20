@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Order Management - Admin</title>
+    <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
     <style>
         body {
-            background-color: white !important;
+            background-color: var(--lz-bg, white) !important;
+            color: var(--lz-text, #333);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0;
             padding: 0;
@@ -16,7 +18,7 @@
             max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
-            background-color: white;
+            background-color: var(--lz-bg, white);
         }
 
         .orders-header {
@@ -25,11 +27,11 @@
             align-items: center;
             margin-bottom: 30px;
             padding-bottom: 20px;
-            border-bottom: 2px solid #e0e0e0;
+            border-bottom: 2px solid var(--lz-border, #e2e0de);
         }
 
         .orders-title h1 {
-            color: #333;
+            color: var(--lz-text, #1a1a1a);
             margin: 0;
             font-size: 2.5rem;
         }
@@ -61,7 +63,7 @@
         }
 
         .orders-filters {
-            background: white;
+            background: var(--lz-bg-card, #ffffff);
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -83,7 +85,7 @@
 
         .filter-group label {
             font-size: 0.9rem;
-            color: #666;
+            color: var(--lz-text-secondary, #666666);
             font-weight: 500;
         }
 
@@ -96,7 +98,7 @@
         }
 
         .orders-table-container {
-            background: white;
+            background: var(--lz-bg-card, #ffffff);
             border-radius: 10px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             overflow: hidden;
@@ -108,19 +110,19 @@
         }
 
         .orders-table th {
-            background: #f8f9fa;
+            background: var(--lz-bg-elevated, #f0f0ee);
             padding: 15px 10px;
             text-align: left;
             font-weight: 600;
-            color: #333;
-            border-bottom: 2px solid #e0e0e0;
+            color: var(--lz-text, #1a1a1a);
+            border-bottom: 2px solid var(--lz-border, #e2e0de);
         }
 
         .orders-table td {
             padding: 15px 10px;
-            border-bottom: 1px solid #e9ecef;
+            border-bottom: 1px solid var(--lz-border, #e2e0de);
             vertical-align: top;
-            color: #000 !important;
+            color: var(--lz-text, #1a1a1a) !important;
         }
 
         .orders-table td * {
@@ -128,7 +130,7 @@
         }
 
         .orders-table tr:hover {
-            background: #f8f9fa;
+            background: var(--lz-bg-elevated, #f0f0ee);
         }
 
         .order-number {
@@ -145,26 +147,26 @@
 
         .order-customer {
             font-size: 0.9rem;
-            color: #000 !important;
+            color: var(--lz-text, #1a1a1a) !important;
         }
 
         .order-customer div {
-            color: #000 !important;
+            color: var(--lz-text, #1a1a1a) !important;
         }
 
         .customer-email {
-            color: #333 !important;
+            color: var(--lz-text, #1a1a1a) !important;
             font-size: 0.85rem;
         }
 
         .order-amount {
             font-weight: bold;
-            color: #28a745;
+            color: var(--lz-success, #4ade80);
         }
 
         .order-date {
             font-size: 0.9rem;
-            color: #666;
+            color: var(--lz-text-secondary, #666666);
         }
 
         .order-actions {
@@ -185,7 +187,7 @@
         }
 
         .btn-resend {
-            background: #17a2b8;
+            background: var(--lz-info, #60a5fa);
             color: white;
         }
 
@@ -203,7 +205,7 @@
         }
 
         .btn-edit {
-            background: #ffc107;
+            background: var(--lz-warning, #fbbf24);
             color: #212529;
         }
 
@@ -212,7 +214,7 @@
         }
 
         .btn-delete {
-            background: #dc3545;
+            background: var(--lz-danger, #f87171);
             color: white;
         }
 
@@ -233,13 +235,13 @@
         .loading {
             text-align: center;
             padding: 40px;
-            color: #666;
+            color: var(--lz-text-secondary, #666666);
         }
 
         .no-orders {
             text-align: center;
             padding: 60px 20px;
-            color: #666;
+            color: var(--lz-text-secondary, #666666);
         }
 
         .alert {
@@ -270,16 +272,16 @@
 
         .page-btn {
             padding: 8px 12px;
-            border: 1px solid #ddd;
-            background: white;
-            color: #333;
+            border: 1px solid var(--lz-border, #e2e0de);
+            background: var(--lz-bg-card, #ffffff);
+            color: var(--lz-text, #1a1a1a);
             cursor: pointer;
             border-radius: 5px;
             text-decoration: none;
         }
 
         .page-btn:hover {
-            background: #f8f9fa;
+            background: var(--lz-bg-elevated, #f0f0ee);
         }
 
         .page-btn.active {
@@ -327,7 +329,7 @@
         }
 
         .admin-btn-success {
-            background: #28a745;
+            background: var(--lz-success, #4ade80);
             color: white;
         }
 
@@ -336,7 +338,7 @@
         }
 
         .admin-btn-warning {
-            background: #ffc107;
+            background: var(--lz-warning, #fbbf24);
             color: #000;
         }
 
@@ -396,7 +398,7 @@
         }
 
         .modal-content {
-            background: white;
+            background: var(--lz-bg-card, #ffffff);
             border-radius: 10px;
             padding: 30px;
             max-width: 600px;
@@ -411,7 +413,7 @@
             align-items: center;
             margin-bottom: 20px;
             padding-bottom: 15px;
-            border-bottom: 2px solid #e0e0e0;
+            border-bottom: 2px solid var(--lz-border, #e2e0de);
         }
 
         .modal-close {
@@ -419,7 +421,7 @@
             border: none;
             font-size: 24px;
             cursor: pointer;
-            color: #666;
+            color: var(--lz-text-secondary, #666666);
         }
 
         .order-detail-section {
@@ -427,7 +429,7 @@
         }
 
         .order-detail-section h3 {
-            color: #333;
+            color: var(--lz-text, #1a1a1a);
             margin-bottom: 10px;
             font-size: 1.2rem;
         }
@@ -440,20 +442,20 @@
         }
 
         .info-item {
-            background: #f8f9fa;
+            background: var(--lz-bg-elevated, #f0f0ee);
             padding: 10px;
             border-radius: 5px;
         }
 
         .info-label {
             font-size: 0.85rem;
-            color: #666;
+            color: var(--lz-text-secondary, #666666);
             font-weight: 500;
         }
 
         .info-value {
             font-size: 0.95rem;
-            color: #333;
+            color: var(--lz-text, #1a1a1a);
             margin-top: 2px;
         }
 
@@ -472,7 +474,7 @@
             background: transparent;
             border: 1px solid transparent;
             cursor: default;
-            color: #333;
+            color: var(--lz-text, #1a1a1a);
         }
 
         .edit-input:not([readonly]) {
@@ -503,7 +505,7 @@
         }
 
         .order-items {
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--lz-border, #e2e0de);
             border-radius: 5px;
             overflow: hidden;
         }
@@ -513,7 +515,7 @@
             justify-content: space-between;
             align-items: center;
             padding: 12px 15px;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid var(--lz-border, #e2e0de);
         }
 
         .item-row:last-child {
@@ -526,12 +528,12 @@
 
         .item-name {
             font-weight: 500;
-            color: #333;
+            color: var(--lz-text, #1a1a1a);
         }
 
         .item-meta {
             font-size: 0.85rem;
-            color: #666;
+            color: var(--lz-text-secondary, #666666);
             margin-top: 2px;
         }
 
@@ -544,7 +546,7 @@
 
         .item-price {
             font-weight: bold;
-            color: #28a745;
+            color: var(--lz-success, #4ade80);
         }
 
         .item-buttons {
@@ -562,7 +564,7 @@
         }
 
         .btn-tiny.btn-edit {
-            background: #ffc107;
+            background: var(--lz-warning, #fbbf24);
             color: #212529;
         }
 
@@ -571,7 +573,7 @@
         }
 
         .btn-tiny.btn-delete {
-            background: #dc3545;
+            background: var(--lz-danger, #f87171);
             color: white;
         }
 
@@ -582,7 +584,7 @@
         .add-item-row {
             text-align: center;
             padding: 15px;
-            border-top: 2px dashed #e0e0e0;
+            border-top: 2px dashed var(--lz-border, #e2e0de);
             margin-top: 10px;
         }
 
@@ -606,13 +608,13 @@
         }
 
         .modal-content .edit-input[readonly] {
-            background-color: #f8f9fa;
-            color: #666;
+            background-color: var(--lz-bg-elevated, #f0f0ee);
+            color: var(--lz-text-secondary, #666666);
         }
 
         .modal-content .info-label {
             font-size: 0.85rem;
-            color: #666;
+            color: var(--lz-text-secondary, #666666);
             font-weight: 500;
             display: block;
             margin-bottom: 2px;
@@ -624,7 +626,7 @@
 
         .modal-content small {
             font-size: 0.75rem;
-            color: #666;
+            color: var(--lz-text-secondary, #666666);
             display: block;
             margin-top: 2px;
         }
@@ -648,6 +650,7 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
 </head>
 <body>
     <div class="orders-container">
@@ -659,6 +662,7 @@
                 <h1>📦 Order Management</h1>
             </div>
             <div class="header-actions">
+                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 <button name="create_new_order" class="admin-btn admin-btn-primary" onclick="createNewOrder()" style="margin-right: 10px;">
                     ➕ Create New Order
                 </button>
@@ -684,8 +688,8 @@
 
         {% if etsy_shops %}
         <!-- Fetch Etsy Orders Section -->
-        <div class="etsy-fetch-section" style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 2px solid #e0e0e0;">
-            <h3 style="margin: 0 0 15px 0; color: #333;">Fetch Etsy Orders</h3>
+        <div class="etsy-fetch-section" style="background: var(--lz-bg-elevated, #f0f0ee); padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 2px solid var(--lz-border, #e2e0de);">
+            <h3 style="margin: 0 0 15px 0; color: var(--lz-text, #1a1a1a);">Fetch Etsy Orders</h3>
             <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
                 <select id="etsy-shop-select" style="padding: 10px 15px; border-radius: 5px; border: 1px solid #ddd; min-width: 200px;">
                     <option value="">Select Shop...</option>
@@ -696,7 +700,7 @@
                 <button onclick="fetchEtsyOrders()" style="padding: 10px 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">
                     Fetch Orders
                 </button>
-                <span id="etsy-fetch-status" style="color: #666;"></span>
+                <span id="etsy-fetch-status" style="color: var(--lz-text-secondary, #666666);"></span>
             </div>
         </div>
 
