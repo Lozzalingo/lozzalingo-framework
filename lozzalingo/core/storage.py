@@ -10,8 +10,64 @@ from flask import current_app
 from ..modules.settings.helpers import is_cloud_storage, get_do_spaces_config
 
 
+def _compress_image(file_bytes, filename, max_width=1920, quality=82):
+    """Compress and resize an image, converting to WebP.
+
+    Returns (compressed_bytes, new_filename). Falls back to original
+    if Pillow is unavailable or the file isn't an image.
+    """
+    try:
+        from PIL import Image
+        import io
+    except ImportError:
+        return file_bytes, filename
+
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    if ext not in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+        return file_bytes, filename
+
+    # Skip GIF (animated) — just pass through
+    if ext == 'gif':
+        return file_bytes, filename
+
+    try:
+        img = Image.open(io.BytesIO(file_bytes))
+
+        # Convert RGBA to RGB for WebP compatibility
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGBA')
+            bg = Image.new('RGBA', img.size, (0, 0, 0, 0))
+            bg.paste(img, mask=img.split()[3])
+            img = bg
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        # Resize if wider than max_width
+        if img.width > max_width:
+            ratio = max_width / img.width
+            new_height = int(img.height * ratio)
+            img = img.resize((max_width, new_height), Image.LANCZOS)
+
+        # Compress to WebP
+        buf = io.BytesIO()
+        img.save(buf, format='WEBP', quality=quality, method=4)
+        compressed = buf.getvalue()
+
+        # Only use compressed if it's actually smaller
+        if len(compressed) < len(file_bytes):
+            new_filename = filename.rsplit('.', 1)[0] + '.webp'
+            return compressed, new_filename
+
+        return file_bytes, filename
+    except Exception as e:
+        print(f"Image compression failed, using original: {e}")
+        return file_bytes, filename
+
+
 def upload_file(file_bytes, filename, subfolder):
     """Upload file to cloud storage or local filesystem.
+
+    Automatically compresses images (resize + WebP conversion) before upload.
 
     Args:
         file_bytes: Raw bytes of the processed file.
@@ -21,6 +77,8 @@ def upload_file(file_bytes, filename, subfolder):
     Returns:
         Public URL (cloud) or local path like "/static/blog/abc.jpg" (local).
     """
+    file_bytes, filename = _compress_image(file_bytes, filename)
+
     if is_cloud_storage():
         return _upload_to_spaces(file_bytes, filename, subfolder)
     return _save_locally(file_bytes, filename, subfolder)
