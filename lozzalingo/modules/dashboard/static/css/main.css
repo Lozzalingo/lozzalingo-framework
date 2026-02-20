@@ -10,10 +10,10 @@
     --noir-light-gray: var(--lz-text-muted, #666666);
     --noir-silver: var(--lz-text-secondary, #999999);
     --noir-white: var(--lz-text, #ffffff);
-    --noir-accent: var(--lz-accent, #c4788a);
-    --noir-gold: var(--lz-accent, #c4788a);
+    --noir-accent: var(--lz-accent, #fcba03);
+    --noir-gold: var(--lz-accent, #fcba03);
 
-    --gradient-text: linear-gradient(135deg, var(--lz-accent, #c4788a) 0%, var(--lz-accent-hover, #d48a9c) 100%);
+    --gradient-text: linear-gradient(135deg, var(--lz-accent, #fcba03) 0%, var(--lz-accent-hover, #ffd333) 100%);
     --shadow-subtle: var(--lz-shadow, 0 2px 20px rgba(0, 0, 0, 0.6));
 }
 

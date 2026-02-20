@@ -30,10 +30,10 @@
             <div class="admin-actions">
                 <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="admin-btn admin-btn-secondary">
-                    🔒 Change Password
+                    Change Password
                 </a>
                 <a href="{{ url_for(auth_bp_name ~ '.logout') }}" class="admin-btn admin-btn-danger">
-                    🚪 Logout
+                    Logout
                 </a>
             </div>
         </header>
@@ -41,7 +41,6 @@
         <div class="dashboard-grid">
             <!-- Analytics Card -->
             <div class="dashboard-card">
-                <div class="card-icon">📊</div>
                 <div class="card-content">
                     <h2>Analytics</h2>
                     <p>View website traffic, visitor statistics, and performance metrics.</p>
@@ -58,14 +57,13 @@
                 </div>
                 <div class="card-actions">
                     <a href="/admin/analytics" class="admin-btn admin-btn-primary">
-                        📈 View Analytics
+                        View Analytics
                     </a>
                 </div>
             </div>
 
             <!-- News Editor Card -->
             <div class="dashboard-card">
-                <div class="card-icon">📰</div>
                 <div class="card-content">
                     <h2>News Editor</h2>
                     <p>Create, edit, and manage news articles and blog posts.</p>
@@ -82,14 +80,13 @@
                 </div>
                 <div class="card-actions">
                     <a href="/admin/news-editor" class="admin-btn admin-btn-primary">
-                        ✏️ News Editor
+                        News Editor
                     </a>
                 </div>
             </div>
 
             <!-- Merchandise Editor Card -->
             <div class="dashboard-card">
-                <div class="card-icon">🛍️</div>
                 <div class="card-content">
                     <h2>Merchandise</h2>
                     <p>Manage products, images, pricing, and inventory for the store.</p>
@@ -106,14 +103,13 @@
                 </div>
                 <div class="card-actions">
                     <a href="/admin/merchandise-editor" class="admin-btn admin-btn-primary">
-                        🛒 Merchandise Editor
+                        Merchandise Editor
                     </a>
                 </div>
             </div>
 
             <!-- Order Management Card -->
             <div class="dashboard-card">
-                <div class="card-icon">📦</div>
                 <div class="card-content">
                     <h2>Order Management</h2>
                     <p>View customer orders, resend confirmation emails, and manage order status.</p>
@@ -130,14 +126,13 @@
                 </div>
                 <div class="card-actions">
                     <a href="/admin/orders-manager" class="admin-btn admin-btn-primary">
-                        📋 Manage Orders
+                        Manage Orders
                     </a>
                 </div>
             </div>
 
             <!-- Customer Spotlight Card -->
             <div class="dashboard-card">
-                <div class="card-icon">📸</div>
                 <div class="card-content">
                     <h2>Customer Spotlight</h2>
                     <p>Manage customer images and Instagram handles for the gallery showcase.</p>
@@ -154,14 +149,13 @@
                 </div>
                 <div class="card-actions">
                     <a href="/admin/customer-spotlight-editor" class="admin-btn admin-btn-primary">
-                        ✨ Spotlight Editor
+                        Spotlight Editor
                     </a>
                 </div>
             </div>
 
             <!-- Admin Management Card -->
             <div class="dashboard-card">
-                <div class="card-icon">👥</div>
                 <div class="card-content">
                     <h2>Admin Management</h2>
                     <p>Manage admin users, permissions, and account settings.</p>
@@ -178,14 +172,13 @@
                 </div>
                 <div class="card-actions">
                     <a href="{{ url_for(auth_bp_name ~ '.create_admin') }}" class="admin-btn admin-btn-primary">
-                        ➕ Create Admin
+                        Create Admin
                     </a>
                 </div>
             </div>
 
             <!-- Email Logs Card -->
             <div class="dashboard-card">
-                <div class="card-icon">📧</div>
                 <div class="card-content">
                     <h2>Email Logs</h2>
                     <p>Track sent emails, view delivery status, and monitor email system health.</p>
@@ -202,14 +195,13 @@
                 </div>
                 <div class="card-actions">
                     <a href="{{ url_for(auth_bp_name ~ '.email_logs') }}" class="admin-btn admin-btn-primary">
-                        📬 View Email Logs
+                        View Email Logs
                     </a>
                 </div>
             </div>
 
             <!-- Email Previews Card -->
             <div class="dashboard-card">
-                <div class="card-icon">📨</div>
                 <div class="card-content">
                     <h2>Email Previews</h2>
                     <p>Preview and test email templates for newsletters, orders, and notifications.</p>
@@ -219,21 +211,20 @@
                             <span class="stat-label">Templates</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-number">✓</span>
+                            <span class="stat-number">&#10003;</span>
                             <span class="stat-label">Email System</span>
                         </div>
                     </div>
                 </div>
                 <div class="card-actions">
                     <a href="/admin/email-preview/" class="admin-btn admin-btn-primary">
-                        👁️ View Previews
+                        View Previews
                     </a>
                 </div>
             </div>
 
             <!-- Template Previews Card -->
             <div class="dashboard-card">
-                <div class="card-icon">🎨</div>
                 <div class="card-content">
                     <h2>Template Previews</h2>
                     <p>Preview site templates including maintenance, error pages, and layouts.</p>
@@ -243,21 +234,20 @@
                             <span class="stat-label">Templates</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-number">✓</span>
+                            <span class="stat-number">&#10003;</span>
                             <span class="stat-label">Available</span>
                         </div>
                     </div>
                 </div>
                 <div class="card-actions">
                     <a href="{{ url_for(auth_bp_name ~ '.template_previews') }}" class="admin-btn admin-btn-primary">
-                        👀 View Templates
+                        View Templates
                     </a>
                 </div>
             </div>
 
             <!-- Application Logs Card -->
             <div class="dashboard-card">
-                <div class="card-icon">📝</div>
                 <div class="card-content">
                     <h2>Application Logs</h2>
                     <p>View system logs, error tracking, and application events for debugging.</p>
@@ -274,73 +264,63 @@
                 </div>
                 <div class="card-actions">
                     <a href="{{ url_for(auth_bp_name ~ '.logs') }}" class="admin-btn admin-btn-primary">
-                        🔍 View Logs
+                        View Logs
                     </a>
                 </div>
             </div>
 
             <!-- System Status Card -->
             <div class="dashboard-card">
-                <div class="card-icon">⚙️</div>
                 <div class="card-content">
                     <h2>System Status</h2>
                     <p>Monitor server health, database status, and system performance.</p>
                     <div class="card-stats">
                         <div class="stat">
-                            <span class="stat-number stat-success">✓</span>
+                            <span class="stat-number stat-success">&#10003;</span>
                             <span class="stat-label">Database</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-number stat-success">✓</span>
+                            <span class="stat-number stat-success">&#10003;</span>
                             <span class="stat-label">Server</span>
                         </div>
                     </div>
                 </div>
                 <div class="card-actions">
                     <button name="refresh_stats" class="admin-btn admin-btn-secondary" onclick="refreshStats()">
-                        🔄 Refresh Stats
+                        Refresh Stats
                     </button>
                 </div>
             </div>
 
             <!-- Quick Actions Card -->
             <div class="dashboard-card dashboard-card-wide">
-                <div class="card-icon">⚡</div>
                 <div class="card-content">
                     <h2>Quick Actions</h2>
                     <p>Common admin tasks and shortcuts.</p>
                 </div>
                 <div class="quick-actions">
                     <a href="/admin/news-editor" class="quick-action">
-                        <span class="quick-action-icon">📝</span>
                         <span>New Article</span>
                     </a>
                     <a href="/admin/merchandise-editor" class="quick-action">
-                        <span class="quick-action-icon">🏷️</span>
                         <span>New Product</span>
                     </a>
                     <a href="/admin/orders-manager" class="quick-action">
-                        <span class="quick-action-icon">📦</span>
                         <span>Manage Orders</span>
                     </a>
                     <a href="/admin/customer-spotlight-editor" class="quick-action">
-                        <span class="quick-action-icon">📸</span>
                         <span>Add Spotlight</span>
                     </a>
                     <a href="/admin/analytics" class="quick-action">
-                        <span class="quick-action-icon">📊</span>
                         <span>View Stats</span>
                     </a>
                     <a href="/admin/email-preview/" class="quick-action">
-                        <span class="quick-action-icon">📧</span>
                         <span>Email Preview</span>
                     </a>
                     <a href="{{ url_for(auth_bp_name ~ '.template_previews') }}" class="quick-action">
-                        <span class="quick-action-icon">🎨</span>
                         <span>Templates</span>
                     </a>
                     <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="quick-action">
-                        <span class="quick-action-icon">🔐</span>
                         <span>Security</span>
                     </a>
                 </div>
@@ -361,7 +341,6 @@
 
         async function loadDashboardStats() {
             try {
-                // Load analytics stats
                 fetch('/admin/api/stats')
                     .then(response => response.json())
                     .then(data => {
@@ -401,9 +380,9 @@
         }
 
         function refreshStats() {
-            const refreshBtn = document.querySelector('.admin-btn-secondary');
+            const refreshBtn = document.querySelector('[name="refresh_stats"]');
             const originalText = refreshBtn.innerHTML;
-            refreshBtn.innerHTML = '🔄 Refreshing...';
+            refreshBtn.innerHTML = 'Refreshing...';
             refreshBtn.disabled = true;
 
             setTimeout(() => {

@@ -29,12 +29,12 @@
                 <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 {% if endpoint_exists('admin.change_password') %}
                 <a href="{{ url_for('admin.change_password') }}" class="admin-btn admin-btn-secondary">
-                    🔒 Change Password
+                    Change Password
                 </a>
                 {% endif %}
                 {% if endpoint_exists('admin.logout') %}
                 <a href="{{ url_for('admin.logout') }}" class="admin-btn admin-btn-danger">
-                    🚪 Logout
+                    Logout
                 </a>
                 {% endif %}
             </div>
@@ -43,7 +43,6 @@
         <div class="dashboard-grid">
             <!-- Analytics Card -->
             <div class="dashboard-card">
-                <div class="card-icon">📊</div>
                 <div class="card-content">
                     <h2>Analytics</h2>
                     <p>View website traffic, visitor statistics, and performance metrics.</p>
@@ -60,14 +59,13 @@
                 </div>
                 <div class="card-actions">
                     <a href="/admin/analytics" class="admin-btn admin-btn-primary">
-                        📈 View Analytics
+                        View Analytics
                     </a>
                 </div>
             </div>
 
             <!-- News Editor Card -->
             <div class="dashboard-card">
-                <div class="card-icon">📰</div>
                 <div class="card-content">
                     <h2>News Editor</h2>
                     <p>Create, edit, and manage news articles and blog posts.</p>
@@ -84,14 +82,14 @@
                 </div>
                 <div class="card-actions">
                     <a href="/admin/news-editor" class="admin-btn admin-btn-primary">
-                        ✏️ News Editor
+                        News Editor
                     </a>
                 </div>
             </div>
 
             <!-- Merchandise Editor Card -->
+            {% if endpoint_exists('merchandise_admin.merchandise_editor') %}
             <div class="dashboard-card">
-                <div class="card-icon">🛍️</div>
                 <div class="card-content">
                     <h2>Merchandise</h2>
                     <p>Manage products, images, pricing, and inventory for the store.</p>
@@ -108,14 +106,15 @@
                 </div>
                 <div class="card-actions">
                     <a href="/admin/merchandise-editor" class="admin-btn admin-btn-primary">
-                        🛒 Merchandise Editor
+                        Merchandise Editor
                     </a>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Order Management Card -->
+            {% if endpoint_exists('orders_admin.orders_manager') %}
             <div class="dashboard-card">
-                <div class="card-icon">📦</div>
                 <div class="card-content">
                     <h2>Order Management</h2>
                     <p>View customer orders, resend confirmation emails, and manage order status.</p>
@@ -132,14 +131,15 @@
                 </div>
                 <div class="card-actions">
                     <a href="/admin/orders-manager" class="admin-btn admin-btn-primary">
-                        📋 Manage Orders
+                        Manage Orders
                     </a>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Customer Spotlight Card -->
+            {% if endpoint_exists('customer_spotlight.admin_spotlights') %}
             <div class="dashboard-card">
-                <div class="card-icon">📸</div>
                 <div class="card-content">
                     <h2>Customer Spotlight</h2>
                     <p>Manage customer images and Instagram handles for the gallery showcase.</p>
@@ -156,14 +156,14 @@
                 </div>
                 <div class="card-actions">
                     <a href="/admin/customer-spotlight-editor" class="admin-btn admin-btn-primary">
-                        ✨ Spotlight Editor
+                        Spotlight Editor
                     </a>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Admin Management Card -->
             <div class="dashboard-card">
-                <div class="card-icon">👥</div>
                 <div class="card-content">
                     <h2>Admin Management</h2>
                     <p>Manage admin users, permissions, and account settings.</p>
@@ -181,10 +181,10 @@
                 <div class="card-actions">
                     {% if endpoint_exists('admin.create_admin') %}
                     <a href="{{ url_for('admin.create_admin') }}" class="admin-btn admin-btn-primary">
-                        ➕ Create Admin
+                        Create Admin
                     </a>
                     {% else %}
-                    <button class="admin-btn admin-btn-secondary" disabled>➕ Create Admin (Not Available)</button>
+                    <button class="admin-btn admin-btn-secondary" disabled>Create Admin (Not Available)</button>
                     {% endif %}
                 </div>
             </div>
@@ -192,13 +192,12 @@
             <!-- Site Settings Card -->
             {% if endpoint_exists('settings.settings_page') %}
             <div class="dashboard-card">
-                <div class="card-icon">⚙️</div>
                 <div class="card-content">
                     <h2>Site Settings</h2>
                     <p>Configure API keys, payment settings, email, and site configuration.</p>
                     <div class="card-stats">
                         <div class="stat">
-                            <span class="stat-number">🔐</span>
+                            <span class="stat-number">--</span>
                             <span class="stat-label">Encrypted</span>
                         </div>
                         <div class="stat">
@@ -209,15 +208,15 @@
                 </div>
                 <div class="card-actions">
                     <a href="{{ url_for('settings.settings_page') }}" class="admin-btn admin-btn-primary">
-                        ⚙️ Configure Settings
+                        Configure Settings
                     </a>
                 </div>
             </div>
             {% endif %}
 
             <!-- API Keys Card -->
+            {% if endpoint_exists('external_api_admin.api_keys_manager') %}
             <div class="dashboard-card">
-                <div class="card-icon">🔑</div>
                 <div class="card-content">
                     <h2>API Keys</h2>
                     <p>Manage API keys for external integrations and third-party services.</p>
@@ -227,22 +226,22 @@
                             <span class="stat-label">Active Keys</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-number">🔒</span>
+                            <span class="stat-number">--</span>
                             <span class="stat-label">Secure</span>
                         </div>
                     </div>
                 </div>
                 <div class="card-actions">
                     <a href="/admin/api-keys" class="admin-btn admin-btn-primary">
-                        🔐 Manage API Keys
+                        Manage API Keys
                     </a>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Email Logs Card -->
             {% if endpoint_exists('admin.email_logs') %}
             <div class="dashboard-card">
-                <div class="card-icon">📧</div>
                 <div class="card-content">
                     <h2>Email Logs</h2>
                     <p>Track sent emails, view delivery status, and monitor email system health.</p>
@@ -259,15 +258,15 @@
                 </div>
                 <div class="card-actions">
                     <a href="{{ url_for('admin.email_logs') }}" class="admin-btn admin-btn-primary">
-                        📬 View Email Logs
+                        View Email Logs
                     </a>
                 </div>
             </div>
             {% endif %}
 
             <!-- Email Previews Card -->
+            {% if endpoint_exists('email_preview.preview_index') %}
             <div class="dashboard-card">
-                <div class="card-icon">📨</div>
                 <div class="card-content">
                     <h2>Email Previews</h2>
                     <p>Preview and test email templates for newsletters, orders, and notifications.</p>
@@ -277,22 +276,22 @@
                             <span class="stat-label">Templates</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-number">✓</span>
+                            <span class="stat-number">&#10003;</span>
                             <span class="stat-label">Email System</span>
                         </div>
                     </div>
                 </div>
                 <div class="card-actions">
                     <a href="/admin/email-preview/" class="admin-btn admin-btn-primary">
-                        👁️ View Previews
+                        View Previews
                     </a>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Template Previews Card -->
             {% if endpoint_exists('admin.template_previews') %}
             <div class="dashboard-card">
-                <div class="card-icon">🎨</div>
                 <div class="card-content">
                     <h2>Template Previews</h2>
                     <p>Preview site templates including maintenance, error pages, and layouts.</p>
@@ -302,14 +301,14 @@
                             <span class="stat-label">Templates</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-number">✓</span>
+                            <span class="stat-number">&#10003;</span>
                             <span class="stat-label">Available</span>
                         </div>
                     </div>
                 </div>
                 <div class="card-actions">
                     <a href="{{ url_for('admin.template_previews') }}" class="admin-btn admin-btn-primary">
-                        👀 View Templates
+                        View Templates
                     </a>
                 </div>
             </div>
@@ -318,7 +317,6 @@
             <!-- Application Logs Card -->
             {% if endpoint_exists('admin.logs') %}
             <div class="dashboard-card">
-                <div class="card-icon">📝</div>
                 <div class="card-content">
                     <h2>Application Logs</h2>
                     <p>View system logs, error tracking, and application events for debugging.</p>
@@ -335,7 +333,7 @@
                 </div>
                 <div class="card-actions">
                     <a href="{{ url_for('admin.logs') }}" class="admin-btn admin-btn-primary">
-                        🔍 View Logs
+                        View Logs
                     </a>
                 </div>
             </div>
@@ -343,73 +341,72 @@
 
             <!-- System Status Card -->
             <div class="dashboard-card">
-                <div class="card-icon">⚙️</div>
                 <div class="card-content">
                     <h2>System Status</h2>
                     <p>Monitor server health, database status, and system performance.</p>
                     <div class="card-stats">
                         <div class="stat">
-                            <span class="stat-number stat-success">✓</span>
+                            <span class="stat-number stat-success">&#10003;</span>
                             <span class="stat-label">Database</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-number stat-success">✓</span>
+                            <span class="stat-number stat-success">&#10003;</span>
                             <span class="stat-label">Server</span>
                         </div>
                     </div>
                 </div>
                 <div class="card-actions">
                     <button name="refresh_stats" class="admin-btn admin-btn-secondary" onclick="refreshStats()">
-                        🔄 Refresh Stats
+                        Refresh Stats
                     </button>
                 </div>
             </div>
 
             <!-- Quick Actions Card -->
             <div class="dashboard-card dashboard-card-wide">
-                <div class="card-icon">⚡</div>
                 <div class="card-content">
                     <h2>Quick Actions</h2>
                     <p>Common admin tasks and shortcuts.</p>
                 </div>
                 <div class="quick-actions">
                     <a href="/admin/news-editor" class="quick-action">
-                        <span class="quick-action-icon">📝</span>
                         <span>New Article</span>
                     </a>
+                    {% if endpoint_exists('merchandise_admin.merchandise_editor') %}
                     <a href="/admin/merchandise-editor" class="quick-action">
-                        <span class="quick-action-icon">🏷️</span>
                         <span>New Product</span>
                     </a>
+                    {% endif %}
+                    {% if endpoint_exists('orders_admin.orders_manager') %}
                     <a href="/admin/orders-manager" class="quick-action">
-                        <span class="quick-action-icon">📦</span>
                         <span>Manage Orders</span>
                     </a>
+                    {% endif %}
+                    {% if endpoint_exists('customer_spotlight.admin_spotlights') %}
                     <a href="/admin/customer-spotlight-editor" class="quick-action">
-                        <span class="quick-action-icon">📸</span>
                         <span>Add Spotlight</span>
                     </a>
+                    {% endif %}
                     <a href="/admin/analytics" class="quick-action">
-                        <span class="quick-action-icon">📊</span>
                         <span>View Stats</span>
                     </a>
+                    {% if endpoint_exists('email_preview.preview_index') %}
                     <a href="/admin/email-preview/" class="quick-action">
-                        <span class="quick-action-icon">📧</span>
                         <span>Email Preview</span>
                     </a>
+                    {% endif %}
+                    {% if endpoint_exists('external_api_admin.api_keys_manager') %}
                     <a href="/admin/api-keys" class="quick-action">
-                        <span class="quick-action-icon">🔑</span>
                         <span>API Keys</span>
                     </a>
+                    {% endif %}
                     {% if endpoint_exists('admin.template_previews') %}
                     <a href="{{ url_for('admin.template_previews') }}" class="quick-action">
-                        <span class="quick-action-icon">🎨</span>
                         <span>Templates</span>
                     </a>
                     {% endif %}
                     {% if endpoint_exists('admin.change_password') %}
                     <a href="{{ url_for('admin.change_password') }}" class="quick-action">
-                        <span class="quick-action-icon">🔐</span>
                         <span>Security</span>
                     </a>
                     {% endif %}
@@ -431,8 +428,7 @@
 
         async function loadDashboardStats() {
             try {
-                // Load analytics stats
-                fetch('/admin/api/stats')  // Framework provides this at /admin/api/stats
+                fetch('/admin/api/stats')
                     .then(response => response.json())
                     .then(data => {
                         if (data.analytics) {
@@ -444,23 +440,31 @@
                             document.getElementById('recentArticles').textContent = data.news.recent_articles || '0';
                         }
                         if (data.merchandise) {
-                            document.getElementById('totalProducts').textContent = data.merchandise.total_products || '0';
-                            document.getElementById('preorderProducts').textContent = data.merchandise.preorder_products || '0';
+                            const el = document.getElementById('totalProducts');
+                            if (el) el.textContent = data.merchandise.total_products || '0';
+                            const el2 = document.getElementById('preorderProducts');
+                            if (el2) el2.textContent = data.merchandise.preorder_products || '0';
                         }
                         if (data.admin) {
                             document.getElementById('totalAdmins').textContent = data.admin.total_admins || '1';
                         }
                         if (data.customer_spotlight) {
-                            document.getElementById('totalSpotlights').textContent = data.customer_spotlight.total_active || '0';
-                            document.getElementById('spotlightsSavings').textContent = data.customer_spotlight.size_savings_mb || '0';
+                            const el = document.getElementById('totalSpotlights');
+                            if (el) el.textContent = data.customer_spotlight.total_active || '0';
+                            const el2 = document.getElementById('spotlightsSavings');
+                            if (el2) el2.textContent = data.customer_spotlight.size_savings_mb || '0';
                         }
                         if (data.orders) {
-                            document.getElementById('totalOrders').textContent = data.orders.total_orders || '0';
-                            document.getElementById('recentOrders').textContent = data.orders.recent_orders || '0';
+                            const el = document.getElementById('totalOrders');
+                            if (el) el.textContent = data.orders.total_orders || '0';
+                            const el2 = document.getElementById('recentOrders');
+                            if (el2) el2.textContent = data.orders.recent_orders || '0';
                         }
                         if (data.email) {
-                            document.getElementById('totalEmailsSent').textContent = data.email.total_sent || '0';
-                            document.getElementById('emailsFailed').textContent = data.email.total_failed || '0';
+                            const el = document.getElementById('totalEmailsSent');
+                            if (el) el.textContent = data.email.total_sent || '0';
+                            const el2 = document.getElementById('emailsFailed');
+                            if (el2) el2.textContent = data.email.total_failed || '0';
                         }
                     })
                     .catch(err => console.log('Stats loading failed:', err));
@@ -471,9 +475,9 @@
         }
 
         function refreshStats() {
-            const refreshBtn = document.querySelector('.admin-btn-secondary');
+            const refreshBtn = document.querySelector('[name="refresh_stats"]');
             const originalText = refreshBtn.innerHTML;
-            refreshBtn.innerHTML = '🔄 Refreshing...';
+            refreshBtn.innerHTML = 'Refreshing...';
             refreshBtn.disabled = true;
 
             setTimeout(() => {
