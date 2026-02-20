@@ -336,9 +336,6 @@ def register_category_routes(state):
     app = state.app
     categories = app.config.get('NEWS_CATEGORIES', [])
 
-    if not categories:
-        return
-
     for cat in categories:
         cat_slug = cat['slug']
         cat_name = cat['name']
