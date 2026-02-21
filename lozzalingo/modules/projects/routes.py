@@ -100,9 +100,43 @@ def init_projects_db():
 
             conn.commit()
             print("Projects database initialized successfully")
+
+            # Tech registry table
+            _init_tech_registry(conn)
+
     except Exception as e:
         print(f"Error initializing projects database: {e}")
         raise
+
+
+def _init_tech_registry(conn):
+    """Create tech_registry table if it doesn't exist."""
+    try:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tech_registry (
+                name TEXT PRIMARY KEY,
+                category TEXT NOT NULL
+            )
+        ''')
+        conn.commit()
+    except Exception as e:
+        print(f"Error initializing tech_registry table: {e}")
+
+
+def get_all_tech_categories():
+    """Return {name: category} dict from the tech_registry table."""
+    projects_db = get_db_config()
+    db_connect = get_db_connection()
+
+    try:
+        with db_connect(projects_db) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT name, category FROM tech_registry')
+            return {row[0]: row[1] for row in cursor.fetchall()}
+    except Exception as e:
+        print(f"Error reading tech_registry: {e}")
+        return {}
 
 _SELECT_COLS = '''id, title, slug, content, image_url, year, status, project_status,
                   excerpt, meta_description, technologies, created_at, updated_at,
@@ -679,4 +713,96 @@ def delete_image():
         return jsonify({'success': True})
     except Exception as e:
         print(f"Error deleting image: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ===== Tech Registry Routes =====
+
+VALID_CATEGORIES = {'software', 'hardware', 'food', 'business', 'design'}
+
+@projects_bp.route('/tech-registry')
+def tech_registry():
+    """Admin page for managing the technology category registry."""
+    if 'admin_id' not in session:
+        return redirect(url_for('admin.login', next=request.path))
+
+    init_projects_db()
+    return render_template('projects/tech_registry.html')
+
+
+@projects_bp.route('/api/tech-registry', methods=['GET'])
+def get_tech_registry():
+    """Return all tech registry entries as a list."""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    try:
+        init_projects_db()
+        projects_db = get_db_config()
+        db_connect = get_db_connection()
+
+        with db_connect(projects_db) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT name, category FROM tech_registry ORDER BY name')
+            entries = [{'name': row[0], 'category': row[1]} for row in cursor.fetchall()]
+        return jsonify(entries)
+    except Exception as e:
+        print(f"Error getting tech registry: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@projects_bp.route('/api/tech-registry', methods=['POST'])
+def add_tech_registry():
+    """Add or update a tech registry entry."""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    try:
+        data = request.json
+        name = (data.get('name') or '').strip().lower()
+        category = (data.get('category') or '').strip().lower()
+
+        if not name:
+            return jsonify({'error': 'Technology name is required'}), 400
+        if category not in VALID_CATEGORIES:
+            return jsonify({'error': f'Category must be one of: {", ".join(sorted(VALID_CATEGORIES))}'}), 400
+
+        init_projects_db()
+        projects_db = get_db_config()
+        db_connect = get_db_connection()
+
+        with db_connect(projects_db) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT OR REPLACE INTO tech_registry (name, category) VALUES (?, ?)',
+                (name, category)
+            )
+            conn.commit()
+
+        return jsonify({'success': True, 'name': name, 'category': category})
+    except Exception as e:
+        print(f"Error adding tech registry entry: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@projects_bp.route('/api/tech-registry/<name>', methods=['DELETE'])
+def delete_tech_registry(name):
+    """Delete a tech registry entry."""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    try:
+        init_projects_db()
+        projects_db = get_db_config()
+        db_connect = get_db_connection()
+
+        with db_connect(projects_db) as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM tech_registry WHERE name = ?', (name.lower(),))
+            conn.commit()
+            if cursor.rowcount > 0:
+                return jsonify({'success': True})
+            return jsonify({'error': 'Entry not found'}), 404
+    except Exception as e:
+        print(f"Error deleting tech registry entry: {e}")
         return jsonify({'error': str(e)}), 500

@@ -38,16 +38,17 @@ def format_content_filter(content):
 @projects_public_bp.route('/')
 def projects_list():
     """Public projects listing - shows all published projects (active + inactive)."""
-    from lozzalingo.modules.projects.routes import get_all_projects_db, init_projects_db
+    from lozzalingo.modules.projects.routes import get_all_projects_db, init_projects_db, get_all_tech_categories
     init_projects_db()
     projects = get_all_projects_db(status='published')
-    return render_template('projects_public/projects.html', projects=projects)
+    tech_categories = get_all_tech_categories()
+    return render_template('projects_public/projects.html', projects=projects, tech_categories=tech_categories)
 
 
 @projects_public_bp.route('/<slug>')
 def project_detail(slug):
     """Individual project page."""
-    from lozzalingo.modules.projects.routes import get_project_by_slug_db, get_all_projects_db, init_projects_db
+    from lozzalingo.modules.projects.routes import get_project_by_slug_db, get_all_projects_db, init_projects_db, get_all_tech_categories
     init_projects_db()
     project = get_project_by_slug_db(slug)
 
@@ -57,9 +58,11 @@ def project_detail(slug):
 
     all_projects = get_all_projects_db(status='published')
     related_projects = [p for p in all_projects if p['slug'] != slug][:3]
+    tech_categories = get_all_tech_categories()
 
     return render_template('projects_public/project_detail.html',
-                         project=project, related_projects=related_projects)
+                         project=project, related_projects=related_projects,
+                         tech_categories=tech_categories)
 
 
 # ===== API Routes =====

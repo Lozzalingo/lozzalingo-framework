@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tech Registry - Admin</title>
+    <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
+</head>
+<body>
+    {% include 'header.html' ignore missing %}
+
+    <div class="editor-container">
+        <header class="editor-header">
+            <h1>Technology Registry</h1>
+            <div class="header-actions">
+                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+                <a href="{{ url_for('admin.dashboard') }}" class="back-link">Back to Dashboard</a>
+            </div>
+        </header>
+
+        <div class="editor-content">
+            <!-- Add form -->
+            <div class="editor-form">
+                <h2>Add Technology</h2>
+                <form id="techForm" class="tr-form">
+                    <div class="tr-form-row">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="techName">Technology Name</label>
+                            <input type="text" id="techName" placeholder="e.g. python, arduino, figma" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="techCategory">Category</label>
+                            <select id="techCategory" required>
+                                <option value="software">Software</option>
+                                <option value="hardware">Hardware</option>
+                                <option value="food">Food</option>
+                                <option value="business">Business</option>
+                                <option value="design">Design</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="align-self: flex-end;">
+                            <button type="submit" class="btn-primary">Add</button>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="tr-preview" id="preview" style="display: none;">
+                    <label>Preview:</label>
+                    <span class="tech-pill" id="previewPill" data-cat="software"></span>
+                </div>
+            </div>
+
+            <!-- Registry table -->
+            <div class="articles-list">
+                <div class="list-header">
+                    <h2>Registered Technologies</h2>
+                    <div class="filter-controls">
+                        <input type="text" id="searchInput" class="filter-input" placeholder="Search...">
+                        <select id="filterCategory" class="filter-select">
+                            <option value="all">All Categories</option>
+                            <option value="software">Software</option>
+                            <option value="hardware">Hardware</option>
+                            <option value="food">Food</option>
+                            <option value="business">Business</option>
+                            <option value="design">Design</option>
+                        </select>
+                        <span id="entryCount" class="item-count"></span>
+                    </div>
+                </div>
+                <div id="registryList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        const API = '/admin/projects-editor/api/tech-registry';
+        let entries = [];
+
+        loadRegistry();
+
+        // Live preview
+        const nameInput = document.getElementById('techName');
+        const catSelect = document.getElementById('techCategory');
+        const preview = document.getElementById('preview');
+        const previewPill = document.getElementById('previewPill');
+
+        nameInput.addEventListener('input', updatePreview);
+        catSelect.addEventListener('change', updatePreview);
+
+        function updatePreview() {
+            const name = nameInput.value.trim();
+            if (name) {
+                preview.style.display = 'flex';
+                previewPill.textContent = name;
+                previewPill.dataset.cat = catSelect.value;
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+
+        // Submit
+        document.getElementById('techForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const name = nameInput.value.trim();
+            const category = catSelect.value;
+            if (!name) return;
+
+            try {
+                const res = await fetch(API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, category })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    nameInput.value = '';
+                    preview.style.display = 'none';
+                    loadRegistry();
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        });
+
+        // Search & filter
+        document.getElementById('searchInput').addEventListener('input', renderList);
+        document.getElementById('filterCategory').addEventListener('change', renderList);
+
+        async function loadRegistry() {
+            try {
+                const res = await fetch(API);
+                entries = await res.json();
+                renderList();
+            } catch (err) {
+                console.error('Failed to load registry:', err);
+            }
+        }
+
+        function renderList() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const filter = document.getElementById('filterCategory').value;
+            const container = document.getElementById('registryList');
+
+            let filtered = entries.filter(e => {
+                if (filter !== 'all' && e.category !== filter) return false;
+                if (search && !e.name.includes(search)) return false;
+                return true;
+            });
+
+            document.getElementById('entryCount').textContent =
+                `${filtered.length} entr${filtered.length !== 1 ? 'ies' : 'y'}`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No entries found</p></div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(e => `
+                <div class="article-card tr-entry">
+                    <div class="article-card-header">
+                        <span class="tech-pill" data-cat="${e.category}">${e.name}</span>
+                        <span class="status-badge tr-cat-${e.category}">${e.category}</span>
+                    </div>
+                    <div class="article-actions">
+                        <button class="btn-small btn-delete" onclick="window._deleteTech('${e.name.replace(/'/g, "\\'")}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window._deleteTech = async function(name) {
+            if (!confirm(`Remove "${name}" from registry?`)) return;
+            try {
+                const res = await fetch(`${API}/${encodeURIComponent(name)}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) loadRegistry();
+                else alert('Error: ' + (data.error || 'Unknown error'));
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        };
+    })();
+    </script>
+
+    <style>
+    .tr-form-row {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    @media (max-width: 768px) {
+        .tr-form-row { flex-direction: column; }
+    }
+    .tr-preview {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 16px;
+        padding: 12px 16px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px;
+    }
+    .tr-preview label {
+        font-size: 0.85rem;
+        color: rgba(255,255,255,0.5);
+    }
+    .tr-entry .article-card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .tr-cat-software { background: rgba(255,215,0,0.15); color: #ffd700; border: 1px solid rgba(255,215,0,0.3); }
+    .tr-cat-hardware { background: rgba(0,212,255,0.15); color: #00d4ff; border: 1px solid rgba(0,212,255,0.3); }
+    .tr-cat-food { background: rgba(255,107,107,0.15); color: #ff6b6b; border: 1px solid rgba(255,107,107,0.3); }
+    .tr-cat-business { background: rgba(46,204,64,0.15); color: #2ecc40; border: 1px solid rgba(46,204,64,0.3); }
+    .tr-cat-design { background: rgba(177,156,255,0.15); color: #b19cff; border: 1px solid rgba(177,156,255,0.3); }
+
+    /* Tech pill colours matching the public site */
+    .tech-pill {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        background: rgba(74,144,217,0.15);
+        color: #4a90d9;
+        border: 1px solid rgba(74,144,217,0.3);
+    }
+    .tech-pill[data-cat="software"] { background: rgba(255,215,0,0.15); color: #ffd700; border-color: rgba(255,215,0,0.3); }
+    .tech-pill[data-cat="hardware"] { background: rgba(0,212,255,0.15); color: #00d4ff; border-color: rgba(0,212,255,0.3); }
+    .tech-pill[data-cat="food"] { background: rgba(255,107,107,0.15); color: #ff6b6b; border-color: rgba(255,107,107,0.3); }
+    .tech-pill[data-cat="business"] { background: rgba(46,204,64,0.15); color: #2ecc40; border-color: rgba(46,204,64,0.3); }
+    .tech-pill[data-cat="design"] { background: rgba(177,156,255,0.15); color: #b19cff; border-color: rgba(177,156,255,0.3); }
+    </style>
+</body>
+</html>
