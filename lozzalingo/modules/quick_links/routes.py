@@ -82,6 +82,13 @@ def init_quick_links_db():
                     except Exception as e:
                         print(f"Could not add column {col_name}: {e}")
 
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS quick_links_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT
+                )
+            ''')
+
             conn.commit()
             print("Quick links database initialized successfully")
     except Exception as e:
@@ -224,6 +231,43 @@ def reorder_links_db(id_order):
             return True
     except Exception as e:
         print(f"Error reordering links: {e}")
+        return False
+
+def get_settings_db():
+    """Get all quick links settings as a dict (with defaults)"""
+    db_path = get_db_config()
+    db_connect = get_db_connection()
+    defaults = {'avatar_url': '', 'bio_text': ''}
+
+    try:
+        with db_connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT key, value FROM quick_links_settings')
+            rows = cursor.fetchall()
+            settings = dict(defaults)
+            for row in rows:
+                settings[row[0]] = row[1]
+            return settings
+    except Exception as e:
+        print(f"Error getting settings: {e}")
+        return defaults
+
+def save_setting_db(key, value):
+    """Upsert a single setting"""
+    db_path = get_db_config()
+    db_connect = get_db_connection()
+
+    try:
+        with db_connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO quick_links_settings (key, value) VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            ''', (key, value))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error saving setting: {e}")
         return False
 
 
@@ -485,6 +529,37 @@ def delete_image():
         return jsonify({'error': str(e)}), 500
 
 
+@quick_links_admin_bp.route('/api/settings', methods=['GET'])
+def get_settings():
+    """Get page profile settings"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    try:
+        init_quick_links_db()
+        settings = get_settings_db()
+        return jsonify(settings)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@quick_links_admin_bp.route('/api/settings', methods=['PUT'])
+def update_settings():
+    """Update page profile settings"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    try:
+        init_quick_links_db()
+        data = request.json
+        allowed_keys = ('avatar_url', 'bio_text')
+        for key in allowed_keys:
+            if key in data:
+                save_setting_db(key, data[key])
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # ===== Public Routes =====
 
 @quick_links_bp.route('/')
@@ -492,11 +567,13 @@ def quick_links_page():
     """Public quick links page"""
     init_quick_links_db()
     links = get_all_links_db(active_only=True)
-    return render_template('quick_links/quick_links.html', links=links)
+    settings = get_settings_db()
+    return render_template('quick_links/quick_links.html', links=links, settings=settings)
 
 @quick_links_bp.route('/api/links', methods=['GET'])
 def get_public_links():
     """Get active links API - public endpoint"""
     init_quick_links_db()
     links = get_all_links_db(active_only=True)
-    return jsonify(links)
+    settings = get_settings_db()
+    return jsonify({'links': links, 'settings': settings})
