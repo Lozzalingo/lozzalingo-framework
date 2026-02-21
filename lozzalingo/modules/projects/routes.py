@@ -718,7 +718,7 @@ def delete_image():
 
 # ===== Tech Registry Routes =====
 
-VALID_CATEGORIES = {'software', 'hardware', 'food', 'business', 'design'}
+VALID_CATEGORIES = {'software', 'hardware', 'marketing', 'clients', 'equipment', 'logistics', 'other'}
 
 @projects_bp.route('/tech-registry')
 def tech_registry():
