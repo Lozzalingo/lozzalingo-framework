@@ -167,12 +167,10 @@
 
             container.innerHTML = filtered.map(e => `
                 <div class="article-card tr-entry">
-                    <div class="article-card-header">
+                    <div class="tr-entry-row">
                         <span class="tech-pill" data-cat="${e.category}">${e.name}</span>
                         <span class="status-badge tr-cat-${e.category}">${e.category}</span>
-                    </div>
-                    <div class="article-actions">
-                        <button class="btn-small btn-delete" onclick="window._deleteTech('${e.name.replace(/'/g, "\\'")}')">Delete</button>
+                        <button class="tr-delete-btn" onclick="window._deleteTech('${e.name.replace(/'/g, "\\'")}')">Delete</button>
                     </div>
                 </div>
             `).join('');
@@ -215,10 +213,25 @@
         font-size: 0.85rem;
         color: rgba(255,255,255,0.5);
     }
-    .tr-entry .article-card-header {
+    .tr-entry-row {
         display: flex;
         align-items: center;
         gap: 12px;
+    }
+    .tr-delete-btn {
+        margin-left: auto;
+        padding: 4px 12px;
+        background: var(--lz-danger, #f87171);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+    .tr-delete-btn:hover {
+        opacity: 0.85;
     }
     .tr-cat-software { background: rgba(212,168,85,0.15); color: #d4a855; border: 1px solid rgba(212,168,85,0.3); }
     .tr-cat-hardware { background: rgba(0,150,255,0.15); color: #4a9eff; border: 1px solid rgba(0,150,255,0.3); }
