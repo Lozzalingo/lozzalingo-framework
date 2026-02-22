@@ -281,7 +281,9 @@
 
         class CustomImage extends BaseImage {
             static create(value) {
-                const node = super.create(value);
+                // Pass src string to base Image so it sets the src attribute
+                const src = (typeof value === 'object' && value !== null) ? value.src : value;
+                const node = super.create(src);
                 if (typeof value === 'object' && value !== null) {
                     if (value['data-size']) node.setAttribute('data-size', value['data-size']);
                     if (value['data-layout']) node.setAttribute('data-layout', value['data-layout']);
@@ -1618,11 +1620,21 @@
                 this.disabled = true;
                 this.textContent = 'Applying...';
                 try {
-                    // Draw cropped region to offscreen canvas
-                    const oc = new OffscreenCanvas(Math.round(cropRect.w), Math.round(cropRect.h));
-                    const octx = oc.getContext('2d');
-                    octx.drawImage(cropImg, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0, 0, cropRect.w, cropRect.h);
-                    const blob = await oc.convertToBlob({ type: 'image/jpeg', quality: 0.85 });
+                    // Draw cropped region to canvas
+                    const cw = Math.round(cropRect.w), ch = Math.round(cropRect.h);
+                    let blob;
+                    if (typeof OffscreenCanvas !== 'undefined') {
+                        const oc = new OffscreenCanvas(cw, ch);
+                        const octx = oc.getContext('2d');
+                        octx.drawImage(cropImg, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0, 0, cw, ch);
+                        blob = await oc.convertToBlob({ type: 'image/jpeg', quality: 0.85 });
+                    } else {
+                        const tc = document.createElement('canvas');
+                        tc.width = cw; tc.height = ch;
+                        const tctx = tc.getContext('2d');
+                        tctx.drawImage(cropImg, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0, 0, cw, ch);
+                        blob = await new Promise(resolve => tc.toBlob(resolve, 'image/jpeg', 0.85));
+                    }
 
                     // Upload
                     const formData = new FormData();
