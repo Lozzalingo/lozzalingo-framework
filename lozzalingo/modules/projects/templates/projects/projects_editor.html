@@ -84,6 +84,7 @@
                                     <option value="equipment">Equipment</option>
                                     <option value="logistics">Logistics</option>
                                     <option value="materials">Materials</option>
+                                    <option value="services">Services</option>
                                     <option value="other">Other</option>
                                 </select>
                                 <button type="button" class="tcp-add" id="techCategoryAddBtn">Add</button>
@@ -95,24 +96,32 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="imageFile">Upload Image</label>
-                        <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                        <label>Gallery Layout</label>
+                        <div class="gallery-layout-picker" id="galleryLayoutPicker">
+                            <button type="button" class="gl-btn active" data-layout="single">Single</button>
+                            <button type="button" class="gl-btn" data-layout="carousel">Carousel</button>
+                            <button type="button" class="gl-btn" data-layout="grid">Grid</button>
+                        </div>
+                        <input type="hidden" id="galleryLayout" name="gallery_layout" value="single">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Gallery Images</label>
+                        <div class="gallery-thumbs" id="galleryThumbs"></div>
+                        <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
                             <input type="file" id="imageFile" name="image" accept="image/*" style="flex:1;">
-                            <button type="button" class="btn-secondary" id="browseImagesBtn" style="white-space:nowrap;">Browse Images</button>
+                            <button type="button" class="btn-secondary" id="browseImagesBtn" style="white-space:nowrap;">Browse</button>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+                            <input type="text" id="galleryUrlInput" placeholder="Paste image URL..." style="flex:1;">
+                            <button type="button" class="btn-secondary" id="galleryAddUrlBtn" style="white-space:nowrap;">Add URL</button>
                         </div>
                         <div class="upload-progress" id="uploadProgress" style="display: none;">
                             <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                             <span class="progress-text" id="progressText">Uploading...</span>
                         </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="imageUrl">Or Image URL</label>
-                        <input type="text" id="imageUrl" name="image_url" placeholder="Image URL or path">
-                    </div>
-
-                    <div class="image-preview" id="imagePreview" style="display: none;">
-                        <img id="previewImg" src="" alt="Preview">
+                        <input type="hidden" id="galleryImagesHidden" name="gallery_images">
+                        <input type="hidden" id="imageUrl" name="image_url">
                     </div>
 
                     <div class="form-group">
@@ -194,7 +203,7 @@
         const TECH_COLORS = {
             software: '#d4a855', hardware: '#4a9eff', marketing: '#ffa032',
             clients: '#e65064', equipment: '#b4b4c3', logistics: '#2ecc40',
-            materials: '#64c8f0', other: '#b164ff'
+            materials: '#64c8f0', services: '#1ad6ba', other: '#b164ff'
         };
         let techRegistry = [];          // [{name, category}, ...]
         let selectedTechs = [];         // [{name, category}, ...]
@@ -410,6 +419,96 @@
 
         loadProjects();
 
+        // === Gallery State ===
+        let galleryImages = [];
+        let galleryLayout = 'single';
+
+        function syncGalleryHidden() {
+            document.getElementById('galleryImagesHidden').value = galleryImages.length ? JSON.stringify(galleryImages) : '';
+            document.getElementById('imageUrl').value = galleryImages[0] || '';
+        }
+
+        function addGalleryImage(url) {
+            if (!url || galleryImages.includes(url)) return;
+            galleryImages.push(url);
+            renderGalleryThumbs();
+            syncGalleryHidden();
+        }
+
+        function renderGalleryThumbs() {
+            const container = document.getElementById('galleryThumbs');
+            if (!galleryImages.length) { container.innerHTML = '<p class="gallery-empty">No images added yet</p>'; return; }
+            container.innerHTML = galleryImages.map((url, i) => `
+                <div class="gallery-thumb" draggable="true" data-idx="${i}">
+                    <span class="gallery-thumb-num">${i + 1}</span>
+                    <img src="${url}" alt="Gallery image ${i + 1}">
+                    <button type="button" class="gallery-thumb-remove" data-idx="${i}">&times;</button>
+                </div>
+            `).join('');
+
+            // Remove buttons
+            container.querySelectorAll('.gallery-thumb-remove').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    galleryImages.splice(+this.dataset.idx, 1);
+                    renderGalleryThumbs();
+                    syncGalleryHidden();
+                });
+            });
+
+            // Drag-and-drop reorder
+            let dragIdx = null;
+            container.querySelectorAll('.gallery-thumb').forEach(thumb => {
+                thumb.addEventListener('dragstart', function(e) {
+                    dragIdx = +this.dataset.idx;
+                    this.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+                thumb.addEventListener('dragend', function() {
+                    this.classList.remove('dragging');
+                    dragIdx = null;
+                });
+                thumb.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    this.classList.add('drag-over');
+                });
+                thumb.addEventListener('dragleave', function() {
+                    this.classList.remove('drag-over');
+                });
+                thumb.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+                    const dropIdx = +this.dataset.idx;
+                    if (dragIdx === null || dragIdx === dropIdx) return;
+                    const [moved] = galleryImages.splice(dragIdx, 1);
+                    galleryImages.splice(dropIdx, 0, moved);
+                    renderGalleryThumbs();
+                    syncGalleryHidden();
+                });
+            });
+        }
+
+        // Layout picker
+        document.querySelectorAll('.gl-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.gl-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                galleryLayout = this.dataset.layout;
+                document.getElementById('galleryLayout').value = galleryLayout;
+            });
+        });
+
+        // Add URL button
+        document.getElementById('galleryAddUrlBtn').addEventListener('click', function() {
+            const input = document.getElementById('galleryUrlInput');
+            const url = input.value.trim();
+            if (url) { addGalleryImage(url); input.value = ''; }
+        });
+        document.getElementById('galleryUrlInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); document.getElementById('galleryAddUrlBtn').click(); }
+        });
+
         // === Image Browser Modal ===
         const ibModal = document.getElementById('imageBrowserModal');
         const ibGrid = document.getElementById('ibGrid');
@@ -460,8 +559,7 @@
                 ibGrid.querySelectorAll('.ib-select-btn').forEach(btn => {
                     btn.addEventListener('click', function(e) {
                         e.stopPropagation();
-                        document.getElementById('imageUrl').value = this.dataset.url;
-                        showPreview(this.dataset.url);
+                        addGalleryImage(this.dataset.url);
                         ibModal.style.display = 'none';
                     });
                 });
@@ -511,7 +609,7 @@
             }
         }
 
-        // Image upload
+        // Image upload → adds to gallery
         document.getElementById('imageFile')?.addEventListener('change', async function() {
             if (!this.files[0]) return;
             const compressed = typeof compressImageFile === 'function' ? await compressImageFile(this.files[0]) : this.files[0];
@@ -523,24 +621,13 @@
                 const res = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
                 const data = await res.json();
                 if (data.success) {
-                    document.getElementById('imageUrl').value = data.image_url;
-                    showPreview(data.image_url);
+                    addGalleryImage(data.image_url);
                 } else {
                     alert('Upload failed: ' + (data.error || 'Unknown error'));
                 }
             } catch (e) { alert('Upload error: ' + e.message); }
-            finally { progress.style.display = 'none'; }
+            finally { progress.style.display = 'none'; this.value = ''; }
         });
-
-        document.getElementById('imageUrl')?.addEventListener('input', function() {
-            if (this.value) showPreview(this.value); else hidePreview();
-        });
-
-        function showPreview(url) {
-            document.getElementById('previewImg').src = url;
-            document.getElementById('imagePreview').style.display = 'block';
-        }
-        function hidePreview() { document.getElementById('imagePreview').style.display = 'none'; }
 
         // Save buttons
         document.getElementById('publishBtn').addEventListener('click', () => saveProject('published'));
@@ -609,6 +696,7 @@
             const content = quill.root.innerHTML;
             if (!title || !content || content === '<p><br></p>') { alert('Title and content are required'); return; }
 
+            syncGalleryHidden();
             const body = {
                 title, content,
                 image_url: document.getElementById('imageUrl').value.trim(),
@@ -620,7 +708,9 @@
                 excerpt: document.getElementById('excerpt').value.trim() || null,
                 meta_description: document.getElementById('metaDescription').value.trim() || null,
                 gross_earnings: document.getElementById('grossEarnings').value || null,
-                earnings_currency: document.getElementById('earningsCurrency').value || null
+                earnings_currency: document.getElementById('earningsCurrency').value || null,
+                gallery_images: document.getElementById('galleryImagesHidden').value || null,
+                gallery_layout: document.getElementById('galleryLayout').value || 'single'
             };
 
             try {
@@ -644,13 +734,27 @@
                 document.getElementById('yearEnd').value = p.year_end || '';
                 document.getElementById('projectStatus').value = p.project_status || 'active';
                 setTechsFromString(p.technologies || '');
-                document.getElementById('imageUrl').value = p.image_url || '';
+                // Load gallery state (backward compat: legacy image_url → 1-item gallery)
+                if (p.gallery_images) {
+                    try { galleryImages = JSON.parse(p.gallery_images); } catch (e) { galleryImages = []; }
+                } else if (p.image_url) {
+                    galleryImages = [p.image_url];
+                } else {
+                    galleryImages = [];
+                }
+                galleryLayout = p.gallery_layout || 'single';
+                document.getElementById('galleryLayout').value = galleryLayout;
+                document.querySelectorAll('.gl-btn').forEach(b => {
+                    b.classList.toggle('active', b.dataset.layout === galleryLayout);
+                });
+                renderGalleryThumbs();
+                syncGalleryHidden();
+
                 document.getElementById('excerpt').value = p.excerpt || '';
                 document.getElementById('metaDescription').value = p.meta_description || '';
                 document.getElementById('grossEarnings').value = p.gross_earnings || '';
                 document.getElementById('earningsCurrency').value = p.earnings_currency || '£';
                 quill.root.innerHTML = p.content || '';
-                if (p.image_url) showPreview(p.image_url);
 
                 document.getElementById('formTitle').textContent = 'Edit Project';
                 document.getElementById('publishBtn').textContent = 'Update & Publish';
@@ -696,14 +800,19 @@
             document.getElementById('yearEnd').value = '';
             document.getElementById('projectStatus').value = 'active';
             clearTechs();
-            document.getElementById('imageUrl').value = '';
+            galleryImages = [];
+            galleryLayout = 'single';
+            document.getElementById('galleryLayout').value = 'single';
+            document.querySelectorAll('.gl-btn').forEach(b => b.classList.toggle('active', b.dataset.layout === 'single'));
+            renderGalleryThumbs();
+            syncGalleryHidden();
             document.getElementById('imageFile').value = '';
+            document.getElementById('galleryUrlInput').value = '';
             document.getElementById('excerpt').value = '';
             document.getElementById('metaDescription').value = '';
             document.getElementById('grossEarnings').value = '';
             document.getElementById('earningsCurrency').value = '£';
             quill.root.innerHTML = '';
-            hidePreview();
             document.getElementById('formTitle').textContent = 'Create New Project';
             document.getElementById('publishBtn').textContent = 'Publish Project';
             document.getElementById('draftBtn').textContent = 'Save as Draft';
@@ -854,6 +963,54 @@
         background: transparent; color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.15); cursor: pointer;
     }
     .tcp-cancel:hover { color: rgba(255,255,255,0.8); }
+
+    /* Gallery layout picker */
+    .gallery-layout-picker { display: flex; gap: 6px; }
+    .gl-btn {
+        padding: 6px 16px; border-radius: 6px; font-size: 0.85rem;
+        background: var(--noir-dark, #0f0f1a); color: rgba(255,255,255,0.5);
+        border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s;
+    }
+    .gl-btn.active {
+        background: var(--lz-accent, #c4788a); color: #fff;
+        border-color: var(--lz-accent, #c4788a);
+    }
+    .gl-btn:hover:not(.active) { color: rgba(255,255,255,0.8); border-color: rgba(255,255,255,0.25); }
+
+    /* Gallery thumbnails */
+    .gallery-thumbs {
+        display: flex; flex-wrap: wrap; gap: 8px; min-height: 60px;
+        padding: 8px; border-radius: 8px;
+        background: var(--noir-dark, #0f0f1a);
+        border: 1px solid var(--noir-gray, rgba(255,255,255,0.1));
+    }
+    .gallery-empty {
+        width: 100%; text-align: center; color: rgba(255,255,255,0.3);
+        font-size: 0.85rem; margin: 10px 0;
+    }
+    .gallery-thumb {
+        position: relative; width: 80px; height: 80px; border-radius: 6px;
+        overflow: hidden; border: 2px solid transparent;
+        cursor: grab; transition: border-color 0.2s, opacity 0.2s;
+    }
+    .gallery-thumb:hover { border-color: var(--lz-accent, #c4788a); }
+    .gallery-thumb.dragging { opacity: 0.4; }
+    .gallery-thumb.drag-over { border-color: #4a90d9; }
+    .gallery-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .gallery-thumb-num {
+        position: absolute; top: 3px; left: 3px;
+        background: rgba(0,0,0,0.7); color: #fff; font-size: 0.65rem;
+        padding: 1px 5px; border-radius: 3px; line-height: 1.3;
+    }
+    .gallery-thumb-remove {
+        position: absolute; top: 2px; right: 2px;
+        background: rgba(231,76,60,0.85); color: #fff;
+        border: none; border-radius: 50%; width: 18px; height: 18px;
+        font-size: 0.75rem; line-height: 1; cursor: pointer;
+        display: none; align-items: center; justify-content: center;
+    }
+    .gallery-thumb:hover .gallery-thumb-remove { display: flex; }
+    .gallery-thumb-remove:hover { background: #e74c3c; }
     </style>
 </body>
 </html>

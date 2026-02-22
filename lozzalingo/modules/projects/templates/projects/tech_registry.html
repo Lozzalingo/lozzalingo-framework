@@ -40,6 +40,8 @@
                                 <option value="clients">Clients</option>
                                 <option value="equipment">Equipment</option>
                                 <option value="logistics">Logistics</option>
+                                <option value="materials">Materials</option>
+                                <option value="services">Services</option>
                                 <option value="other">Other</option>
                             </select>
                         </div>
@@ -69,6 +71,7 @@
                             <option value="clients">Clients</option>
                             <option value="equipment">Equipment</option>
                             <option value="logistics">Logistics</option>
+                            <option value="services">Services</option>
                             <option value="other">Other</option>
                         </select>
                         <span id="entryCount" class="item-count"></span>
@@ -165,15 +168,34 @@
                 return;
             }
 
-            container.innerHTML = filtered.map(e => `
-                <div class="article-card tr-entry">
-                    <div class="tr-entry-row">
-                        <span class="tech-pill" data-cat="${e.category}">${e.name}</span>
-                        <span class="status-badge tr-cat-${e.category}">${e.category}</span>
-                        <button class="tr-delete-btn" onclick="window._deleteTech('${e.name.replace(/'/g, "\\'")}')">Delete</button>
+            // Group by category
+            const groups = {};
+            filtered.forEach(e => {
+                if (!groups[e.category]) groups[e.category] = [];
+                groups[e.category].push(e);
+            });
+
+            const catOrder = ['software', 'hardware', 'marketing', 'clients', 'equipment', 'logistics', 'materials', 'services', 'other'];
+            container.innerHTML = catOrder
+                .filter(cat => groups[cat])
+                .map(cat => `
+                    <div class="tr-category-box tr-cat-box-${cat}">
+                        <div class="tr-category-header">${cat}</div>
+                        <div class="tr-pills-wrap">
+                            ${groups[cat].map(e => `
+                                <span class="tech-pill" data-cat="${e.category}">
+                                    ${escapeHtml(e.name)}<button class="tr-pill-x" onclick="window._deleteTech('${e.name.replace(/'/g, "\\'")}')">&times;</button>
+                                </span>
+                            `).join('')}
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `).join('');
+        }
+
+        function escapeHtml(t) {
+            const d = document.createElement('div');
+            d.textContent = t;
+            return d.innerHTML;
         }
 
         window._deleteTech = async function(name) {
@@ -205,46 +227,54 @@
         gap: 12px;
         margin-top: 16px;
         padding: 12px 16px;
-        background: rgba(255,255,255,0.03);
-        border: 1px solid rgba(255,255,255,0.08);
+        background: var(--lz-bg-elevated, rgba(255,255,255,0.03));
+        border: 1px solid var(--lz-border, rgba(255,255,255,0.08));
         border-radius: 8px;
     }
     .tr-preview label {
         font-size: 0.85rem;
-        color: rgba(255,255,255,0.5);
+        color: var(--lz-text-muted, rgba(255,255,255,0.5));
     }
-    .tr-entry-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    .tr-delete-btn {
-        margin-left: auto;
-        padding: 4px 12px;
-        background: var(--lz-danger, #f87171);
-        color: #fff;
-        border: none;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: opacity 0.2s;
-    }
-    .tr-delete-btn:hover {
-        opacity: 0.85;
-    }
-    .tr-cat-software { background: rgba(212,168,85,0.15); color: #d4a855; border: 1px solid rgba(212,168,85,0.3); }
-    .tr-cat-hardware { background: rgba(0,150,255,0.15); color: #4a9eff; border: 1px solid rgba(0,150,255,0.3); }
-    .tr-cat-marketing { background: rgba(255,160,50,0.15); color: #ffa032; border: 1px solid rgba(255,160,50,0.3); }
-    .tr-cat-clients { background: rgba(230,80,100,0.15); color: #e65064; border: 1px solid rgba(230,80,100,0.3); }
-    .tr-cat-equipment { background: rgba(180,180,195,0.15); color: #b4b4c3; border: 1px solid rgba(180,180,195,0.3); }
-    .tr-cat-logistics { background: rgba(46,204,64,0.15); color: #2ecc40; border: 1px solid rgba(46,204,64,0.3); }
-    .tr-cat-other { background: rgba(177,100,255,0.15); color: #b164ff; border: 1px solid rgba(177,100,255,0.3); }
 
-    /* Tech pill colours matching the public site */
+    /* Category boxes */
+    .tr-category-box {
+        margin-bottom: 16px;
+        border-radius: 10px;
+        border: 1px solid var(--lz-border, #2a2a2a);
+        overflow: hidden;
+    }
+    .tr-category-header {
+        padding: 10px 16px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .tr-pills-wrap {
+        padding: 12px 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        background: var(--lz-bg-card, #131313);
+    }
+
+    /* Category box colours */
+    .tr-cat-box-software .tr-category-header  { background: rgba(212,168,85,0.15); color: #d4a855; }
+    .tr-cat-box-hardware .tr-category-header  { background: rgba(0,150,255,0.15); color: #4a9eff; }
+    .tr-cat-box-marketing .tr-category-header { background: rgba(255,160,50,0.15); color: #ffa032; }
+    .tr-cat-box-clients .tr-category-header   { background: rgba(230,80,100,0.15); color: #e65064; }
+    .tr-cat-box-equipment .tr-category-header { background: rgba(180,180,195,0.15); color: #b4b4c3; }
+    .tr-cat-box-logistics .tr-category-header { background: rgba(46,204,64,0.15); color: #2ecc40; }
+    .tr-cat-box-materials .tr-category-header { background: rgba(100,200,240,0.15); color: #64c8f0; }
+    .tr-cat-box-services .tr-category-header  { background: rgba(26,214,186,0.15); color: #1ad6ba; }
+    .tr-cat-box-other .tr-category-header     { background: rgba(177,100,255,0.15); color: #b164ff; }
+
+    /* Tech pills */
     .tech-pill {
-        display: inline-block;
-        padding: 4px 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
         border-radius: 20px;
         font-size: 0.8rem;
         font-weight: 500;
@@ -252,13 +282,32 @@
         color: #4a90d9;
         border: 1px solid rgba(74,144,217,0.3);
     }
-    .tech-pill[data-cat="software"] { background: rgba(212,168,85,0.15); color: #d4a855; border-color: rgba(212,168,85,0.3); }
-    .tech-pill[data-cat="hardware"] { background: rgba(0,150,255,0.15); color: #4a9eff; border-color: rgba(0,150,255,0.3); }
+    .tech-pill[data-cat="software"]  { background: rgba(212,168,85,0.15); color: #d4a855; border-color: rgba(212,168,85,0.3); }
+    .tech-pill[data-cat="hardware"]  { background: rgba(0,150,255,0.15); color: #4a9eff; border-color: rgba(0,150,255,0.3); }
     .tech-pill[data-cat="marketing"] { background: rgba(255,160,50,0.15); color: #ffa032; border-color: rgba(255,160,50,0.3); }
-    .tech-pill[data-cat="clients"] { background: rgba(230,80,100,0.15); color: #e65064; border-color: rgba(230,80,100,0.3); }
+    .tech-pill[data-cat="clients"]   { background: rgba(230,80,100,0.15); color: #e65064; border-color: rgba(230,80,100,0.3); }
     .tech-pill[data-cat="equipment"] { background: rgba(180,180,195,0.15); color: #b4b4c3; border-color: rgba(180,180,195,0.3); }
     .tech-pill[data-cat="logistics"] { background: rgba(46,204,64,0.15); color: #2ecc40; border-color: rgba(46,204,64,0.3); }
-    .tech-pill[data-cat="other"] { background: rgba(177,100,255,0.15); color: #b164ff; border-color: rgba(177,100,255,0.3); }
+    .tech-pill[data-cat="materials"] { background: rgba(100,200,240,0.15); color: #64c8f0; border-color: rgba(100,200,240,0.3); }
+    .tech-pill[data-cat="services"]  { background: rgba(26,214,186,0.15); color: #1ad6ba; border-color: rgba(26,214,186,0.3); }
+    .tech-pill[data-cat="other"]     { background: rgba(177,100,255,0.15); color: #b164ff; border-color: rgba(177,100,255,0.3); }
+
+    /* X button inside pill */
+    .tr-pill-x {
+        background: none;
+        border: none;
+        color: inherit;
+        font-size: 1.1rem;
+        line-height: 1;
+        cursor: pointer;
+        opacity: 0.5;
+        padding: 0;
+        margin-left: 2px;
+        transition: opacity 0.15s;
+    }
+    .tr-pill-x:hover {
+        opacity: 1;
+    }
     </style>
 </body>
 </html>
