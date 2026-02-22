@@ -87,6 +87,7 @@ def init_projects_db():
                 ('earnings_currency', 'TEXT DEFAULT "£"'),
                 ('gallery_images', 'TEXT'),
                 ('gallery_layout', 'TEXT DEFAULT "single"'),
+                ('content_image_layout', 'TEXT DEFAULT "carousel"'),
             ]
             for col_name, col_type in new_columns:
                 if col_name not in columns:
@@ -143,7 +144,7 @@ def get_all_tech_categories():
 _SELECT_COLS = '''id, title, slug, content, image_url, year, status, project_status,
                   excerpt, meta_description, technologies, created_at, updated_at,
                   year_end, gross_earnings, earnings_currency,
-                  gallery_images, gallery_layout'''
+                  gallery_images, gallery_layout, content_image_layout'''
 
 def _row_to_dict(row):
     """Convert a DB row to a project dict"""
@@ -159,6 +160,7 @@ def _row_to_dict(row):
     d['earnings_currency'] = row[15] if len(row) > 15 else None
     d['gallery_images'] = row[16] if len(row) > 16 else None
     d['gallery_layout'] = row[17] if len(row) > 17 else None
+    d['content_image_layout'] = row[18] if len(row) > 18 else 'carousel'
     return d
 
 def create_slug(title):
@@ -222,7 +224,8 @@ def create_project_db(title, content, image_url=None, year=None,
                       status='draft', project_status='active', excerpt=None,
                       meta_description=None, technologies=None,
                       year_end=None, gross_earnings=None, earnings_currency=None,
-                      gallery_images=None, gallery_layout=None):
+                      gallery_images=None, gallery_layout=None,
+                      content_image_layout=None):
     """Create new project in database"""
     projects_db = get_db_config()
     db_connect = get_db_connection()
@@ -236,12 +239,12 @@ def create_project_db(title, content, image_url=None, year=None,
                 INSERT INTO projects (title, slug, content, image_url, year,
                     status, project_status, excerpt, meta_description, technologies,
                     year_end, gross_earnings, earnings_currency,
-                    gallery_images, gallery_layout)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    gallery_images, gallery_layout, content_image_layout)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (title, slug, content, image_url, year,
                   status, project_status, excerpt, meta_description, technologies,
                   year_end, gross_earnings, earnings_currency,
-                  gallery_images, gallery_layout))
+                  gallery_images, gallery_layout, content_image_layout))
             conn.commit()
             return cursor.lastrowid, slug
     except Exception as e:
@@ -252,7 +255,8 @@ def update_project_db(project_id, title, content, image_url=None, year=None,
                       status=None, project_status=None, excerpt=None,
                       meta_description=None, technologies=None,
                       year_end=None, gross_earnings=None, earnings_currency=None,
-                      gallery_images=None, gallery_layout=None):
+                      gallery_images=None, gallery_layout=None,
+                      content_image_layout=None):
     """Update existing project"""
     projects_db = get_db_config()
     db_connect = get_db_connection()
@@ -288,12 +292,13 @@ def update_project_db(project_id, title, content, image_url=None, year=None,
                     status = ?, project_status = ?, excerpt = ?, meta_description = ?,
                     technologies = ?, year_end = ?, gross_earnings = ?,
                     earnings_currency = ?, gallery_images = ?, gallery_layout = ?,
+                    content_image_layout = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (title.strip(), slug, content.strip(), image_url, year,
                   status, project_status, excerpt, meta_description,
                   technologies, year_end, gross_earnings, earnings_currency,
-                  gallery_images, gallery_layout,
+                  gallery_images, gallery_layout, content_image_layout,
                   project_id))
             conn.commit()
 
@@ -492,6 +497,7 @@ def create_project():
 
         gallery_images = data.get('gallery_images') or None
         gallery_layout = data.get('gallery_layout') or None
+        content_image_layout = data.get('content_image_layout') or 'carousel'
 
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
@@ -522,7 +528,8 @@ def create_project():
             excerpt=excerpt, meta_description=meta_description,
             technologies=technologies, year_end=year_end,
             gross_earnings=gross_earnings, earnings_currency=earnings_currency,
-            gallery_images=gallery_images, gallery_layout=gallery_layout
+            gallery_images=gallery_images, gallery_layout=gallery_layout,
+            content_image_layout=content_image_layout
         )
 
         return jsonify({
@@ -561,6 +568,7 @@ def update_project(project_id):
 
         gallery_images = data.get('gallery_images') or None
         gallery_layout = data.get('gallery_layout') or None
+        content_image_layout = data.get('content_image_layout') or 'carousel'
 
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
@@ -591,7 +599,8 @@ def update_project(project_id):
             excerpt=excerpt, meta_description=meta_description,
             technologies=technologies, year_end=year_end,
             gross_earnings=gross_earnings, earnings_currency=earnings_currency,
-            gallery_images=gallery_images, gallery_layout=gallery_layout
+            gallery_images=gallery_images, gallery_layout=gallery_layout,
+            content_image_layout=content_image_layout
         )
 
         if success:
