@@ -69,9 +69,29 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="technologies">Technologies</label>
-                        <input type="text" id="technologies" name="technologies" placeholder="e.g. Python, Flask, React, PostgreSQL">
-                        <small class="form-hint">Comma-separated list — <a href="{{ url_for('projects_admin.tech_registry') }}" style="color: var(--lz-accent, #c4788a);">Manage Tech Registry</a></small>
+                        <label for="techSearchInput">Technologies</label>
+                        <div class="tech-input-wrap" id="techInputWrap">
+                            <div class="tech-tags" id="techTags"></div>
+                            <input type="text" id="techSearchInput" autocomplete="off" placeholder="Type to search technologies...">
+                            <div class="tech-dropdown" id="techDropdown"></div>
+                            <div class="tech-category-picker" id="techCategoryPicker" style="display:none;">
+                                <span class="tcp-label">New tech — pick category:</span>
+                                <select id="techCategorySelect">
+                                    <option value="software">Software</option>
+                                    <option value="hardware">Hardware</option>
+                                    <option value="marketing">Marketing</option>
+                                    <option value="clients">Clients</option>
+                                    <option value="equipment">Equipment</option>
+                                    <option value="logistics">Logistics</option>
+                                    <option value="materials">Materials</option>
+                                    <option value="other">Other</option>
+                                </select>
+                                <button type="button" class="tcp-add" id="techCategoryAddBtn">Add</button>
+                                <button type="button" class="tcp-cancel" id="techCategoryCancelBtn">Cancel</button>
+                            </div>
+                        </div>
+                        <input type="hidden" id="technologies" name="technologies">
+                        <small class="form-hint">Type to search & add — <a href="{{ url_for('projects_admin.tech_registry') }}" style="color: var(--lz-accent, #c4788a);">Manage Tech Registry</a></small>
                     </div>
 
                     <div class="form-group">
@@ -168,6 +188,204 @@
         const UPLOAD_URL = '/admin/projects-editor/upload-image';
         const LIST_URL = '/admin/projects-editor/list-images';
         const DELETE_URL = '/admin/projects-editor/delete-image';
+        const TECH_REGISTRY_URL = '/admin/projects-editor/api/tech-registry';
+
+        /* ── Tech autocomplete ── */
+        const TECH_COLORS = {
+            software: '#d4a855', hardware: '#4a9eff', marketing: '#ffa032',
+            clients: '#e65064', equipment: '#b4b4c3', logistics: '#2ecc40',
+            materials: '#64c8f0', other: '#b164ff'
+        };
+        let techRegistry = [];          // [{name, category}, ...]
+        let selectedTechs = [];         // [{name, category}, ...]
+        let techDropdownIdx = -1;       // keyboard nav index
+
+        async function loadTechRegistry() {
+            try {
+                const res = await fetch(TECH_REGISTRY_URL);
+                techRegistry = await res.json();
+            } catch (e) { console.error('Tech registry load failed', e); }
+        }
+        loadTechRegistry();
+
+        const techSearchInput = document.getElementById('techSearchInput');
+        const techDropdown = document.getElementById('techDropdown');
+        const techTagsEl = document.getElementById('techTags');
+        const techHidden = document.getElementById('technologies');
+        const techWrap = document.getElementById('techInputWrap');
+        const techCategoryPicker = document.getElementById('techCategoryPicker');
+        const techCategorySelect = document.getElementById('techCategorySelect');
+        let pendingTechName = '';
+
+        function syncTechHidden() {
+            techHidden.value = selectedTechs.map(t => t.name).join(', ');
+        }
+
+        function renderTechTags() {
+            techTagsEl.innerHTML = selectedTechs.map((t, i) => {
+                const c = TECH_COLORS[t.category] || TECH_COLORS.other;
+                return `<span class="tech-pill" style="background:rgba(${hexToRgb(c)},0.15);color:${c};border:1px solid rgba(${hexToRgb(c)},0.3);">${escHtml(t.name)}<button type="button" class="tech-pill-x" data-idx="${i}">&times;</button></span>`;
+            }).join('');
+            techTagsEl.querySelectorAll('.tech-pill-x').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    selectedTechs.splice(+this.dataset.idx, 1);
+                    renderTechTags();
+                    syncTechHidden();
+                });
+            });
+        }
+
+        function hexToRgb(hex) {
+            const h = hex.replace('#', '');
+            return [parseInt(h.substring(0,2),16), parseInt(h.substring(2,4),16), parseInt(h.substring(4,6),16)].join(',');
+        }
+
+        function escHtml(s) {
+            const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+        }
+
+        function addTech(name, category) {
+            const n = name.trim().toLowerCase();
+            if (!n || selectedTechs.some(t => t.name === n)) return;
+            selectedTechs.push({ name: n, category: category || 'other' });
+            renderTechTags();
+            syncTechHidden();
+            techSearchInput.value = '';
+            hideTechDropdown();
+        }
+
+        function showTechDropdown(items) {
+            if (!items.length) { hideTechDropdown(); return; }
+            techDropdownIdx = -1;
+            techDropdown.innerHTML = items.map((t, i) => {
+                const c = TECH_COLORS[t.category] || TECH_COLORS.other;
+                return `<div class="tech-dropdown-item" data-idx="${i}"><span class="tech-dd-dot" style="background:${c};"></span>${escHtml(t.name)}<span class="tech-dd-cat">${t.category}</span></div>`;
+            }).join('');
+            techDropdown.style.display = 'block';
+            techDropdown._items = items;
+            techDropdown.querySelectorAll('.tech-dropdown-item').forEach(el => {
+                el.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    const idx = +this.dataset.idx;
+                    addTech(techDropdown._items[idx].name, techDropdown._items[idx].category);
+                });
+            });
+        }
+
+        function hideTechDropdown() {
+            techDropdown.style.display = 'none';
+            techDropdown.innerHTML = '';
+            techDropdownIdx = -1;
+        }
+
+        techSearchInput.addEventListener('input', function() {
+            techCategoryPicker.style.display = 'none';
+            const q = this.value.trim().toLowerCase();
+            if (!q) { hideTechDropdown(); return; }
+            const selectedNames = new Set(selectedTechs.map(t => t.name));
+            const matches = techRegistry.filter(t => t.name.includes(q) && !selectedNames.has(t.name));
+            showTechDropdown(matches.slice(0, 12));
+        });
+
+        techSearchInput.addEventListener('keydown', function(e) {
+            const items = techDropdown._items || [];
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (items.length) {
+                    techDropdownIdx = Math.min(techDropdownIdx + 1, items.length - 1);
+                    highlightDropdownItem();
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (items.length) {
+                    techDropdownIdx = Math.max(techDropdownIdx - 1, 0);
+                    highlightDropdownItem();
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (techDropdownIdx >= 0 && items[techDropdownIdx]) {
+                    addTech(items[techDropdownIdx].name, items[techDropdownIdx].category);
+                } else {
+                    const q = this.value.trim().toLowerCase();
+                    if (!q) return;
+                    const existing = techRegistry.find(t => t.name === q);
+                    if (existing) {
+                        addTech(existing.name, existing.category);
+                    } else {
+                        pendingTechName = q;
+                        techCategoryPicker.style.display = 'flex';
+                        techCategorySelect.focus();
+                        hideTechDropdown();
+                    }
+                }
+            } else if (e.key === 'Escape') {
+                hideTechDropdown();
+                techCategoryPicker.style.display = 'none';
+            } else if (e.key === 'Backspace' && !this.value && selectedTechs.length) {
+                selectedTechs.pop();
+                renderTechTags();
+                syncTechHidden();
+            }
+        });
+
+        function highlightDropdownItem() {
+            techDropdown.querySelectorAll('.tech-dropdown-item').forEach((el, i) => {
+                el.classList.toggle('active', i === techDropdownIdx);
+            });
+        }
+
+        techSearchInput.addEventListener('blur', function() {
+            setTimeout(hideTechDropdown, 150);
+        });
+
+        techWrap.addEventListener('click', function() {
+            techSearchInput.focus();
+        });
+
+        // Category picker — add new tech to registry
+        document.getElementById('techCategoryAddBtn').addEventListener('click', async function() {
+            if (!pendingTechName) return;
+            const cat = techCategorySelect.value;
+            try {
+                await fetch(TECH_REGISTRY_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: pendingTechName, category: cat })
+                });
+                techRegistry.push({ name: pendingTechName, category: cat });
+                addTech(pendingTechName, cat);
+            } catch (e) { alert('Failed to register tech: ' + e.message); }
+            techCategoryPicker.style.display = 'none';
+            pendingTechName = '';
+        });
+
+        document.getElementById('techCategoryCancelBtn').addEventListener('click', function() {
+            techCategoryPicker.style.display = 'none';
+            pendingTechName = '';
+            techSearchInput.focus();
+        });
+
+        function setTechsFromString(str) {
+            selectedTechs = [];
+            if (!str) { renderTechTags(); syncTechHidden(); return; }
+            str.split(',').forEach(s => {
+                const n = s.trim().toLowerCase();
+                if (!n) return;
+                const reg = techRegistry.find(t => t.name === n);
+                selectedTechs.push({ name: n, category: reg ? reg.category : 'other' });
+            });
+            renderTechTags();
+            syncTechHidden();
+        }
+
+        function clearTechs() {
+            selectedTechs = [];
+            techTagsEl.innerHTML = '';
+            techHidden.value = '';
+            techSearchInput.value = '';
+            hideTechDropdown();
+            techCategoryPicker.style.display = 'none';
+        }
 
         const quill = new Quill('#editor', {
             theme: 'snow',
@@ -421,7 +639,7 @@
                 document.getElementById('year').value = p.year || '';
                 document.getElementById('yearEnd').value = p.year_end || '';
                 document.getElementById('projectStatus').value = p.project_status || 'active';
-                document.getElementById('technologies').value = p.technologies || '';
+                setTechsFromString(p.technologies || '');
                 document.getElementById('imageUrl').value = p.image_url || '';
                 document.getElementById('excerpt').value = p.excerpt || '';
                 document.getElementById('metaDescription').value = p.meta_description || '';
@@ -473,7 +691,7 @@
             document.getElementById('year').value = '';
             document.getElementById('yearEnd').value = '';
             document.getElementById('projectStatus').value = 'active';
-            document.getElementById('technologies').value = '';
+            clearTechs();
             document.getElementById('imageUrl').value = '';
             document.getElementById('imageFile').value = '';
             document.getElementById('excerpt').value = '';
@@ -564,6 +782,74 @@
         .ib-grid { grid-template-columns: repeat(2, 1fr); }
         .ib-card { width: 95%; max-height: 90vh; }
     }
+
+    /* Tech autocomplete */
+    .tech-input-wrap {
+        position: relative;
+        display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+        background: var(--noir-charcoal, #1a1a2e);
+        border: 1px solid var(--noir-gray, rgba(255,255,255,0.1));
+        border-radius: 8px; padding: 6px 10px; min-height: 42px; cursor: text;
+        transition: border-color 0.2s;
+    }
+    .tech-input-wrap:focus-within { border-color: var(--lz-accent, #c4788a); }
+    .tech-tags { display: contents; }
+    .tech-pill {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 3px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 500;
+        white-space: nowrap; line-height: 1.4;
+    }
+    .tech-pill-x {
+        background: none; border: none; color: inherit; cursor: pointer;
+        font-size: 1rem; line-height: 1; padding: 0 0 0 2px; opacity: 0.6;
+    }
+    .tech-pill-x:hover { opacity: 1; }
+    #techSearchInput {
+        flex: 1; min-width: 120px; background: transparent; border: none; outline: none;
+        color: var(--noir-white, #e0e0e0); font-size: 0.9rem; padding: 4px 0;
+    }
+    #techSearchInput::placeholder { color: rgba(255,255,255,0.3); }
+    .tech-dropdown {
+        display: none; position: absolute; top: 100%; left: 0; right: 0;
+        background: var(--noir-charcoal, #1a1a2e);
+        border: 1px solid var(--noir-gray, rgba(255,255,255,0.15));
+        border-radius: 8px; margin-top: 4px; max-height: 220px; overflow-y: auto;
+        z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .tech-dropdown-item {
+        display: flex; align-items: center; gap: 8px;
+        padding: 8px 12px; cursor: pointer; font-size: 0.85rem;
+        color: var(--noir-white, #e0e0e0); transition: background 0.15s;
+    }
+    .tech-dropdown-item:hover, .tech-dropdown-item.active {
+        background: rgba(255,255,255,0.08);
+    }
+    .tech-dd-dot {
+        width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .tech-dd-cat {
+        margin-left: auto; font-size: 0.7rem; opacity: 0.45; text-transform: capitalize;
+    }
+    .tech-category-picker {
+        display: flex; align-items: center; gap: 8px; flex-basis: 100%;
+        padding: 8px 0 2px; font-size: 0.82rem;
+    }
+    .tcp-label { color: rgba(255,255,255,0.6); white-space: nowrap; }
+    #techCategorySelect {
+        padding: 4px 8px; border-radius: 6px; font-size: 0.82rem;
+        background: var(--noir-dark, #0f0f1a); color: var(--noir-white, #e0e0e0);
+        border: 1px solid var(--noir-gray, rgba(255,255,255,0.15));
+    }
+    .tcp-add {
+        padding: 4px 12px; border-radius: 6px; font-size: 0.82rem;
+        background: var(--lz-accent, #c4788a); color: #fff; border: none; cursor: pointer;
+    }
+    .tcp-add:hover { opacity: 0.85; }
+    .tcp-cancel {
+        padding: 4px 10px; border-radius: 6px; font-size: 0.82rem;
+        background: transparent; color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.15); cursor: pointer;
+    }
+    .tcp-cancel:hover { color: rgba(255,255,255,0.8); }
     </style>
 </body>
 </html>
