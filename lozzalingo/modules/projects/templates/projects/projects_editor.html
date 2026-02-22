@@ -106,16 +106,6 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Content Image Layout</label>
-                        <small class="form-hint">How consecutive images in the description display on the public page</small>
-                        <div class="gallery-layout-picker" id="contentImageLayoutPicker">
-                            <button type="button" class="gl-btn active" data-layout="carousel">Carousel</button>
-                            <button type="button" class="gl-btn" data-layout="grid">Grid</button>
-                        </div>
-                        <input type="hidden" id="contentImageLayout" name="content_image_layout" value="carousel">
-                    </div>
-
-                    <div class="form-group">
                         <label>Gallery Images</label>
                         <div class="gallery-thumbs" id="galleryThumbs"></div>
                         <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
@@ -199,7 +189,85 @@
         </div>
     </div>
 
+    <!-- Floating image toolbar (positioned inside .ql-container) -->
+    <div id="imgToolbar" class="img-toolbar" style="display:none;">
+        <span class="img-tb-group">
+            <span class="img-tb-label">Size</span>
+            <button type="button" class="img-tb-btn" data-size="small">S</button>
+            <button type="button" class="img-tb-btn" data-size="medium">M</button>
+            <button type="button" class="img-tb-btn" data-size="full">Full</button>
+        </span>
+        <span class="img-tb-sep"></span>
+        <span class="img-tb-group">
+            <span class="img-tb-label">Group</span>
+            <button type="button" class="img-tb-btn" data-layout="single">Single</button>
+            <button type="button" class="img-tb-btn" data-layout="carousel">Carousel</button>
+            <button type="button" class="img-tb-btn" data-layout="grid">Grid</button>
+        </span>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <script>
+    // Custom Image blot — preserves data-size, data-layout, width on <img>
+    (function() {
+        const BaseImage = Quill.import('formats/image');
+
+        class CustomImage extends BaseImage {
+            static create(value) {
+                const node = super.create(value);
+                if (typeof value === 'object' && value !== null) {
+                    if (value['data-size']) node.setAttribute('data-size', value['data-size']);
+                    if (value['data-layout']) node.setAttribute('data-layout', value['data-layout']);
+                    if (value.width) node.style.width = value.width;
+                }
+                return node;
+            }
+
+            static value(node) {
+                return {
+                    src: node.getAttribute('src'),
+                    alt: node.getAttribute('alt') || '',
+                    'data-size': node.getAttribute('data-size') || '',
+                    'data-layout': node.getAttribute('data-layout') || '',
+                    width: node.style.width || ''
+                };
+            }
+
+            static formats(node) {
+                const fmt = {};
+                if (node.getAttribute('data-size')) fmt['data-size'] = node.getAttribute('data-size');
+                if (node.getAttribute('data-layout')) fmt['data-layout'] = node.getAttribute('data-layout');
+                if (node.style.width) fmt.width = node.style.width;
+                const alt = node.getAttribute('alt');
+                if (alt) fmt.alt = alt;
+                return fmt;
+            }
+
+            format(name, value) {
+                if (name === 'data-size') {
+                    if (value) this.domNode.setAttribute('data-size', value);
+                    else this.domNode.removeAttribute('data-size');
+                    // Also set width
+                    const widths = { small: '33%', medium: '50%', full: '100%' };
+                    this.domNode.style.width = widths[value] || '';
+                } else if (name === 'data-layout') {
+                    if (value) this.domNode.setAttribute('data-layout', value);
+                    else this.domNode.removeAttribute('data-layout');
+                } else if (name === 'width') {
+                    if (value) this.domNode.style.width = value;
+                    else this.domNode.style.width = '';
+                } else {
+                    super.format(name, value);
+                }
+            }
+        }
+
+        CustomImage.blotName = 'image';
+        CustomImage.tagName = 'IMG';
+
+        Quill.register(CustomImage, true);
+    })();
+    </script>
     <script src="{{ url_for('admin.static', filename='js/image-compress.js') }}"></script>
     <script>
     (function() {
@@ -429,6 +497,107 @@
 
         loadProjects();
 
+        // === Inline Image Toolbar ===
+        (function() {
+            const toolbar = document.getElementById('imgToolbar');
+            const qlContainer = document.querySelector('.ql-container');
+            const qlEditor = document.querySelector('.ql-editor');
+            let activeImg = null;
+
+            // Move toolbar into .ql-container so absolute positioning works
+            if (qlContainer && toolbar) {
+                qlContainer.style.position = 'relative';
+                qlContainer.appendChild(toolbar);
+            }
+
+            function showToolbar(img) {
+                activeImg = img;
+                img.classList.add('img-selected');
+                toolbar.style.display = 'flex';
+
+                // Highlight active states
+                const curSize = img.getAttribute('data-size') || 'full';
+                const curLayout = img.getAttribute('data-layout') || 'single';
+                toolbar.querySelectorAll('.img-tb-btn').forEach(btn => {
+                    btn.classList.toggle('active',
+                        (btn.dataset.size && btn.dataset.size === curSize) ||
+                        (btn.dataset.layout && btn.dataset.layout === curLayout)
+                    );
+                });
+
+                // Position above the image
+                const containerRect = qlContainer.getBoundingClientRect();
+                const imgRect = img.getBoundingClientRect();
+                const tbHeight = toolbar.offsetHeight;
+                let top = imgRect.top - containerRect.top - tbHeight - 8;
+
+                // If no room above, place below
+                if (top < 0) {
+                    top = imgRect.bottom - containerRect.top + 8;
+                }
+
+                toolbar.style.top = top + 'px';
+                toolbar.style.left = Math.max(0, (imgRect.left - containerRect.left)) + 'px';
+            }
+
+            function hideToolbar() {
+                toolbar.style.display = 'none';
+                if (activeImg) activeImg.classList.remove('img-selected');
+                activeImg = null;
+            }
+
+            // Click on image in editor
+            qlEditor.addEventListener('click', function(e) {
+                if (e.target.tagName === 'IMG') {
+                    e.stopPropagation();
+                    if (activeImg) activeImg.classList.remove('img-selected');
+                    showToolbar(e.target);
+                } else {
+                    hideToolbar();
+                }
+            });
+
+            // Click outside editor hides toolbar
+            document.addEventListener('click', function(e) {
+                if (!toolbar.contains(e.target) && !qlEditor.contains(e.target)) {
+                    hideToolbar();
+                }
+            });
+
+            // Escape hides toolbar
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') hideToolbar();
+            });
+
+            // Size buttons
+            toolbar.querySelectorAll('.img-tb-btn[data-size]').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (!activeImg) return;
+                    const size = this.dataset.size;
+                    const blot = Quill.find(activeImg);
+                    if (blot) {
+                        blot.format('data-size', size);
+                    }
+                    showToolbar(activeImg); // refresh highlights
+                });
+            });
+
+            // Layout buttons
+            toolbar.querySelectorAll('.img-tb-btn[data-layout]').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (!activeImg) return;
+                    const layout = this.dataset.layout;
+                    const blot = Quill.find(activeImg);
+                    if (blot) {
+                        blot.format('data-layout', layout);
+                    }
+                    showToolbar(activeImg); // refresh highlights
+                });
+            });
+        })();
+
         // === Gallery State ===
         let galleryImages = [];
         let galleryLayout = 'single';
@@ -506,17 +675,6 @@
                 this.classList.add('active');
                 galleryLayout = this.dataset.layout;
                 document.getElementById('galleryLayout').value = galleryLayout;
-            });
-        });
-
-        // Content image layout picker
-        let contentImageLayout = 'carousel';
-        document.querySelectorAll('#contentImageLayoutPicker .gl-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('#contentImageLayoutPicker .gl-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                contentImageLayout = this.dataset.layout;
-                document.getElementById('contentImageLayout').value = contentImageLayout;
             });
         });
 
@@ -731,8 +889,7 @@
                 gross_earnings: document.getElementById('grossEarnings').value || null,
                 earnings_currency: document.getElementById('earningsCurrency').value || null,
                 gallery_images: document.getElementById('galleryImagesHidden').value || null,
-                gallery_layout: document.getElementById('galleryLayout').value || 'single',
-                content_image_layout: document.getElementById('contentImageLayout').value || 'carousel'
+                gallery_layout: document.getElementById('galleryLayout').value || 'single'
             };
 
             try {
@@ -771,13 +928,6 @@
                 });
                 renderGalleryThumbs();
                 syncGalleryHidden();
-
-                // Restore content image layout
-                contentImageLayout = p.content_image_layout || 'carousel';
-                document.getElementById('contentImageLayout').value = contentImageLayout;
-                document.querySelectorAll('#contentImageLayoutPicker .gl-btn').forEach(b => {
-                    b.classList.toggle('active', b.dataset.layout === contentImageLayout);
-                });
 
                 document.getElementById('excerpt').value = p.excerpt || '';
                 document.getElementById('metaDescription').value = p.meta_description || '';
@@ -833,9 +983,6 @@
             galleryLayout = 'single';
             document.getElementById('galleryLayout').value = 'single';
             document.querySelectorAll('#galleryLayoutPicker .gl-btn').forEach(b => b.classList.toggle('active', b.dataset.layout === 'single'));
-            contentImageLayout = 'carousel';
-            document.getElementById('contentImageLayout').value = 'carousel';
-            document.querySelectorAll('#contentImageLayoutPicker .gl-btn').forEach(b => b.classList.toggle('active', b.dataset.layout === 'carousel'));
             renderGalleryThumbs();
             syncGalleryHidden();
             document.getElementById('imageFile').value = '';
@@ -1043,6 +1190,70 @@
     }
     .gallery-thumb:hover .gallery-thumb-remove { display: flex; }
     .gallery-thumb-remove:hover { background: #e74c3c; }
+
+    /* Inline image toolbar */
+    .img-toolbar {
+        position: absolute;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 5px 10px;
+        background: var(--noir-charcoal, #1a1a2e);
+        border: 1px solid var(--noir-gray, rgba(255,255,255,0.15));
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        white-space: nowrap;
+    }
+    .img-tb-group {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+    }
+    .img-tb-label {
+        font-size: 0.7rem;
+        color: rgba(255,255,255,0.4);
+        margin-right: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .img-tb-sep {
+        width: 1px;
+        height: 20px;
+        background: rgba(255,255,255,0.12);
+        margin: 0 6px;
+    }
+    .img-tb-btn {
+        padding: 4px 10px;
+        border-radius: 5px;
+        font-size: 0.78rem;
+        background: var(--noir-dark, #0f0f1a);
+        color: rgba(255,255,255,0.5);
+        border: 1px solid rgba(255,255,255,0.1);
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .img-tb-btn.active {
+        background: var(--lz-accent, #c4788a);
+        color: #fff;
+        border-color: var(--lz-accent, #c4788a);
+    }
+    .img-tb-btn:hover:not(.active) {
+        color: rgba(255,255,255,0.8);
+        border-color: rgba(255,255,255,0.25);
+    }
+
+    /* Selected image highlight in editor */
+    .ql-editor img.img-selected {
+        outline: 2px solid var(--lz-accent, #c4788a);
+        outline-offset: 2px;
+        border-radius: 4px;
+    }
+
+    /* Editor-side image sizing */
+    .ql-editor img[data-size="small"] { max-width: 33%; }
+    .ql-editor img[data-size="medium"] { max-width: 50%; }
+    .ql-editor img[data-size="full"] { max-width: 100%; }
     </style>
 </body>
 </html>
