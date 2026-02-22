@@ -335,11 +335,15 @@
         }
 
         techSearchInput.addEventListener('blur', function() {
-            setTimeout(hideTechDropdown, 150);
+            setTimeout(function() {
+                if (!techWrap.contains(document.activeElement)) hideTechDropdown();
+            }, 150);
         });
 
-        techWrap.addEventListener('click', function() {
-            techSearchInput.focus();
+        techWrap.addEventListener('click', function(e) {
+            if (!e.target.closest('.tech-category-picker') && !e.target.closest('.tech-pill-x')) {
+                techSearchInput.focus();
+            }
         });
 
         // Category picker — add new tech to registry
