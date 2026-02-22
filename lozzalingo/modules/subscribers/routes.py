@@ -5,12 +5,15 @@ Subscribers Routes
 Provides:
 - POST / -- subscribe (accepts optional feed/feeds param)
 - GET /stats -- subscriber count
-- GET /feeds -- available feed categories (from app config)
+- GET /feeds -- available feed categories (from app config) + popup config
 - GET /manage -- manage subscription preferences page
 - POST /manage -- update subscription preferences
 - GET /unsubscribe -- unsubscribe page
 - POST /unsubscribe -- process unsubscribe
 - GET /export -- export list (admin auth required)
+- GET /popup-editor -- admin popup config editor
+- GET /popup-config -- return current popup config (admin)
+- POST /popup-config -- save popup config (admin)
 
 Exported helpers:
 - get_all_subscriber_emails(feed=None)
@@ -92,6 +95,69 @@ def _get_default_feed():
         return current_app.config.get('SUBSCRIBER_FEEDS_DEFAULT', '')
     except RuntimeError:
         return ''
+
+
+# Configurable popup defaults — overridden by DB config or app.config['SUBSCRIBER_POPUP']
+POPUP_DEFAULTS = {
+    'title': 'Stay Updated',
+    'subtitle': 'Get the latest news and exclusive content delivered straight to your inbox.',
+    'button_text': 'Subscribe Now',
+    'skip_text': 'No thanks, maybe later',
+    'placeholder': 'Enter your email address',
+    'time_delay': 30,
+    'exit_intent': True,
+    'scroll_trigger': '#news',
+    'dismissal_days': 7,
+    'button_bg': '',
+    'button_color': '',
+    'button_hover_bg': '',
+    'show_feeds': True,
+}
+
+
+def _get_popup_config():
+    """Get popup configuration: DB → app.config['SUBSCRIBER_POPUP'] → POPUP_DEFAULTS"""
+    config = dict(POPUP_DEFAULTS)
+
+    # Layer 2: app.config fallback
+    try:
+        app_popup = current_app.config.get('SUBSCRIBER_POPUP', {})
+        if app_popup:
+            config.update(app_popup)
+    except RuntimeError:
+        pass
+
+    # Layer 1: DB config (highest priority)
+    try:
+        db_path = get_db_config()
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT config FROM subscriber_popup_config LIMIT 1")
+            row = cursor.fetchone()
+            if row and row[0]:
+                db_config = json.loads(row[0])
+                config.update(db_config)
+    except Exception:
+        pass  # Table may not exist yet, or other DB error
+
+    return config
+
+
+def init_popup_config_table():
+    """Create the subscriber_popup_config table (single-row JSON store) in USER_DB"""
+    try:
+        db_path = get_db_config()
+        with sqlite3.connect(db_path) as conn:
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS subscriber_popup_config (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    config TEXT NOT NULL DEFAULT '{}',
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Error creating popup config table: {e}")
 
 
 def init_subscribers_db():
@@ -429,6 +495,60 @@ def export_subscribers():
 
 
 # ===================
+# ADMIN POPUP CONFIG
+# ===================
+
+@subscribers_bp.route('/popup-editor', methods=['GET'])
+def popup_editor():
+    """Admin popup configuration editor page"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    init_popup_config_table()
+    config = _get_popup_config()
+    return render_template('subscribers/popup_editor.html', config=config)
+
+
+@subscribers_bp.route('/popup-config', methods=['GET'])
+def get_popup_config_api():
+    """Return current popup config JSON (admin only)"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    return jsonify(_get_popup_config()), 200
+
+
+@subscribers_bp.route('/popup-config', methods=['POST'])
+def save_popup_config():
+    """Save popup config JSON to DB (admin only)"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        # Whitelist allowed keys
+        allowed = set(POPUP_DEFAULTS.keys())
+        clean = {k: v for k, v in data.items() if k in allowed}
+
+        init_popup_config_table()
+        db_path = get_db_config()
+        with sqlite3.connect(db_path) as conn:
+            conn.execute('''
+                INSERT INTO subscriber_popup_config (id, config, updated_at)
+                VALUES (1, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(id) DO UPDATE SET config = excluded.config, updated_at = excluded.updated_at
+            ''', (json.dumps(clean),))
+            conn.commit()
+
+        return jsonify({'message': 'Popup config saved', 'config': clean}), 200
+
+    except Exception as e:
+        logger.error(f"Error saving popup config: {e}")
+        return jsonify({'error': 'Failed to save config'}), 500
+
+
+# ===================
 # HELPER FUNCTIONS
 # ===================
 
@@ -446,12 +566,13 @@ def get_subscriber_count():
 
 @subscribers_bp.route('/feeds', methods=['GET'])
 def get_feeds():
-    """Return available feed categories from app config (public endpoint)"""
+    """Return available feed categories and popup config (public endpoint)"""
     feeds = _get_feeds_config()
     default_feed = _get_default_feed()
     return jsonify({
         'feeds': feeds,
-        'default': default_feed
+        'default': default_feed,
+        'popup': _get_popup_config()
     }), 200
 
 

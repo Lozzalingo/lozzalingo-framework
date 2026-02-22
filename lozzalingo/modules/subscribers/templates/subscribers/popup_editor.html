@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscriber Popup Editor - Admin</title>
+    <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('subscribers.static', filename='css/subscription-popup.css') }}">
+    <style>
+        .popup-editor-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        .editor-panel { min-width: 0; }
+        .preview-panel {
+            position: sticky;
+            top: 20px;
+            align-self: start;
+        }
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary, #999);
+        }
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--input-bg, #0a0a0a);
+            border: 1px solid var(--border-color, #3a3a3a);
+            color: var(--text-primary, #fff);
+            font-size: 0.9rem;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+        .form-group input[type="color"] {
+            width: 50px;
+            height: 36px;
+            border: 1px solid var(--border-color, #3a3a3a);
+            background: transparent;
+            cursor: pointer;
+            padding: 2px;
+        }
+        .color-field {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .color-field input[type="text"] {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--input-bg, #0a0a0a);
+            border: 1px solid var(--border-color, #3a3a3a);
+            color: var(--text-primary, #fff);
+            font-size: 0.9rem;
+            font-family: monospace;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .checkbox-group label {
+            margin-bottom: 0;
+            cursor: pointer;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .section-divider {
+            border: none;
+            border-top: 1px solid var(--border-color, #3a3a3a);
+            margin: 25px 0;
+        }
+        .section-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary, #666);
+            margin-bottom: 15px;
+        }
+        .btn-save {
+            background: var(--accent-color, #c5a55a);
+            color: #0a0a0a;
+            border: none;
+            padding: 12px 30px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            width: 100%;
+        }
+        .btn-save:hover { opacity: 0.85; }
+        .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+        .save-message {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            min-height: 1.2em;
+        }
+        .save-message.success { color: #22c55e; }
+        .save-message.error { color: #ef4444; }
+
+        /* Live preview wrapper */
+        .preview-frame {
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid var(--border-color, #3a3a3a);
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+        }
+        .preview-frame .subscription-popup-overlay {
+            position: relative;
+            display: flex;
+            background: transparent;
+            width: 100%;
+            height: auto;
+            opacity: 1;
+        }
+        .preview-frame .subscription-popup {
+            transform: scale(1);
+            width: 100%;
+            max-width: 100%;
+        }
+
+        @media (max-width: 900px) {
+            .popup-editor-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-container">
+        <header class="editor-header">
+            <h1>Subscriber Popup Editor</h1>
+            <div class="header-actions">
+                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+                <a href="{{ url_for('admin.dashboard') }}" class="back-link">&larr; Back to Dashboard</a>
+            </div>
+        </header>
+
+        <div class="popup-editor-grid">
+            <!-- Editor Panel -->
+            <div class="editor-panel">
+                <form id="popupConfigForm" onsubmit="return false;">
+                    <p class="section-label">Content</p>
+
+                    <div class="form-group">
+                        <label for="cfg-title">Title</label>
+                        <input type="text" id="cfg-title" value="{{ config.title }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cfg-subtitle">Subtitle</label>
+                        <textarea id="cfg-subtitle" rows="3">{{ config.subtitle }}</textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="cfg-button-text">Button Text</label>
+                            <input type="text" id="cfg-button-text" value="{{ config.button_text }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="cfg-skip-text">Skip Text</label>
+                            <input type="text" id="cfg-skip-text" value="{{ config.skip_text }}">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cfg-placeholder">Email Placeholder</label>
+                        <input type="text" id="cfg-placeholder" value="{{ config.placeholder }}">
+                    </div>
+
+                    <hr class="section-divider">
+                    <p class="section-label">Behaviour</p>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="cfg-time-delay">Time Delay (seconds)</label>
+                            <input type="number" id="cfg-time-delay" value="{{ config.time_delay }}" min="0" max="300">
+                        </div>
+                        <div class="form-group">
+                            <label for="cfg-dismissal-days">Dismissal Days</label>
+                            <input type="number" id="cfg-dismissal-days" value="{{ config.dismissal_days }}" min="1" max="365">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cfg-scroll-trigger">Scroll Trigger Selector</label>
+                        <input type="text" id="cfg-scroll-trigger" value="{{ config.scroll_trigger }}" placeholder="#news or .section-class">
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="cfg-exit-intent" {{ 'checked' if config.exit_intent }}>
+                        <label for="cfg-exit-intent">Enable Exit Intent</label>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="cfg-show-feeds" {{ 'checked' if config.show_feeds }}>
+                        <label for="cfg-show-feeds">Show Feed Options</label>
+                    </div>
+
+                    <hr class="section-divider">
+                    <p class="section-label">Button Colors (leave empty for defaults)</p>
+
+                    <div class="form-group">
+                        <label>Button Background</label>
+                        <div class="color-field">
+                            <input type="color" id="cfg-button-bg-picker" value="{{ config.button_bg or '#ffffff' }}">
+                            <input type="text" id="cfg-button-bg" value="{{ config.button_bg }}" placeholder="#ffffff">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Button Text Color</label>
+                        <div class="color-field">
+                            <input type="color" id="cfg-button-color-picker" value="{{ config.button_color or '#0a0a0a' }}">
+                            <input type="text" id="cfg-button-color" value="{{ config.button_color }}" placeholder="#0a0a0a">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Button Hover Background</label>
+                        <div class="color-field">
+                            <input type="color" id="cfg-button-hover-bg-picker" value="{{ config.button_hover_bg or '#c5a55a' }}">
+                            <input type="text" id="cfg-button-hover-bg" value="{{ config.button_hover_bg }}" placeholder="#c5a55a">
+                        </div>
+                    </div>
+
+                    <hr class="section-divider">
+
+                    <button type="button" class="btn-save" id="saveBtn" onclick="saveConfig()">Save Configuration</button>
+                    <div class="save-message" id="saveMessage"></div>
+                </form>
+            </div>
+
+            <!-- Live Preview Panel -->
+            <div class="preview-panel">
+                <p class="section-label">Live Preview</p>
+                <div class="preview-frame">
+                    <div class="subscription-popup-overlay" style="display:flex; position:relative; opacity:1; background:transparent;">
+                        <div class="subscription-popup" style="transform:scale(1);">
+                            <button class="subscription-popup-close" aria-label="Close popup">&times;</button>
+                            <h2 class="subscription-popup-title" id="preview-title">{{ config.title }}</h2>
+                            <p class="subscription-popup-subtitle" id="preview-subtitle">{{ config.subtitle }}</p>
+                            <form class="subscription-popup-form" onsubmit="return false;">
+                                <div class="subscription-popup-input-group">
+                                    <input type="email" class="subscription-popup-input" id="preview-placeholder" placeholder="{{ config.placeholder }}" disabled>
+                                </div>
+                                <button type="button" class="subscription-popup-submit" id="preview-button">
+                                    <span class="popup-btn-text" id="preview-button-text">{{ config.button_text }}</span>
+                                </button>
+                                <div class="subscription-popup-message" style="display:none;"></div>
+                            </form>
+                            <button class="subscription-popup-skip" id="preview-skip">{{ config.skip_text }}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Sync color pickers ↔ text inputs
+    document.querySelectorAll('.color-field').forEach(group => {
+        const picker = group.querySelector('input[type="color"]');
+        const text = group.querySelector('input[type="text"]');
+        picker.addEventListener('input', () => { text.value = picker.value; updatePreview(); });
+        text.addEventListener('input', () => {
+            if (/^#[0-9a-f]{6}$/i.test(text.value)) picker.value = text.value;
+            updatePreview();
+        });
+    });
+
+    // Live preview updates
+    const fields = [
+        'cfg-title', 'cfg-subtitle', 'cfg-button-text', 'cfg-skip-text',
+        'cfg-placeholder', 'cfg-button-bg', 'cfg-button-color', 'cfg-button-hover-bg'
+    ];
+    fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', updatePreview);
+    });
+
+    function updatePreview() {
+        document.getElementById('preview-title').textContent = document.getElementById('cfg-title').value;
+        document.getElementById('preview-subtitle').textContent = document.getElementById('cfg-subtitle').value;
+        document.getElementById('preview-button-text').textContent = document.getElementById('cfg-button-text').value;
+        document.getElementById('preview-skip').textContent = document.getElementById('cfg-skip-text').value;
+        document.getElementById('preview-placeholder').placeholder = document.getElementById('cfg-placeholder').value;
+
+        const btn = document.getElementById('preview-button');
+        const bg = document.getElementById('cfg-button-bg').value;
+        const color = document.getElementById('cfg-button-color').value;
+        const hoverBg = document.getElementById('cfg-button-hover-bg').value;
+
+        btn.style.setProperty('--popup-btn-bg', bg || null);
+        btn.style.setProperty('--popup-btn-color', color || null);
+        btn.style.setProperty('--popup-btn-hover-bg', hoverBg || null);
+
+        if (bg) { btn.style.background = bg; btn.style.borderColor = bg; }
+        else { btn.style.background = ''; btn.style.borderColor = ''; }
+        if (color) btn.style.color = color;
+        else btn.style.color = '';
+    }
+
+    async function saveConfig() {
+        const btn = document.getElementById('saveBtn');
+        const msg = document.getElementById('saveMessage');
+        btn.disabled = true;
+        msg.textContent = '';
+
+        const config = {
+            title: document.getElementById('cfg-title').value,
+            subtitle: document.getElementById('cfg-subtitle').value,
+            button_text: document.getElementById('cfg-button-text').value,
+            skip_text: document.getElementById('cfg-skip-text').value,
+            placeholder: document.getElementById('cfg-placeholder').value,
+            time_delay: parseInt(document.getElementById('cfg-time-delay').value) || 30,
+            dismissal_days: parseInt(document.getElementById('cfg-dismissal-days').value) || 7,
+            scroll_trigger: document.getElementById('cfg-scroll-trigger').value,
+            exit_intent: document.getElementById('cfg-exit-intent').checked,
+            show_feeds: document.getElementById('cfg-show-feeds').checked,
+            button_bg: document.getElementById('cfg-button-bg').value,
+            button_color: document.getElementById('cfg-button-color').value,
+            button_hover_bg: document.getElementById('cfg-button-hover-bg').value,
+        };
+
+        try {
+            const resp = await fetch('/api/subscribers/popup-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                msg.textContent = 'Saved successfully';
+                msg.className = 'save-message success';
+            } else {
+                msg.textContent = data.error || 'Save failed';
+                msg.className = 'save-message error';
+            }
+        } catch (e) {
+            msg.textContent = 'Network error';
+            msg.className = 'save-message error';
+        }
+        btn.disabled = false;
+        setTimeout(() => { msg.textContent = ''; }, 4000);
+    }
+
+    // Initial preview update
+    updatePreview();
+    </script>
+</body>
+</html>

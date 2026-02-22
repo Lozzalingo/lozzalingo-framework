@@ -119,9 +119,9 @@
 }
 
 .subscription-popup-submit {
-    background: var(--noir-white, #fff);
-    color: var(--noir-black, #0a0a0a);
-    border: 1px solid var(--noir-white, #fff);
+    background: var(--popup-btn-bg, var(--noir-white, #fff));
+    color: var(--popup-btn-color, var(--noir-black, #0a0a0a));
+    border: 1px solid var(--popup-btn-bg, var(--noir-white, #fff));
     padding: 15px 30px;
     font-size: 0.9rem;
     font-weight: 600;
@@ -140,9 +140,9 @@
 }
 
 .subscription-popup-submit:hover {
-    background: var(--noir-gold, #c5a55a);
-    border-color: var(--noir-gold, #c5a55a);
-    color: var(--noir-black, #0a0a0a);
+    background: var(--popup-btn-hover-bg, var(--noir-gold, #c5a55a));
+    border-color: var(--popup-btn-hover-bg, var(--noir-gold, #c5a55a));
+    color: var(--popup-btn-color, var(--noir-black, #0a0a0a));
     transform: translateY(-2px);
 }
 

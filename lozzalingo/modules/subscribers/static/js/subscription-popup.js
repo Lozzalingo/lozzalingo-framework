@@ -1,4 +1,4 @@
-// Subscription Pop-up Manager (Framework version with feed support)
+// Subscription Pop-up Manager (Framework version — config-driven)
 class SubscriptionPopup {
     constructor() {
         this.overlay = null;
@@ -10,13 +10,25 @@ class SubscriptionPopup {
         this.skipBtn = null;
         this.feedContainer = null;
 
-        // Configuration
-        this.timeDelay = 30000; // 30 seconds
-        this.exitIntentEnabled = true;
-        this.scrollTriggerSelector = '#news';
+        // Default config — overridden by server response
+        this.config = {
+            title: 'Stay Updated',
+            subtitle: 'Get the latest news and exclusive content delivered straight to your inbox.',
+            button_text: 'Subscribe Now',
+            skip_text: 'No thanks, maybe later',
+            placeholder: 'Enter your email address',
+            time_delay: 30,
+            exit_intent: true,
+            scroll_trigger: '#news',
+            dismissal_days: 7,
+            button_bg: '',
+            button_color: '',
+            button_hover_bg: '',
+            show_feeds: true,
+        };
+
         this.storageKey = 'subscription_popup_dismissed';
         this.subscriberKey = 'subscriber_email';
-        this.storageExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days
 
         // Feed data
         this.feeds = [];
@@ -35,10 +47,10 @@ class SubscriptionPopup {
         // Permanently skip for known subscribers
         if (this.isSubscriber()) return;
 
-        // Skip if recently dismissed
+        // Skip if recently dismissed (uses default dismissal_days initially)
         if (this.isDismissed()) return;
 
-        // Load feeds then create modal
+        // Load feeds + config then create modal
         this.loadFeeds().then(() => {
             this.createModal();
             this.attachEventListeners();
@@ -53,14 +65,19 @@ class SubscriptionPopup {
             const data = await response.json();
             this.feeds = data.feeds || [];
             this.defaultFeed = data.default || '';
+
+            // Merge server popup config into local config
+            if (data.popup) {
+                Object.assign(this.config, data.popup);
+            }
         } catch (err) {
-            // No feeds — popup will work without radio buttons
+            // No feeds/config — popup will work with defaults
         }
     }
 
     createModal() {
         let feedsHTML = '';
-        if (this.feeds.length > 0) {
+        if (this.config.show_feeds && this.feeds.length > 0) {
             feedsHTML = '<div class="popup-feed-options">';
             feedsHTML += '<div class="popup-feed-label">I\'m interested in:</div>';
             feedsHTML += '<div class="popup-feed-group">';
@@ -93,15 +110,14 @@ class SubscriptionPopup {
             feedsHTML += '</div></div>';
         }
 
+        const c = this.config;
         const modalHTML = `
             <div class="subscription-popup-overlay" id="subscriptionPopup">
                 <div class="subscription-popup">
                     <button class="subscription-popup-close" id="popupClose" aria-label="Close popup">&times;</button>
 
-                    <h2 class="subscription-popup-title">Stay Updated</h2>
-                    <p class="subscription-popup-subtitle">
-                        Get the latest news and exclusive content delivered straight to your inbox.
-                    </p>
+                    <h2 class="subscription-popup-title">${this._esc(c.title)}</h2>
+                    <p class="subscription-popup-subtitle">${this._esc(c.subtitle)}</p>
 
                     <form class="subscription-popup-form" id="popupSubscribeForm">
                         <div class="subscription-popup-input-group">
@@ -110,7 +126,7 @@ class SubscriptionPopup {
                                 id="popupEmail"
                                 name="email"
                                 class="subscription-popup-input"
-                                placeholder="Enter your email address"
+                                placeholder="${this._esc(c.placeholder)}"
                                 required
                                 autocomplete="email"
                             >
@@ -119,7 +135,7 @@ class SubscriptionPopup {
                         ${feedsHTML}
 
                         <button type="submit" class="subscription-popup-submit" id="popupSubmit">
-                            <span class="popup-btn-text">Subscribe Now</span>
+                            <span class="popup-btn-text">${this._esc(c.button_text)}</span>
                             <span class="popup-btn-loading" style="display: none;">
                                 <span class="popup-loading-spinner"></span>
                             </span>
@@ -129,7 +145,7 @@ class SubscriptionPopup {
                     </form>
 
                     <button class="subscription-popup-skip" id="popupSkip">
-                        No thanks, maybe later
+                        ${this._esc(c.skip_text)}
                     </button>
                 </div>
             </div>
@@ -144,6 +160,19 @@ class SubscriptionPopup {
         this.messageElement = document.getElementById('popupMessage');
         this.closeBtn = document.getElementById('popupClose');
         this.skipBtn = document.getElementById('popupSkip');
+
+        // Apply button colors via CSS custom properties
+        if (this.submitBtn) {
+            if (c.button_bg) this.submitBtn.style.setProperty('--popup-btn-bg', c.button_bg);
+            if (c.button_color) this.submitBtn.style.setProperty('--popup-btn-color', c.button_color);
+            if (c.button_hover_bg) this.submitBtn.style.setProperty('--popup-btn-hover-bg', c.button_hover_bg);
+        }
+    }
+
+    _esc(str) {
+        const d = document.createElement('div');
+        d.textContent = str || '';
+        return d.innerHTML;
     }
 
     attachEventListeners() {
@@ -173,9 +202,10 @@ class SubscriptionPopup {
     }
 
     startTimers() {
-        this.timeoutId = setTimeout(() => this.show(), this.timeDelay);
+        const delay = (this.config.time_delay || 30) * 1000;
+        this.timeoutId = setTimeout(() => this.show(), delay);
 
-        if (this.exitIntentEnabled && !this.exitIntentBound) {
+        if (this.config.exit_intent && !this.exitIntentBound) {
             document.addEventListener('mouseout', (e) => this.handleExitIntent(e));
             this.exitIntentBound = true;
         }
@@ -184,7 +214,10 @@ class SubscriptionPopup {
     }
 
     setupScrollTrigger() {
-        const section = document.querySelector(this.scrollTriggerSelector);
+        const selector = this.config.scroll_trigger;
+        if (!selector) return;
+
+        const section = document.querySelector(selector);
         if (!section) return;
 
         this.scrollObserver = new IntersectionObserver((entries) => {
@@ -230,7 +263,7 @@ class SubscriptionPopup {
     }
 
     getSelectedFeeds() {
-        if (!this.feeds.length) return [];
+        if (!this.config.show_feeds || !this.feeds.length) return [];
 
         const selected = this.overlay?.querySelector('input[name="popup_feed"]:checked');
         if (!selected) return [];
@@ -348,7 +381,8 @@ class SubscriptionPopup {
             if (!dismissData) return false;
 
             const data = JSON.parse(dismissData);
-            if (Date.now() - data.timestamp > this.storageExpiry) {
+            const expiryMs = (this.config.dismissal_days || 7) * 24 * 60 * 60 * 1000;
+            if (Date.now() - data.timestamp > expiryMs) {
                 localStorage.removeItem(this.storageKey);
                 return false;
             }
