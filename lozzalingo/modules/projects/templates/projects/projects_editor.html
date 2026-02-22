@@ -197,6 +197,10 @@
             <div class="ib-body">
                 <div id="ibGrid" class="ib-grid"></div>
             </div>
+            <div class="ib-footer" id="ibFooter" style="display:none;">
+                <span id="ibSelectedCount">0 selected</span>
+                <button type="button" class="btn-primary" id="ibAddSelectedBtn">Add Selected</button>
+            </div>
         </div>
     </div>
 
@@ -886,21 +890,29 @@
         // === Image Browser Modal ===
         const ibModal = document.getElementById('imageBrowserModal');
         const ibGrid = document.getElementById('ibGrid');
+        const ibFooter = document.getElementById('ibFooter');
         let ibCurrentFolder = 'projects';
         let ibSelectCallback = null; // When set, Select button calls this instead of addGalleryImage
+        let ibMultiSelect = false;   // When true, allow selecting multiple images
+        let ibSelected = [];         // URLs selected in multi-select mode
 
         document.getElementById('browseImagesBtn').addEventListener('click', () => {
             ibModal.style.display = 'flex';
             loadBrowserImages(ibCurrentFolder);
         });
 
-        document.getElementById('ibCloseBtn').addEventListener('click', () => {
+        function closeImageBrowser() {
             ibModal.style.display = 'none';
             ibSelectCallback = null;
-        });
+            ibMultiSelect = false;
+            ibSelected = [];
+            ibFooter.style.display = 'none';
+        }
+
+        document.getElementById('ibCloseBtn').addEventListener('click', closeImageBrowser);
 
         ibModal.addEventListener('click', (e) => {
-            if (e.target === ibModal) { ibModal.style.display = 'none'; ibSelectCallback = null; }
+            if (e.target === ibModal) closeImageBrowser();
         });
 
         document.querySelectorAll('.ib-tab').forEach(tab => {
@@ -911,6 +923,10 @@
                 loadBrowserImages(ibCurrentFolder);
             });
         });
+
+        function updateIbSelectedCount() {
+            document.getElementById('ibSelectedCount').textContent = ibSelected.length + ' selected';
+        }
 
         async function loadBrowserImages(folder) {
             ibGrid.innerHTML = '<p style="grid-column:1/-1; text-align:center; opacity:0.6;">Loading...</p>';
@@ -932,18 +948,42 @@
                     </div>
                 `).join('');
 
-                ibGrid.querySelectorAll('.ib-select-btn').forEach(btn => {
-                    btn.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        const url = this.dataset.url;
-                        if (ibSelectCallback) {
-                            ibSelectCallback(url);
-                        } else {
-                            addGalleryImage(url);
-                        }
-                        ibModal.style.display = 'none';
+                if (ibMultiSelect) {
+                    // Multi-select: clicking the item toggles selection
+                    ibGrid.querySelectorAll('.ib-item').forEach(item => {
+                        if (ibSelected.includes(item.dataset.url)) item.classList.add('ib-selected');
+                        item.addEventListener('click', function(e) {
+                            if (e.target.closest('.ib-delete-btn')) return;
+                            e.stopPropagation();
+                            const url = this.dataset.url;
+                            const idx = ibSelected.indexOf(url);
+                            if (idx >= 0) {
+                                ibSelected.splice(idx, 1);
+                                this.classList.remove('ib-selected');
+                            } else {
+                                ibSelected.push(url);
+                                this.classList.add('ib-selected');
+                            }
+                            updateIbSelectedCount();
+                        });
                     });
-                });
+                    // Hide per-item Select buttons in multi-select mode
+                    ibGrid.querySelectorAll('.ib-select-btn').forEach(btn => btn.style.display = 'none');
+                } else {
+                    // Single-select: clicking Select picks one and closes
+                    ibGrid.querySelectorAll('.ib-select-btn').forEach(btn => {
+                        btn.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            const url = this.dataset.url;
+                            if (ibSelectCallback) {
+                                ibSelectCallback(url);
+                            } else {
+                                addGalleryImage(url);
+                            }
+                            closeImageBrowser();
+                        });
+                    });
+                }
 
                 ibGrid.querySelectorAll('.ib-delete-btn').forEach(btn => {
                     btn.addEventListener('click', function(e) {
@@ -955,6 +995,14 @@
                 ibGrid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#e74c3c;">Failed to load images.</p>';
             }
         }
+
+        // Multi-select: "Add Selected" button
+        document.getElementById('ibAddSelectedBtn').addEventListener('click', function() {
+            if (ibSelectCallback && ibSelected.length) {
+                ibSelectCallback(ibSelected.slice());
+            }
+            closeImageBrowser();
+        });
 
         async function handleDeleteImage(url) {
             try {
@@ -1296,10 +1344,13 @@
 
             // --- Browse library ---
             document.getElementById('fsBrowseBtn').addEventListener('click', function() {
-                ibSelectCallback = function(url) {
-                    addFsImage(url);
-                    ibSelectCallback = null;
+                ibMultiSelect = true;
+                ibSelected = [];
+                ibSelectCallback = function(urls) {
+                    urls.forEach(function(url) { addFsImage(url); });
                 };
+                ibFooter.style.display = 'flex';
+                updateIbSelectedCount();
                 ibModal.style.display = 'flex';
                 loadBrowserImages(ibCurrentFolder);
             });
@@ -1722,6 +1773,42 @@
         font-size: 0.75rem; cursor: pointer;
     }
     .ib-delete-btn:hover { background: rgba(231,76,60,0.3); }
+    /* Multi-select state */
+    .ib-item.ib-selected {
+        border-color: var(--accent-gold, #e8c547);
+        box-shadow: 0 0 0 2px rgba(232,197,71,0.3);
+    }
+    .ib-item.ib-selected::after {
+        content: '\2713';
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        background: var(--accent-gold, #e8c547);
+        color: #000;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+    .ib-item { position: relative; cursor: pointer; }
+    /* Footer bar for multi-select */
+    .ib-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        background: rgba(0,0,0,0.2);
+    }
+    .ib-footer span {
+        font-size: 0.85rem;
+        color: rgba(255,255,255,0.6);
+        font-family: var(--font-heading, sans-serif);
+    }
     @media (max-width: 600px) {
         .ib-grid { grid-template-columns: repeat(2, 1fr); }
         .ib-card { width: 95%; max-height: 90vh; }
