@@ -1,11 +1,49 @@
 import requests
 import json
 import re
+import os
 from datetime import datetime, timedelta
-from lozzalingo.core import Database, Config
+from lozzalingo.core import Database
 import hashlib
 from .referrer_tracker import ReferrerTracker
 from flask import request as flask_request
+
+
+def get_analytics_db():
+    """Get analytics DB path with 3-tier resolution: app.config > Config > env var."""
+    try:
+        from flask import current_app
+        val = current_app.config.get('ANALYTICS_DB')
+        if val:
+            return val
+    except RuntimeError:
+        pass
+    try:
+        from lozzalingo.core import Config
+        if hasattr(Config, 'ANALYTICS_DB'):
+            return Config.ANALYTICS_DB
+    except ImportError:
+        pass
+    return os.getenv('ANALYTICS_DB', 'analytics_log.db')
+
+
+def get_analytics_table():
+    """Get analytics table name with 3-tier resolution: app.config > Config > env var."""
+    try:
+        from flask import current_app
+        val = current_app.config.get('ANALYTICS_TABLE')
+        if val:
+            return val
+    except RuntimeError:
+        pass
+    try:
+        from lozzalingo.core import Config
+        if hasattr(Config, 'ANALYTICS_TABLE'):
+            return Config.ANALYTICS_TABLE
+    except ImportError:
+        pass
+    return os.getenv('ANALYTICS_TABLE', 'analytics_log')
+
 
 class Analytics:
     # Cache for geolocation data to reduce API calls
@@ -341,21 +379,54 @@ class Analytics:
                 time_spent_seconds = additional_data.get('time_spent_seconds')
                 session_page_count = additional_data.get('session_page_count')
 
-            print(f"[DEBUG ANALYTICS] About to connect to database: {Config.ANALYTICS_DB}")
-            print(f"[DEBUG ANALYTICS] Table name: {Config.ANALYTICS_TABLE}")
+            analytics_db = get_analytics_db()
+            analytics_table = get_analytics_table()
+
+            print(f"[DEBUG ANALYTICS] About to connect to database: {analytics_db}")
+            print(f"[DEBUG ANALYTICS] Table name: {analytics_table}")
 
             # Save to database - FIXED INSERT STATEMENT
-            with Database.connect(Config.ANALYTICS_DB) as conn:
+            with Database.connect(analytics_db) as conn:
                 cursor = conn.cursor()
-                
+
+                # Auto-create table if it doesn't exist (self-healing on first request)
+                cursor.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {analytics_table} (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ip TEXT,
+                        country TEXT,
+                        region TEXT,
+                        city TEXT,
+                        timestamp TEXT NOT NULL,
+                        user_agent TEXT,
+                        referer TEXT,
+                        fingerprint TEXT,
+                        event_type TEXT NOT NULL,
+                        interaction_type TEXT,
+                        additional_data TEXT,
+                        identity TEXT,
+                        fingerprint_hash TEXT,
+                        device_type TEXT,
+                        device_confidence TEXT,
+                        device_os TEXT,
+                        device_brand TEXT,
+                        url TEXT,
+                        from_route TEXT,
+                        to_route TEXT,
+                        navigation_type TEXT,
+                        time_spent_seconds TEXT,
+                        session_page_count TEXT
+                    )
+                """)
+
                 # First, let's verify the table structure
-                cursor.execute(f"PRAGMA table_info({Config.ANALYTICS_TABLE})")
+                cursor.execute(f"PRAGMA table_info({analytics_table})")
                 columns = cursor.fetchall()
                 print(f"[DEBUG ANALYTICS] Table columns: {[col[1] for col in columns]}")
-                
+
                 # Use the exact column order from your schema
                 insert_sql = f"""
-                    INSERT INTO {Config.ANALYTICS_TABLE}
+                    INSERT INTO {analytics_table}
                     (ip, country, region, city, timestamp, user_agent, referer, fingerprint,
                      event_type, interaction_type, additional_data, identity, fingerprint_hash,
                      device_type, device_confidence, device_os, device_brand, url, from_route,
@@ -379,9 +450,9 @@ class Analytics:
                 
                 cursor.execute(insert_sql, values)
                 conn.commit()
-                
+
                 # Verify the insert worked
-                cursor.execute(f"SELECT COUNT(*) FROM {Config.ANALYTICS_TABLE}")
+                cursor.execute(f"SELECT COUNT(*) FROM {analytics_table}")
                 count = cursor.fetchone()[0]
                 print(f"[DEBUG ANALYTICS] Total records in table after insert: {count}")
                 
@@ -396,15 +467,18 @@ class Analytics:
     def init_analytics_db():
         """Initialize the analytics database and table"""
         try:
-            print(f"[DEBUG ANALYTICS] Initializing database: {Config.ANALYTICS_DB}")
-            print(f"[DEBUG ANALYTICS] Table name: {Config.ANALYTICS_TABLE}")
-            
-            with Database.connect(Config.ANALYTICS_DB) as conn:
+            analytics_db = get_analytics_db()
+            analytics_table = get_analytics_table()
+
+            print(f"[DEBUG ANALYTICS] Initializing database: {analytics_db}")
+            print(f"[DEBUG ANALYTICS] Table name: {analytics_table}")
+
+            with Database.connect(analytics_db) as conn:
                 cursor = conn.cursor()
 
                 # Create analytics_log table matching your exact schema
                 cursor.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {Config.ANALYTICS_TABLE} (
+                    CREATE TABLE IF NOT EXISTS {analytics_table} (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         ip TEXT,
                         country TEXT,
@@ -433,16 +507,16 @@ class Analytics:
                 """)
 
                 # Create indexes for better performance
-                cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_timestamp ON {Config.ANALYTICS_TABLE}(timestamp)")
-                cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_event_type ON {Config.ANALYTICS_TABLE}(event_type)")
-                cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_identity ON {Config.ANALYTICS_TABLE}(identity)")
-                cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_country ON {Config.ANALYTICS_TABLE}(country)")
-                cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_fingerprint ON {Config.ANALYTICS_TABLE}(fingerprint)")
+                cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_timestamp ON {analytics_table}(timestamp)")
+                cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_event_type ON {analytics_table}(event_type)")
+                cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_identity ON {analytics_table}(identity)")
+                cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_country ON {analytics_table}(country)")
+                cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_fingerprint ON {analytics_table}(fingerprint)")
 
                 conn.commit()
-                
+
                 # Verify table creation
-                cursor.execute(f"PRAGMA table_info({Config.ANALYTICS_TABLE})")
+                cursor.execute(f"PRAGMA table_info({analytics_table})")
                 columns = cursor.fetchall()
                 print(f"[DEBUG ANALYTICS] Table created with columns: {[col[1] for col in columns]}")
                 
@@ -457,55 +531,58 @@ class Analytics:
     def get_analytics_summary(days=7):
         """Get comprehensive analytics summary"""
         try:
-            with Database.connect(Config.ANALYTICS_DB) as conn:
+            analytics_db = get_analytics_db()
+            analytics_table = get_analytics_table()
+
+            with Database.connect(analytics_db) as conn:
                 cursor = conn.cursor()
-                
+
                 # Get events by type and identity
                 cursor.execute(f"""
-                    SELECT event_type, identity, COUNT(*) 
-                    FROM {Config.ANALYTICS_TABLE} 
+                    SELECT event_type, identity, COUNT(*)
+                    FROM {analytics_table}
                     WHERE datetime(timestamp) >= datetime('now', '-{days} days')
                     GROUP BY event_type, identity
                     ORDER BY COUNT(*) DESC
                 """)
                 events_by_identity = cursor.fetchall()
-                
+
                 # Get unique users (humans only)
                 cursor.execute(f"""
-                    SELECT COUNT(DISTINCT fingerprint_hash) 
-                    FROM {Config.ANALYTICS_TABLE} 
-                    WHERE fingerprint_hash IS NOT NULL 
+                    SELECT COUNT(DISTINCT fingerprint_hash)
+                    FROM {analytics_table}
+                    WHERE fingerprint_hash IS NOT NULL
                     AND identity IN ('human', 'likely_human')
                     AND datetime(timestamp) >= datetime('now', '-{days} days')
                 """)
                 unique_human_users = cursor.fetchone()[0]
-                
+
                 # Get bot vs human ratio
                 cursor.execute(f"""
-                    SELECT identity, COUNT(*) 
-                    FROM {Config.ANALYTICS_TABLE} 
+                    SELECT identity, COUNT(*)
+                    FROM {analytics_table}
                     WHERE datetime(timestamp) >= datetime('now', '-{days} days')
                     GROUP BY identity
                 """)
                 identity_breakdown = dict(cursor.fetchall())
-                
+
                 # Get top countries (humans only)
                 cursor.execute(f"""
-                    SELECT country, COUNT(*) 
-                    FROM {Config.ANALYTICS_TABLE} 
+                    SELECT country, COUNT(*)
+                    FROM {analytics_table}
                     WHERE datetime(timestamp) >= datetime('now', '-{days} days')
                     AND country NOT IN ('Unknown', 'Local')
                     AND identity IN ('human', 'likely_human')
-                    GROUP BY country 
-                    ORDER BY COUNT(*) DESC 
+                    GROUP BY country
+                    ORDER BY COUNT(*) DESC
                     LIMIT 5
                 """)
                 top_countries = cursor.fetchall()
-                
+
                 # Get interaction patterns (humans only)
                 cursor.execute(f"""
-                    SELECT interaction_type, COUNT(*) 
-                    FROM {Config.ANALYTICS_TABLE} 
+                    SELECT interaction_type, COUNT(*)
+                    FROM {analytics_table}
                     WHERE datetime(timestamp) >= datetime('now', '-{days} days')
                     AND event_type = 'interaction'
                     AND identity IN ('human', 'likely_human')
@@ -532,17 +609,20 @@ class Analytics:
     def get_design_analytics_summary(days=7):
         """Get design interaction analytics"""
         try:
-            with Database.connect(Config.ANALYTICS_DB) as conn:
+            analytics_db = get_analytics_db()
+            analytics_table = get_analytics_table()
+
+            with Database.connect(analytics_db) as conn:
                 cursor = conn.cursor()
-                
+
                 # Most viewed designs
                 cursor.execute(f"""
-                    SELECT 
+                    SELECT
                         JSON_EXTRACT(additional_data, '$.design_id') as design_id,
                         JSON_EXTRACT(additional_data, '$.design_title') as design_title,
                         JSON_EXTRACT(additional_data, '$.creator_name') as creator_name,
                         COUNT(*) as view_count
-                    FROM {Config.ANALYTICS_TABLE}
+                    FROM {analytics_table}
                     WHERE datetime(timestamp) >= datetime('now', '-{days} days')
                     AND interaction_type = 'design_view'
                     AND identity IN ('human', 'likely_human')
@@ -551,15 +631,15 @@ class Analytics:
                     LIMIT 20
                 """)
                 popular_designs = cursor.fetchall()
-                
+
                 # Most viewed prompts
                 cursor.execute(f"""
-                    SELECT 
+                    SELECT
                         JSON_EXTRACT(additional_data, '$.design_id') as design_id,
                         JSON_EXTRACT(additional_data, '$.design_title') as design_title,
                         JSON_EXTRACT(additional_data, '$.creator_name') as creator_name,
                         COUNT(*) as prompt_views
-                    FROM {Config.ANALYTICS_TABLE}
+                    FROM {analytics_table}
                     WHERE datetime(timestamp) >= datetime('now', '-{days} days')
                     AND interaction_type = 'prompt_view'
                     AND identity IN ('human', 'likely_human')
@@ -568,13 +648,13 @@ class Analytics:
                     LIMIT 20
                 """)
                 popular_prompts = cursor.fetchall()
-                
+
                 # Social sharing stats
                 cursor.execute(f"""
-                    SELECT 
+                    SELECT
                         JSON_EXTRACT(additional_data, '$.platform') as platform,
                         COUNT(*) as shares
-                    FROM {Config.ANALYTICS_TABLE}
+                    FROM {analytics_table}
                     WHERE datetime(timestamp) >= datetime('now', '-{days} days')
                     AND interaction_type = 'social_share'
                     AND identity IN ('human', 'likely_human')
@@ -582,15 +662,15 @@ class Analytics:
                     ORDER BY COUNT(*) DESC
                 """)
                 social_shares = dict(cursor.fetchall())
-                
+
                 # Etsy click-through stats
                 cursor.execute(f"""
-                    SELECT 
+                    SELECT
                         JSON_EXTRACT(additional_data, '$.design_id') as design_id,
                         JSON_EXTRACT(additional_data, '$.design_title') as design_title,
                         JSON_EXTRACT(additional_data, '$.listing_id') as listing_id,
                         COUNT(*) as etsy_clicks
-                    FROM {Config.ANALYTICS_TABLE}
+                    FROM {analytics_table}
                     WHERE datetime(timestamp) >= datetime('now', '-{days} days')
                     AND interaction_type = 'etsy_buy_click'
                     AND identity IN ('human', 'likely_human')
@@ -599,13 +679,13 @@ class Analytics:
                     LIMIT 15
                 """)
                 etsy_clicks = cursor.fetchall()
-                
+
                 # View source breakdown
                 cursor.execute(f"""
-                    SELECT 
+                    SELECT
                         JSON_EXTRACT(additional_data, '$.view_source') as source,
                         COUNT(*) as views
-                    FROM {Config.ANALYTICS_TABLE}
+                    FROM {analytics_table}
                     WHERE datetime(timestamp) >= datetime('now', '-{days} days')
                     AND interaction_type IN ('design_view', 'prompt_view')
                     AND identity IN ('human', 'likely_human')
@@ -631,15 +711,18 @@ class Analytics:
     def get_top_creators_by_views(days=7, limit=10):
         """Get creators with most design views"""
         try:
-            with Database.connect(Config.ANALYTICS_DB) as conn:
+            analytics_db = get_analytics_db()
+            analytics_table = get_analytics_table()
+
+            with Database.connect(analytics_db) as conn:
                 cursor = conn.cursor()
-                
+
                 cursor.execute(f"""
-                    SELECT 
+                    SELECT
                         JSON_EXTRACT(additional_data, '$.creator_name') as creator_name,
                         COUNT(*) as total_views,
                         COUNT(DISTINCT JSON_EXTRACT(additional_data, '$.design_id')) as unique_designs
-                    FROM {Config.ANALYTICS_TABLE}
+                    FROM {analytics_table}
                     WHERE datetime(timestamp) >= datetime('now', '-{days} days')
                     AND interaction_type IN ('design_view', 'prompt_view')
                     AND identity IN ('human', 'likely_human')
@@ -648,7 +731,7 @@ class Analytics:
                     ORDER BY COUNT(*) DESC
                     LIMIT {limit}
                 """)
-                
+
                 return cursor.fetchall()
                 
         except Exception as e:
@@ -659,36 +742,39 @@ class Analytics:
     def test_database_connection():
         """Test the database connection and table structure"""
         try:
-            print(f"[TEST] Testing database connection to: {Config.ANALYTICS_DB}")
-            
-            with Database.connect(Config.ANALYTICS_DB) as conn:
+            analytics_db = get_analytics_db()
+            analytics_table = get_analytics_table()
+
+            print(f"[TEST] Testing database connection to: {analytics_db}")
+
+            with Database.connect(analytics_db) as conn:
                 cursor = conn.cursor()
-                
+
                 # Check if table exists
-                cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{Config.ANALYTICS_TABLE}'")
+                cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{analytics_table}'")
                 table_exists = cursor.fetchone()
                 print(f"[TEST] Table exists: {bool(table_exists)}")
-                
+
                 if table_exists:
                     # Check table structure
-                    cursor.execute(f"PRAGMA table_info({Config.ANALYTICS_TABLE})")
+                    cursor.execute(f"PRAGMA table_info({analytics_table})")
                     columns = cursor.fetchall()
                     print(f"[TEST] Table columns: {[col[1] for col in columns]}")
-                    
+
                     # Check record count
-                    cursor.execute(f"SELECT COUNT(*) FROM {Config.ANALYTICS_TABLE}")
+                    cursor.execute(f"SELECT COUNT(*) FROM {analytics_table}")
                     count = cursor.fetchone()[0]
                     print(f"[TEST] Total records: {count}")
-                    
+
                     # Show recent records
-                    cursor.execute(f"SELECT * FROM {Config.ANALYTICS_TABLE} ORDER BY timestamp DESC LIMIT 3")
+                    cursor.execute(f"SELECT * FROM {analytics_table} ORDER BY timestamp DESC LIMIT 3")
                     recent = cursor.fetchall()
                     print(f"[TEST] Recent records: {len(recent)} found")
                     for record in recent:
                         print(f"[TEST] Record: {record[:5]}...")  # Show first 5 fields
-                
+
                 return True
-                
+
         except Exception as e:
             import traceback
             print(f"[TEST] Database test failed: {e}")

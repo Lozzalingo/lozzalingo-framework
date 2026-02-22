@@ -110,7 +110,7 @@
 }
 
 /* --- System preference fallback (no data-theme set) --- */
-:root {
+:root:not([data-theme]) {
     /* Default to dark */
     --lz-bg: #0a0a0a;
     --lz-bg-card: #131313;

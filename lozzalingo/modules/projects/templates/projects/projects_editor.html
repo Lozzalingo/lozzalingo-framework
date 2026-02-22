@@ -1280,27 +1280,13 @@
             document.getElementById('fsCancelBtn').addEventListener('click', () => { fsModal.style.display = 'none'; });
             fsModal.addEventListener('click', (e) => { if (e.target === fsModal) fsModal.style.display = 'none'; });
 
-            // --- Helper: insert filmstrip images and set data-layout via DOM ---
+            // --- Helper: insert filmstrip images with data-layout in Delta ---
             function insertFilmstripIntoQuill(startIdx, images) {
-                // Collect URLs to mark
-                const urls = new Set(images.map(img => img.url));
-
-                // Insert all images as plain embeds
                 let idx = startIdx;
                 images.forEach(img => {
-                    quill.insertEmbed(idx, 'image', img.url);
+                    quill.insertEmbed(idx, 'image', { src: img.url, 'data-layout': 'carousel' });
                     idx++;
                 });
-
-                // Set data-layout on DOM nodes, then sync Quill
-                setTimeout(function() {
-                    quill.root.querySelectorAll('img:not([data-layout])').forEach(function(imgEl) {
-                        if (urls.has(imgEl.getAttribute('src'))) {
-                            imgEl.setAttribute('data-layout', 'carousel');
-                        }
-                    });
-                    quill.update();
-                }, 10);
             }
 
             // --- Insert / Update filmstrip ---

@@ -3,24 +3,68 @@ import sqlite3
 import os
 from datetime import datetime, timedelta
 import json
-from lozzalingo.core import Config, logger
+from lozzalingo.core import logger
+from .analytics import get_analytics_db, get_analytics_table
 
 
-import os as _os
-
-# Get the directory where this file is located
-_template_dir = _os.path.join(_os.path.dirname(__file__), 'templates')
-_static_dir = _os.path.join(_os.path.dirname(__file__), 'static')
+_template_dir = os.path.join(os.path.dirname(__file__), 'templates')
+_static_dir = os.path.join(os.path.dirname(__file__), 'static')
 
 analytics_bp = Blueprint('analytics', __name__,
                         url_prefix='/admin/analytics',
                         template_folder=_template_dir,
                         static_folder=_static_dir)
 
-# Database paths
-NEWS_DB = Config.NEWS_DB
-ANALYTICS_DB = Config.ANALYTICS_DB
-USERS_DB = Config.USER_DB
+
+def _get_news_db():
+    """Get news DB path at request time (3-tier resolution)."""
+    try:
+        val = current_app.config.get('NEWS_DB')
+        if val:
+            return val
+    except RuntimeError:
+        pass
+    try:
+        from lozzalingo.core import Config
+        if hasattr(Config, 'NEWS_DB'):
+            return Config.NEWS_DB
+    except ImportError:
+        pass
+    return os.getenv('NEWS_DB', 'news.db')
+
+
+def _get_users_db():
+    """Get users DB path at request time (3-tier resolution)."""
+    try:
+        val = current_app.config.get('USER_DB')
+        if val:
+            return val
+    except RuntimeError:
+        pass
+    try:
+        from lozzalingo.core import Config
+        if hasattr(Config, 'USER_DB'):
+            return Config.USER_DB
+    except ImportError:
+        pass
+    return os.getenv('USER_DB', 'users.db')
+
+
+def _get_merchandise_db():
+    """Get merchandise DB path at request time (3-tier resolution)."""
+    try:
+        val = current_app.config.get('MERCHANDISE')
+        if val:
+            return val
+    except RuntimeError:
+        pass
+    try:
+        from lozzalingo.core import Config
+        if hasattr(Config, 'MERCHANDISE'):
+            return Config.MERCHANDISE
+    except ImportError:
+        pass
+    return os.getenv('MERCHANDISE_DB', 'merchandise.db')
 
 def check_admin_access():
     """Check if user is logged in and is an admin"""
@@ -121,7 +165,7 @@ def get_db_connection(db_path, init_if_missing=False):
     """Get database connection with error handling"""
     try:
         if not os.path.exists(db_path):
-            if init_if_missing and db_path == ANALYTICS_DB:
+            if init_if_missing and db_path == get_analytics_db():
                 # Initialize analytics database
                 try:
                     from lozzalingo.modules.analytics.analytics import Analytics
@@ -216,7 +260,7 @@ def get_overview_stats():
     stats = {}
     
     # Analytics data
-    conn = get_db_connection(ANALYTICS_DB)
+    conn = get_db_connection(get_analytics_db())
     if conn:
         try:
             cursor = conn.cursor()
@@ -327,7 +371,7 @@ def get_overview_stats():
             conn.close()
     
     # Subscribers data
-    conn = get_db_connection(USERS_DB)
+    conn = get_db_connection(_get_users_db())
     if conn:
         try:
             cursor = conn.cursor()
@@ -359,7 +403,7 @@ def get_overview_stats():
             conn.close()
     
     # News data
-    conn = get_db_connection(NEWS_DB)
+    conn = get_db_connection(_get_news_db())
     if conn:
         try:
             cursor = conn.cursor()
@@ -378,7 +422,7 @@ def get_overview_stats():
             conn.close()
 
     # Session analytics (back to analytics DB)
-    conn = get_db_connection(ANALYTICS_DB)
+    conn = get_db_connection(get_analytics_db())
     if conn:
         try:
             cursor = conn.cursor()
@@ -444,7 +488,7 @@ def get_traffic_timeline():
     
     days = request.args.get('days', 7, type=int)
     
-    conn = get_db_connection(ANALYTICS_DB)
+    conn = get_db_connection(get_analytics_db())
     if not conn:
         # Return empty data instead of error for fresh installs
         response = make_response(jsonify({'timeline': []}))
@@ -504,7 +548,7 @@ def get_recent_activity():
     
     limit = request.args.get('limit', 20, type=int)
     
-    conn = get_db_connection(ANALYTICS_DB)
+    conn = get_db_connection(get_analytics_db())
     if not conn:
         response = make_response(jsonify({'activities': []}))
         return add_no_cache_headers(response)
@@ -569,7 +613,7 @@ def get_subscriber_details():
     days = request.args.get('days', 7, type=int)
     limit = request.args.get('limit', 10, type=int)
     
-    conn = get_db_connection(USERS_DB)
+    conn = get_db_connection(_get_users_db())
     if not conn:
         return jsonify({'recent_subscribers': [], 'subscription_trend': []})
 
@@ -632,7 +676,7 @@ def get_news_metrics():
     days = request.args.get('days', 7, type=int)
     limit = request.args.get('limit', 10, type=int)
     
-    conn = get_db_connection(NEWS_DB)
+    conn = get_db_connection(_get_news_db())
     if not conn:
         return jsonify({'recent_articles': [], 'publishing_trend': []})
 
@@ -693,7 +737,7 @@ def get_geographic_data():
     
     days = request.args.get('days', 7, type=int)
     
-    conn = get_db_connection(ANALYTICS_DB)
+    conn = get_db_connection(get_analytics_db())
     if not conn:
         return jsonify({'geographic_data': []})
     
@@ -804,7 +848,7 @@ def get_route_analytics():
 
     days = request.args.get('days', 7, type=int)
 
-    conn = get_db_connection(ANALYTICS_DB)
+    conn = get_db_connection(get_analytics_db())
     if not conn:
         return jsonify({'top_pages': [], 'route_transitions': [], 'session_stats': {'avg_pages_per_session': 0, 'max_pages_per_session': 0}})
 
@@ -940,7 +984,7 @@ def get_referer_data():
 
     days = request.args.get('days', 7, type=int)
 
-    conn = get_db_connection(ANALYTICS_DB)
+    conn = get_db_connection(get_analytics_db())
     if not conn:
         response = make_response(jsonify({
             'top_referers': [],
@@ -1209,8 +1253,8 @@ def get_ecommerce_analytics():
     days = request.args.get('days', 7, type=int)
 
     # Get merchandise database connection from config
-    merchandise_conn = get_db_connection(Config.MERCHANDISE)
-    analytics_conn = get_db_connection(ANALYTICS_DB)
+    merchandise_conn = get_db_connection(_get_merchandise_db())
+    analytics_conn = get_db_connection(get_analytics_db())
 
     if not merchandise_conn or not analytics_conn:
         return jsonify({
@@ -1357,7 +1401,7 @@ def get_sales_metrics():
     cutoff_date = get_cutoff_date(days_param)
 
     # Get merchandise database from config
-    merch_db = Config.MERCHANDISE
+    merch_db = _get_merchandise_db()
 
     conn = get_db_connection(merch_db)
     if not conn:
@@ -1508,8 +1552,8 @@ def get_ecommerce_funnel():
     days_param = request.args.get('days', '7')
     cutoff_date = get_cutoff_date(days_param)
 
-    analytics_conn = get_db_connection(ANALYTICS_DB)
-    merch_conn = get_db_connection(Config.MERCHANDISE)
+    analytics_conn = get_db_connection(get_analytics_db())
+    merch_conn = get_db_connection(_get_merchandise_db())
 
     if not analytics_conn:
         return jsonify({
@@ -1598,7 +1642,7 @@ def get_button_clicks():
     days_param = request.args.get('days', '7')
     cutoff_date = get_cutoff_date(days_param)
 
-    analytics_conn = get_db_connection(ANALYTICS_DB)
+    analytics_conn = get_db_connection(get_analytics_db())
 
     if not analytics_conn:
         return jsonify({

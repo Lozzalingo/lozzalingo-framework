@@ -43,11 +43,17 @@ class Config:
     STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
     
     # Database paths -- env var > DB_DIR-relative default. All modules import these constants.
+    # HOST APP CONFIG CHECKLIST: If your host app defines its own Config class (not inheriting
+    # from this one), it MUST define ALL of the following attributes. Modules use a 3-tier
+    # resolution pattern (app.config > Config with hasattr > env var fallback), but missing
+    # attributes will cause AttributeError if the fallback chain doesn't catch them.
+    #   DB paths: NEWS_DB, USER_DB, ANALYTICS_DB, MERCHANDISE
+    #   Table names: ANALYTICS_TABLE (others are hardcoded in queries)
     NEWS_DB = os.getenv('NEWS_DB', os.path.join(DB_DIR, "news.db"))
     USER_DB = os.getenv('USER_DB', os.path.join(DB_DIR, "users.db"))
     ANALYTICS_DB = os.getenv('ANALYTICS_DB', os.path.join(DB_DIR, "analytics_log.db"))
     MERCHANDISE = os.getenv('MERCHANDISE_DB', os.path.join(DB_DIR, "merchandise.db"))
-    
+
     # Table names
     NEWS_ARTICLES_TABLE = "news_articles"
     ANALYTICS_TABLE = "analytics_log"

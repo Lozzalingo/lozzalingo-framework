@@ -41,6 +41,22 @@ When adding a new module:
 - `flask-cors` is required by `merchandise_public` — host apps must have it in their requirements.txt
 - Core deps: Flask, Flask-SQLAlchemy, Flask-CORS, python-dotenv, requests, PyYAML
 
+### Config Pattern for Modules
+All modules MUST use the 3-tier `get_db_config()` pattern for DB paths and table names — NEVER access `Config.ANALYTICS_DB` (or similar) directly at module level. The pattern:
+1. `current_app.config.get('KEY')` — Flask app config (highest priority)
+2. `Config.KEY` with `hasattr()` guard — framework default
+3. `os.getenv('KEY', 'fallback')` — env var fallback
+
+This prevents `AttributeError` when host apps define their own Config class without all framework attributes.
+
+### New Host App Setup
+When creating a new host app:
+1. Define a `Config` class with at minimum: `ANALYTICS_DB`, `ANALYTICS_TABLE`, `NEWS_DB`, `USER_DB`, `MERCHANDISE`
+2. Or set equivalent env vars (`ANALYTICS_DB`, `NEWS_DB`, etc.)
+3. Create a `databases/` directory — all DB files go here
+4. The analytics table auto-creates on first request, but you can call `Analytics.init_analytics_db()` explicitly
+5. Reference: `laurencedotcomputer` is the simplest host app example
+
 ## Host Apps
 | App | Install Method | Registration | Server |
 |-----|---------------|-------------|--------|
