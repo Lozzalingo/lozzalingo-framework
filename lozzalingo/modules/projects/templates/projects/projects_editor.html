@@ -269,8 +269,7 @@
             <button type="button" class="img-tb-btn" data-layout="carousel">Carousel</button>
             <button type="button" class="img-tb-btn" data-layout="grid">Grid</button>
         </span>
-        <span class="img-tb-sep img-tb-sep-fs" style="display:none;"></span>
-        <button type="button" class="img-tb-btn" id="editFilmstripBtn" style="display:none;">Edit Filmstrip</button>
+        <!-- Filmstrip edit is handled by the blot's built-in overlay button -->
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
@@ -335,6 +334,58 @@
         CustomImage.tagName = 'IMG';
 
         Quill.register(CustomImage, true);
+    })();
+
+    // Filmstrip BlockEmbed — single atomic block containing multiple images
+    (function() {
+        const BlockEmbed = Quill.import('blots/block/embed');
+
+        class FilmstripBlot extends BlockEmbed {
+            static create(value) {
+                const node = super.create();
+                node.setAttribute('contenteditable', 'false');
+                const images = value.images || [];
+                node.dataset.images = JSON.stringify(images);
+
+                images.forEach(function(src) {
+                    const img = document.createElement('img');
+                    img.setAttribute('src', src);
+                    img.setAttribute('draggable', 'false');
+                    node.appendChild(img);
+                });
+
+                // Edit overlay button (editor only)
+                const editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.className = 'fs-edit-overlay';
+                editBtn.textContent = 'Edit Filmstrip';
+                editBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Find blot index in Quill
+                    const blot = Quill.find(node);
+                    if (blot && window._openFilmstripModal) {
+                        const idx = blot.offset(blot.scroll);
+                        window._openFilmstripModal(true, images, idx);
+                    }
+                });
+                node.appendChild(editBtn);
+
+                return node;
+            }
+
+            static value(node) {
+                return {
+                    images: JSON.parse(node.dataset.images || '[]')
+                };
+            }
+        }
+
+        FilmstripBlot.blotName = 'filmstrip';
+        FilmstripBlot.tagName = 'DIV';
+        FilmstripBlot.className = 'img-filmstrip';
+
+        Quill.register(FilmstripBlot, true);
     })();
     </script>
     <script src="{{ url_for('admin.static', filename='js/image-compress.js') }}"></script>
@@ -1274,19 +1325,18 @@
                 renderFsPreview();
                 fsModal.style.display = 'flex';
             }
+            // Expose globally for FilmstripBlot edit overlay
+            window._openFilmstripModal = openFilmstripModal;
 
             // --- Close ---
             document.getElementById('fsCloseBtn').addEventListener('click', () => { fsModal.style.display = 'none'; });
             document.getElementById('fsCancelBtn').addEventListener('click', () => { fsModal.style.display = 'none'; });
             fsModal.addEventListener('click', (e) => { if (e.target === fsModal) fsModal.style.display = 'none'; });
 
-            // --- Helper: insert filmstrip images with data-layout in Delta ---
+            // --- Helper: insert filmstrip as single BlockEmbed ---
             function insertFilmstripIntoQuill(startIdx, images) {
-                let idx = startIdx;
-                images.forEach(img => {
-                    quill.insertEmbed(idx, 'image', { src: img.url, 'data-layout': 'carousel' });
-                    idx++;
-                });
+                const urls = images.map(img => img.url);
+                quill.insertEmbed(startIdx, 'filmstrip', { images: urls }, Quill.sources.USER);
             }
 
             // --- Insert / Update filmstrip ---
@@ -1294,31 +1344,9 @@
                 if (!fsImages.length) { fsModal.style.display = 'none'; return; }
 
                 if (fsEditMode) {
-                    // Find the group of consecutive carousel images containing fsEditIndex
-                    const oldDelta = quill.getContents();
-                    let charIdx = 0, groupStart = -1, groupCount = 0, inGroup = false;
-                    for (const op of oldDelta.ops) {
-                        if (op.insert && typeof op.insert === 'object' && op.insert.image) {
-                            const imgVal = op.insert.image;
-                            const layout = (typeof imgVal === 'object' ? imgVal['data-layout'] : '') || '';
-                            if (layout === 'carousel') {
-                                if (!inGroup) { groupStart = charIdx; groupCount = 0; inGroup = true; }
-                                groupCount++;
-                            } else {
-                                if (inGroup && charIdx > fsEditIndex) break;
-                                inGroup = false;
-                            }
-                        } else {
-                            if (inGroup && charIdx > fsEditIndex) break;
-                            inGroup = false;
-                        }
-                        const len = (op.insert && typeof op.insert === 'string') ? op.insert.length : 1;
-                        charIdx += len;
-                    }
-                    if (groupStart >= 0 && groupCount > 0) {
-                        quill.deleteText(groupStart, groupCount);
-                        insertFilmstripIntoQuill(groupStart, fsImages);
-                    }
+                    // Delete the old filmstrip blot at fsEditIndex, insert new one
+                    quill.deleteText(fsEditIndex, 1);
+                    insertFilmstripIntoQuill(fsEditIndex, fsImages);
                 } else {
                     const insertIdx = fsSavedRange ? fsSavedRange.index : quill.getLength() - 1;
                     insertFilmstripIntoQuill(insertIdx, fsImages);
@@ -1347,63 +1375,7 @@
                 group.appendChild(btn);
             })();
 
-            // --- Edit existing filmstrip from inline toolbar ---
-            document.getElementById('editFilmstripBtn').addEventListener('click', function() {
-                const toolbar = document.getElementById('imgToolbar');
-                const activeImg = document.querySelector('.ql-editor img.img-selected');
-                if (!activeImg || activeImg.getAttribute('data-layout') !== 'carousel') return;
-
-                // Walk Quill delta to find consecutive carousel images in the group
-                const delta = quill.getContents();
-                let charIdx = 0, groupStart = -1, groupUrls = [], inGroup = false;
-                let targetCharIdx = -1;
-
-                // Find the char index of the selected img
-                const blot = Quill.find(activeImg);
-                if (blot) targetCharIdx = quill.getIndex(blot);
-
-                for (const op of delta.ops) {
-                    if (op.insert && typeof op.insert === 'object' && op.insert.image) {
-                        const imgVal = op.insert.image;
-                        const layout = (typeof imgVal === 'object' ? imgVal['data-layout'] : '') || '';
-                        const src = (typeof imgVal === 'object' ? imgVal.src : imgVal) || '';
-                        if (layout === 'carousel') {
-                            if (!inGroup) { groupStart = charIdx; groupUrls = []; inGroup = true; }
-                            groupUrls.push(src);
-                        } else {
-                            if (inGroup && targetCharIdx >= groupStart && targetCharIdx < groupStart + groupUrls.length) break;
-                            inGroup = false;
-                        }
-                    } else {
-                        if (inGroup && targetCharIdx >= groupStart && targetCharIdx < groupStart + groupUrls.length) break;
-                        inGroup = false;
-                    }
-                    const len = (op.insert && typeof op.insert === 'string') ? op.insert.length : 1;
-                    charIdx += len;
-                }
-
-                if (groupUrls.length) {
-                    toolbar.style.display = 'none';
-                    if (activeImg) activeImg.classList.remove('img-selected');
-                    openFilmstripModal(true, groupUrls, groupStart);
-                }
-            });
-
-            // --- Show/hide Edit Filmstrip button in inline toolbar ---
-            const origShowToolbar = null; // We'll hook into the mousedown handler
-            const imgToolbar = document.getElementById('imgToolbar');
-            const editFsBtn = document.getElementById('editFilmstripBtn');
-            const editFsSep = imgToolbar.querySelector('.img-tb-sep-fs');
-
-            // Use MutationObserver to detect when toolbar becomes visible
-            new MutationObserver(function() {
-                if (imgToolbar.style.display !== 'none') {
-                    const activeImg = document.querySelector('.ql-editor img.img-selected');
-                    const isCarousel = activeImg && activeImg.getAttribute('data-layout') === 'carousel';
-                    editFsBtn.style.display = isCarousel ? '' : 'none';
-                    editFsSep.style.display = isCarousel ? '' : 'none';
-                }
-            }).observe(imgToolbar, { attributes: true, attributeFilter: ['style'] });
+            // Edit filmstrip is handled by the blot's built-in edit overlay button
 
             // === Crop Modal ===
             const cropModal = document.getElementById('cropModal');
@@ -2074,22 +2046,56 @@
     /* Quill filmstrip toolbar button */
     .ql-filmstrip { position: relative; }
 
-    /* Editor-side carousel → filmstrip: same height, side by side */
-    .ql-editor p:has(> img[data-layout="carousel"]) {
-        display: inline;
-        margin: 0;
-        line-height: 0;
+    /* Editor-side filmstrip blot */
+    .ql-editor .img-filmstrip {
+        display: flex;
+        gap: 3px;
+        margin: 16px 0;
+        border-radius: 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(0,0,0,0.2);
+        position: relative;
+        max-height: 220px;
     }
-    .ql-editor img[data-layout="carousel"] {
-        height: 200px !important;
-        width: auto !important;
-        max-width: none !important;
-        object-fit: cover !important;
-        object-position: center !important;
-        display: inline-block !important;
-        vertical-align: top !important;
-        margin: 0 2px 0 0 !important;
-        border-radius: 0 !important;
+    .ql-editor .img-filmstrip img {
+        flex: none;
+        width: auto;
+        height: 200px;
+        object-fit: cover;
+        display: block;
+        margin: 0;
+        border-radius: 0;
+    }
+    .ql-editor .img-filmstrip::-webkit-scrollbar { height: 4px; }
+    .ql-editor .img-filmstrip::-webkit-scrollbar-track { background: transparent; }
+    .ql-editor .img-filmstrip::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+    /* Edit overlay on filmstrip */
+    .fs-edit-overlay {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(0,0,0,0.7);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 4px;
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 2;
+        font-family: var(--font-heading, sans-serif);
+    }
+    .ql-editor .img-filmstrip:hover .fs-edit-overlay {
+        opacity: 1;
+    }
+    .fs-edit-overlay:hover {
+        background: rgba(0,0,0,0.9);
+        border-color: var(--accent-gold-dim, #c5a44e);
+        color: var(--accent-gold, #e8c547);
     }
     </style>
 </body>
