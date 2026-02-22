@@ -554,7 +554,7 @@
                     ['bold', 'italic', 'underline', 'strike'],
                     [{ 'list': 'ordered'}, { 'list': 'bullet' }],
                     ['blockquote', 'code-block'],
-                    ['link', 'image', 'filmstrip'],
+                    ['link', 'image'],
                     ['clean']
                 ]
             }
@@ -1349,21 +1349,25 @@
                 fsModal.style.display = 'none';
             });
 
-            // --- Quill toolbar: filmstrip button ---
-            const toolbarModule = quill.getModule('toolbar');
-            if (toolbarModule) {
-                toolbarModule.addHandler('filmstrip', function() {
+            // --- Quill toolbar: filmstrip button (manually created) ---
+            (function() {
+                const toolbarEl = document.querySelector('.ql-toolbar');
+                if (!toolbarEl) return;
+                // Find the group containing the image button and append after it
+                const imgBtn = toolbarEl.querySelector('.ql-image');
+                const group = imgBtn ? imgBtn.closest('.ql-formats') : toolbarEl.querySelector('.ql-formats:last-child');
+                if (!group) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'ql-filmstrip';
+                btn.title = 'Insert Filmstrip';
+                btn.innerHTML = '<svg viewBox="0 0 18 18" width="18" height="18"><rect x="1" y="4" width="4" height="10" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="7" y="4" width="4" height="10" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="13" y="4" width="4" height="10" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
                     openFilmstripModal(false, null, 0);
                 });
-            }
-            // Style the filmstrip toolbar button
-            setTimeout(function() {
-                const btn = document.querySelector('.ql-filmstrip');
-                if (btn) {
-                    btn.innerHTML = '<svg viewBox="0 0 18 18" width="18" height="18"><rect x="1" y="4" width="4" height="10" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="7" y="4" width="4" height="10" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="13" y="4" width="4" height="10" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';
-                    btn.title = 'Insert Filmstrip';
-                }
-            }, 100);
+                group.appendChild(btn);
+            })();
 
             // --- Edit existing filmstrip from inline toolbar ---
             document.getElementById('editFilmstripBtn').addEventListener('click', function() {
