@@ -1403,14 +1403,22 @@
     .ql-editor img[data-size="medium"] { max-width: 50%; }
     .ql-editor img[data-size="full"] { max-width: 100%; }
 
-    /* Editor-side carousel images — uniform height so groups look like real carousels */
+    /* Editor-side carousel → filmstrip: same height, side by side */
+    .ql-editor p:has(> img[data-layout="carousel"]) {
+        display: inline;
+        margin: 0;
+        line-height: 0;
+    }
     .ql-editor img[data-layout="carousel"] {
-        width: 100% !important;
-        max-width: 100% !important;
-        height: 280px;
+        height: 200px;
+        width: auto !important;
+        max-width: none !important;
         object-fit: cover;
         object-position: center;
-        border-radius: 6px;
+        display: inline-block;
+        vertical-align: top;
+        margin: 0 2px 0 0;
+        border-radius: 0;
     }
     </style>
 </body>
