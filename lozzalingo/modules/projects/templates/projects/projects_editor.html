@@ -1280,51 +1280,37 @@
             document.getElementById('fsCancelBtn').addEventListener('click', () => { fsModal.style.display = 'none'; });
             fsModal.addEventListener('click', (e) => { if (e.target === fsModal) fsModal.style.display = 'none'; });
 
+            // --- Helper: insert one filmstrip image and set data-layout via blot ---
+            function insertCarouselImage(idx, url) {
+                quill.insertEmbed(idx, 'image', url);
+                // Set data-layout directly on the blot's DOM node
+                const [leaf] = quill.getLeaf(idx);
+                if (leaf && leaf.domNode && leaf.domNode.tagName === 'IMG') {
+                    leaf.domNode.setAttribute('data-layout', 'carousel');
+                }
+            }
+
             // --- Insert / Update filmstrip ---
             document.getElementById('fsInsertBtn').addEventListener('click', function() {
                 if (!fsImages.length) { fsModal.style.display = 'none'; return; }
 
                 if (fsEditMode) {
-                    // Delete old carousel images from Quill
-                    const delta = quill.getContents();
-                    let idx = 0, startIdx = -1, count = 0;
-                    for (const op of delta.ops) {
-                        if (op.insert && typeof op.insert === 'object' && op.insert.image) {
-                            const layout = (typeof op.insert.image === 'object' ? op.insert.image['data-layout'] : '') || '';
-                            if (layout === 'carousel') {
-                                if (startIdx === -1 || idx === startIdx + count) {
-                                    if (startIdx === -1) startIdx = idx;
-                                    count++;
-                                }
-                            }
-                            idx++;
-                        } else {
-                            const len = typeof op.insert === 'string' ? op.insert.length : 1;
-                            if (startIdx !== -1 && count > 0) {
-                                // Check if this group contains our edit index
-                                if (startIdx <= fsEditIndex && fsEditIndex < startIdx + count) break;
-                                startIdx = -1;
-                                count = 0;
-                            }
-                            idx += len;
-                        }
-                    }
-                    // Find the actual group by walking ops more carefully
-                    // Simpler approach: delete from fsEditIndex, count old images
+                    // Find the group of consecutive carousel images containing fsEditIndex
                     const oldDelta = quill.getContents();
                     let charIdx = 0, groupStart = -1, groupCount = 0, inGroup = false;
                     for (const op of oldDelta.ops) {
                         if (op.insert && typeof op.insert === 'object' && op.insert.image) {
-                            const layout = (typeof op.insert.image === 'object' ? op.insert.image['data-layout'] : '') || '';
+                            const imgVal = op.insert.image;
+                            const layout = (typeof imgVal === 'object' ? imgVal['data-layout'] : '') || '';
                             if (layout === 'carousel') {
                                 if (!inGroup) { groupStart = charIdx; groupCount = 0; inGroup = true; }
                                 groupCount++;
                             } else {
-                                if (inGroup && groupStart === fsEditIndex) break;
+                                if (inGroup && charIdx > fsEditIndex) break;
                                 inGroup = false;
                             }
                         } else {
-                            if (inGroup && groupStart === fsEditIndex) break;
+                            if (inGroup && charIdx > fsEditIndex) break;
                             inGroup = false;
                         }
                         const len = (op.insert && typeof op.insert === 'string') ? op.insert.length : 1;
@@ -1332,10 +1318,9 @@
                     }
                     if (groupStart >= 0 && groupCount > 0) {
                         quill.deleteText(groupStart, groupCount);
-                        // Insert new images at same position
                         let insertIdx = groupStart;
                         fsImages.forEach(img => {
-                            quill.insertEmbed(insertIdx, 'image', { src: img.url, 'data-layout': 'carousel' });
+                            insertCarouselImage(insertIdx, img.url);
                             insertIdx++;
                         });
                     }
@@ -1343,7 +1328,7 @@
                     // Insert at cursor
                     let insertIdx = fsSavedRange ? fsSavedRange.index : quill.getLength() - 1;
                     fsImages.forEach(img => {
-                        quill.insertEmbed(insertIdx, 'image', { src: img.url, 'data-layout': 'carousel' });
+                        insertCarouselImage(insertIdx, img.url);
                         insertIdx++;
                     });
                 }
@@ -1444,7 +1429,6 @@
             function openCropModal(idx) {
                 cropIdx = idx;
                 cropImg = new Image();
-                cropImg.crossOrigin = 'anonymous';
                 cropImg.onload = function() {
                     imgW = cropImg.naturalWidth;
                     imgH = cropImg.naturalHeight;
@@ -1452,6 +1436,15 @@
                     sizeCropCanvas();
                     drawCrop();
                     cropModal.style.display = 'flex';
+                };
+                cropImg.onerror = function() {
+                    // Retry without crossOrigin if it fails
+                    if (cropImg.crossOrigin) {
+                        cropImg.crossOrigin = '';
+                        cropImg.src = fsImages[idx].url;
+                    } else {
+                        alert('Could not load image for cropping.');
+                    }
                 };
                 cropImg.src = fsImages[idx].url;
             }
