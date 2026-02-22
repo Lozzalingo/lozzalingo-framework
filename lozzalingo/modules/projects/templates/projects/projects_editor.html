@@ -106,6 +106,23 @@
                     </div>
 
                     <div class="form-group">
+                        <label>Hero Image Focal Point</label>
+                        <div class="focal-grid" id="focalGrid">
+                            <button type="button" class="focal-cell" data-align="left top" title="Top Left"></button>
+                            <button type="button" class="focal-cell" data-align="center top" title="Top Center"></button>
+                            <button type="button" class="focal-cell" data-align="right top" title="Top Right"></button>
+                            <button type="button" class="focal-cell" data-align="left center" title="Center Left"></button>
+                            <button type="button" class="focal-cell active" data-align="center center" title="Center"></button>
+                            <button type="button" class="focal-cell" data-align="right center" title="Center Right"></button>
+                            <button type="button" class="focal-cell" data-align="left bottom" title="Bottom Left"></button>
+                            <button type="button" class="focal-cell" data-align="center bottom" title="Bottom Center"></button>
+                            <button type="button" class="focal-cell" data-align="right bottom" title="Bottom Right"></button>
+                        </div>
+                        <input type="hidden" id="heroImageAlign" name="hero_image_align" value="center center">
+                        <small class="form-hint">Controls where the hero image anchors when cropped</small>
+                    </div>
+
+                    <div class="form-group">
                         <label>Gallery Images</label>
                         <div class="gallery-thumbs" id="galleryThumbs"></div>
                         <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
@@ -672,6 +689,17 @@
             });
         }
 
+        // Focal point grid picker
+        let heroImageAlign = 'center center';
+        document.querySelectorAll('#focalGrid .focal-cell').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('#focalGrid .focal-cell').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                heroImageAlign = this.dataset.align;
+                document.getElementById('heroImageAlign').value = heroImageAlign;
+            });
+        });
+
         // Gallery layout picker
         document.querySelectorAll('#galleryLayoutPicker .gl-btn').forEach(btn => {
             btn.addEventListener('click', function() {
@@ -893,7 +921,8 @@
                 gross_earnings: document.getElementById('grossEarnings').value || null,
                 earnings_currency: document.getElementById('earningsCurrency').value || null,
                 gallery_images: document.getElementById('galleryImagesHidden').value || null,
-                gallery_layout: document.getElementById('galleryLayout').value || 'single'
+                gallery_layout: document.getElementById('galleryLayout').value || 'single',
+                hero_image_align: document.getElementById('heroImageAlign').value || 'center center'
             };
 
             try {
@@ -932,6 +961,13 @@
                 });
                 renderGalleryThumbs();
                 syncGalleryHidden();
+
+                // Restore focal point
+                heroImageAlign = p.hero_image_align || 'center center';
+                document.getElementById('heroImageAlign').value = heroImageAlign;
+                document.querySelectorAll('#focalGrid .focal-cell').forEach(b => {
+                    b.classList.toggle('active', b.dataset.align === heroImageAlign);
+                });
 
                 document.getElementById('excerpt').value = p.excerpt || '';
                 document.getElementById('metaDescription').value = p.meta_description || '';
@@ -987,6 +1023,9 @@
             galleryLayout = 'single';
             document.getElementById('galleryLayout').value = 'single';
             document.querySelectorAll('#galleryLayoutPicker .gl-btn').forEach(b => b.classList.toggle('active', b.dataset.layout === 'single'));
+            heroImageAlign = 'center center';
+            document.getElementById('heroImageAlign').value = 'center center';
+            document.querySelectorAll('#focalGrid .focal-cell').forEach(b => b.classList.toggle('active', b.dataset.align === 'center center'));
             renderGalleryThumbs();
             syncGalleryHidden();
             document.getElementById('imageFile').value = '';
@@ -1146,6 +1185,43 @@
         background: transparent; color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.15); cursor: pointer;
     }
     .tcp-cancel:hover { color: rgba(255,255,255,0.8); }
+
+    /* Focal point grid picker */
+    .focal-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 28px);
+        gap: 3px;
+        width: fit-content;
+    }
+    .focal-cell {
+        width: 28px; height: 28px;
+        border-radius: 4px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: var(--noir-dark, #0f0f1a);
+        cursor: pointer;
+        position: relative;
+        transition: all 0.15s;
+        padding: 0;
+    }
+    .focal-cell::after {
+        content: '';
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.2);
+        transition: all 0.15s;
+    }
+    .focal-cell:hover { border-color: rgba(255,255,255,0.3); }
+    .focal-cell:hover::after { background: rgba(255,255,255,0.4); }
+    .focal-cell.active {
+        border-color: var(--lz-accent, #c4788a);
+    }
+    .focal-cell.active::after {
+        background: var(--lz-accent, #c4788a);
+        width: 10px; height: 10px;
+    }
 
     /* Gallery layout picker */
     .gallery-layout-picker { display: flex; gap: 6px; }
