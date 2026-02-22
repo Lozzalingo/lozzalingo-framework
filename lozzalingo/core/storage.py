@@ -23,12 +23,21 @@ def _compress_image(file_bytes, filename, max_width=1920, quality=82):
         return file_bytes, filename
 
     ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-    if ext not in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+    if ext not in ('jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'):
         return file_bytes, filename
 
     # Skip GIF (animated) — just pass through
     if ext == 'gif':
         return file_bytes, filename
+
+    # Register HEIC support if available
+    if ext in ('heic', 'heif'):
+        try:
+            import pillow_heif
+            pillow_heif.register_heif_opener()
+        except ImportError:
+            print("pillow-heif not installed, cannot process HEIC")
+            return file_bytes, filename
 
     try:
         img = Image.open(io.BytesIO(file_bytes))

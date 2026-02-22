@@ -48,7 +48,7 @@
                     <div class="form-group">
                         <label for="imageFile">Upload Image</label>
                         <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
-                            <input type="file" id="imageFile" name="image" accept="image/*" style="flex:1;">
+                            <input type="file" id="imageFile" name="image" accept="image/*,.heic,.heif" style="flex:1;">
                             <button type="button" class="btn-secondary" id="browseCoverImagesBtn" style="white-space:nowrap;">Browse Images</button>
                         </div>
                         <small class="form-hint">Supported formats: PNG, JPG, JPEG, GIF, WEBP (max 10MB)</small>
@@ -193,7 +193,7 @@
                     <button type="button" class="image-modal-btn" onclick="loadImageGallery()">Select from Uploaded</button>
                     <button type="button" class="image-modal-btn" onclick="promptImageUrl()">Enter Image URL</button>
                 </div>
-                <input type="file" id="inlineImageFile" accept="image/*" style="display:none;">
+                <input type="file" id="inlineImageFile" accept="image/*,.heic,.heif" style="display:none;">
                 <div class="ib-tabs" id="galleryFolderTabs" style="display:none;">
                     <button type="button" class="ib-tab" data-folder="quick-links">Quick Links</button>
                     <button type="button" class="ib-tab active" data-folder="blog">Blog</button>
