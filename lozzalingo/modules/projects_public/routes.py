@@ -6,6 +6,7 @@ Public-facing project portfolio pages and API.
 """
 
 from flask import Blueprint, render_template, jsonify, redirect, url_for, flash, request
+import json
 import re
 
 projects_public_bp = Blueprint('projects', __name__, url_prefix='/projects', template_folder='templates')
@@ -31,6 +32,22 @@ def format_content(content):
 @projects_public_bp.app_template_filter('format_project_content')
 def format_content_filter(content):
     return format_content(content)
+
+
+@projects_public_bp.app_template_filter('parse_gallery')
+def parse_gallery_filter(value):
+    """Parse a JSON gallery string into a list of image URLs."""
+    if not value:
+        return []
+    if isinstance(value, list):
+        return value
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, list):
+            return parsed
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return []
 
 
 # ===== Routes =====
