@@ -106,20 +106,14 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Hero Image Focal Point</label>
-                        <div class="focal-grid" id="focalGrid">
-                            <button type="button" class="focal-cell" data-align="left top" title="Top Left"></button>
-                            <button type="button" class="focal-cell" data-align="center top" title="Top Center"></button>
-                            <button type="button" class="focal-cell" data-align="right top" title="Top Right"></button>
-                            <button type="button" class="focal-cell" data-align="left center" title="Center Left"></button>
-                            <button type="button" class="focal-cell active" data-align="center center" title="Center"></button>
-                            <button type="button" class="focal-cell" data-align="right center" title="Center Right"></button>
-                            <button type="button" class="focal-cell" data-align="left bottom" title="Bottom Left"></button>
-                            <button type="button" class="focal-cell" data-align="center bottom" title="Bottom Center"></button>
-                            <button type="button" class="focal-cell" data-align="right bottom" title="Bottom Right"></button>
+                        <label>Hero Image Position</label>
+                        <div class="focal-dragger" id="focalDragger">
+                            <div class="focal-dragger-empty" id="focalDraggerEmpty">Add a gallery image to position</div>
+                            <img id="focalDraggerImg" src="" alt="Drag to reposition" style="display:none;">
+                            <div class="focal-dragger-hint" id="focalDraggerHint" style="display:none;">Drag to reposition</div>
                         </div>
-                        <input type="hidden" id="heroImageAlign" name="hero_image_align" value="center center">
-                        <small class="form-hint">Controls where the hero image anchors when cropped</small>
+                        <input type="hidden" id="heroImageAlign" name="hero_image_align" value="center 50%">
+                        <small class="form-hint">Drag the preview up/down to control the hero crop</small>
                     </div>
 
                     <div class="form-group">
@@ -511,6 +505,7 @@
         });
 
         let editingId = null;
+        let cachedProjects = []; // client-side cache for filtering
 
         loadProjects();
 
@@ -633,6 +628,7 @@
             galleryImages.push(url);
             renderGalleryThumbs();
             syncGalleryHidden();
+            updateFocalPreview();
         }
 
         function renderGalleryThumbs() {
@@ -653,6 +649,7 @@
                     galleryImages.splice(+this.dataset.idx, 1);
                     renderGalleryThumbs();
                     syncGalleryHidden();
+                    updateFocalPreview();
                 });
             });
 
@@ -685,20 +682,77 @@
                     galleryImages.splice(dropIdx, 0, moved);
                     renderGalleryThumbs();
                     syncGalleryHidden();
+                    updateFocalPreview();
                 });
             });
         }
 
-        // Focal point grid picker
-        let heroImageAlign = 'center center';
-        document.querySelectorAll('#focalGrid .focal-cell').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('#focalGrid .focal-cell').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                heroImageAlign = this.dataset.align;
-                document.getElementById('heroImageAlign').value = heroImageAlign;
-            });
-        });
+        // Focal point drag positioner (Facebook-style)
+        let heroImageAlign = 'center 50%';
+        let focalPercent = 50; // 0 = top, 100 = bottom
+        const focalDragger = document.getElementById('focalDragger');
+        const focalImg = document.getElementById('focalDraggerImg');
+        const focalEmpty = document.getElementById('focalDraggerEmpty');
+        const focalHint = document.getElementById('focalDraggerHint');
+
+        function updateFocalPreview() {
+            const src = galleryImages.length ? galleryImages[0] : '';
+            if (src) {
+                focalImg.src = src;
+                focalImg.style.display = 'block';
+                focalImg.style.objectPosition = `center ${focalPercent}%`;
+                focalEmpty.style.display = 'none';
+                focalHint.style.display = '';
+            } else {
+                focalImg.style.display = 'none';
+                focalEmpty.style.display = '';
+                focalHint.style.display = 'none';
+            }
+        }
+
+        function setFocalPercent(pct) {
+            focalPercent = Math.max(0, Math.min(100, pct));
+            heroImageAlign = `center ${Math.round(focalPercent)}%`;
+            document.getElementById('heroImageAlign').value = heroImageAlign;
+            if (focalImg.style.display !== 'none') {
+                focalImg.style.objectPosition = `center ${focalPercent}%`;
+            }
+        }
+
+        // Drag handling
+        (function() {
+            let dragging = false, startY = 0, startPct = 0;
+
+            function onStart(e) {
+                if (focalImg.style.display === 'none') return;
+                dragging = true;
+                startY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+                startPct = focalPercent;
+                focalDragger.classList.add('dragging');
+                e.preventDefault();
+            }
+            function onMove(e) {
+                if (!dragging) return;
+                const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+                const deltaY = clientY - startY;
+                // Dragging down = show higher part of image = lower percentage
+                const containerH = focalDragger.offsetHeight;
+                const pctDelta = -(deltaY / containerH) * 100;
+                setFocalPercent(startPct + pctDelta);
+            }
+            function onEnd() {
+                if (!dragging) return;
+                dragging = false;
+                focalDragger.classList.remove('dragging');
+            }
+
+            focalDragger.addEventListener('mousedown', onStart);
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onEnd);
+            focalDragger.addEventListener('touchstart', onStart, { passive: false });
+            document.addEventListener('touchmove', onMove, { passive: true });
+            document.addEventListener('touchend', onEnd);
+        })();
 
         // Gallery layout picker
         document.querySelectorAll('#galleryLayoutPicker .gl-btn').forEach(btn => {
@@ -848,8 +902,8 @@
         async function loadProjects() {
             try {
                 const res = await fetch(API_BASE);
-                const projects = await res.json();
-                renderProjects(projects);
+                cachedProjects = await res.json();
+                renderProjects(cachedProjects);
             } catch (e) { console.error('Error loading projects:', e); }
         }
 
@@ -899,8 +953,8 @@
             `).join('');
         }
 
-        document.getElementById('projectSearch').addEventListener('input', () => fetch(API_BASE).then(r => r.json()).then(renderProjects));
-        document.getElementById('projectFilter').addEventListener('change', () => fetch(API_BASE).then(r => r.json()).then(renderProjects));
+        document.getElementById('projectSearch').addEventListener('input', () => renderProjects(cachedProjects));
+        document.getElementById('projectFilter').addEventListener('change', () => renderProjects(cachedProjects));
 
         async function saveProject(status) {
             const title = document.getElementById('title').value.trim();
@@ -962,12 +1016,20 @@
                 renderGalleryThumbs();
                 syncGalleryHidden();
 
-                // Restore focal point
-                heroImageAlign = p.hero_image_align || 'center center';
+                // Restore focal point — parse percentage from stored value
+                heroImageAlign = p.hero_image_align || 'center 50%';
                 document.getElementById('heroImageAlign').value = heroImageAlign;
-                document.querySelectorAll('#focalGrid .focal-cell').forEach(b => {
-                    b.classList.toggle('active', b.dataset.align === heroImageAlign);
-                });
+                const pctMatch = heroImageAlign.match(/(\d+)%/);
+                if (pctMatch) {
+                    focalPercent = parseInt(pctMatch[1], 10);
+                } else if (heroImageAlign.includes('top')) {
+                    focalPercent = 0;
+                } else if (heroImageAlign.includes('bottom')) {
+                    focalPercent = 100;
+                } else {
+                    focalPercent = 50;
+                }
+                updateFocalPreview();
 
                 document.getElementById('excerpt').value = p.excerpt || '';
                 document.getElementById('metaDescription').value = p.meta_description || '';
@@ -1023,9 +1085,10 @@
             galleryLayout = 'single';
             document.getElementById('galleryLayout').value = 'single';
             document.querySelectorAll('#galleryLayoutPicker .gl-btn').forEach(b => b.classList.toggle('active', b.dataset.layout === 'single'));
-            heroImageAlign = 'center center';
-            document.getElementById('heroImageAlign').value = 'center center';
-            document.querySelectorAll('#focalGrid .focal-cell').forEach(b => b.classList.toggle('active', b.dataset.align === 'center center'));
+            heroImageAlign = 'center 50%';
+            focalPercent = 50;
+            document.getElementById('heroImageAlign').value = 'center 50%';
+            updateFocalPreview();
             renderGalleryThumbs();
             syncGalleryHidden();
             document.getElementById('imageFile').value = '';
@@ -1186,41 +1249,46 @@
     }
     .tcp-cancel:hover { color: rgba(255,255,255,0.8); }
 
-    /* Focal point grid picker */
-    .focal-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 28px);
-        gap: 3px;
-        width: fit-content;
-    }
-    .focal-cell {
-        width: 28px; height: 28px;
-        border-radius: 4px;
+    /* Focal point drag positioner */
+    .focal-dragger {
+        position: relative;
+        width: 100%;
+        height: 120px;
+        border-radius: 8px;
+        overflow: hidden;
         border: 1px solid rgba(255,255,255,0.12);
         background: var(--noir-dark, #0f0f1a);
-        cursor: pointer;
-        position: relative;
-        transition: all 0.15s;
-        padding: 0;
+        cursor: grab;
+        user-select: none;
+        -webkit-user-select: none;
     }
-    .focal-cell::after {
-        content: '';
+    .focal-dragger.dragging { cursor: grabbing; }
+    .focal-dragger-empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: rgba(255,255,255,0.3);
+        font-size: 0.85rem;
+    }
+    #focalDraggerImg {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+    }
+    .focal-dragger-hint {
         position: absolute;
-        top: 50%; left: 50%;
-        transform: translate(-50%, -50%);
-        width: 8px; height: 8px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.2);
-        transition: all 0.15s;
-    }
-    .focal-cell:hover { border-color: rgba(255,255,255,0.3); }
-    .focal-cell:hover::after { background: rgba(255,255,255,0.4); }
-    .focal-cell.active {
-        border-color: var(--lz-accent, #c4788a);
-    }
-    .focal-cell.active::after {
-        background: var(--lz-accent, #c4788a);
-        width: 10px; height: 10px;
+        bottom: 6px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.65);
+        color: rgba(255,255,255,0.75);
+        padding: 2px 10px;
+        border-radius: 10px;
+        font-size: 0.7rem;
+        pointer-events: none;
+        letter-spacing: 0.03em;
     }
 
     /* Gallery layout picker */
@@ -1334,6 +1402,16 @@
     .ql-editor img[data-size="small"] { max-width: 33%; }
     .ql-editor img[data-size="medium"] { max-width: 50%; }
     .ql-editor img[data-size="full"] { max-width: 100%; }
+
+    /* Editor-side carousel images — uniform height so groups look like real carousels */
+    .ql-editor img[data-layout="carousel"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 280px;
+        object-fit: cover;
+        object-position: center;
+        border-radius: 6px;
+    }
     </style>
 </body>
 </html>
