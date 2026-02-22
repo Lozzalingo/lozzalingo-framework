@@ -697,6 +697,66 @@ def upload_image():
         return jsonify({'error': 'Failed to upload image'}), 500
 
 
+@projects_bp.route('/crop-image', methods=['POST'])
+def crop_image():
+    """Crop an image server-side and re-upload (avoids CORS canvas issues)"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    url = data.get('url', '')
+    cx = int(round(data.get('x', 0)))
+    cy = int(round(data.get('y', 0)))
+    cw = int(round(data.get('w', 0)))
+    ch = int(round(data.get('h', 0)))
+
+    if not url or cw <= 0 or ch <= 0:
+        return jsonify({'error': 'Invalid crop parameters'}), 400
+
+    try:
+        from PIL import Image as PILImage
+        from flask import current_app
+        from lozzalingo.core.storage import upload_file
+        import io
+
+        # Download the image
+        if url.startswith('/static/'):
+            rel_path = url[len('/static/'):]
+            full_path = os.path.join(current_app.static_folder, rel_path)
+            with open(full_path, 'rb') as f:
+                img_bytes = f.read()
+        else:
+            import urllib.request
+            with urllib.request.urlopen(url) as resp:
+                img_bytes = resp.read()
+
+        # Open and crop
+        img = PILImage.open(io.BytesIO(img_bytes))
+        cropped = img.crop((cx, cy, cx + cw, cy + ch))
+
+        # Convert to RGB if needed (for JPEG output)
+        if cropped.mode in ('RGBA', 'P', 'LA'):
+            cropped = cropped.convert('RGB')
+
+        # Save to bytes
+        buf = io.BytesIO()
+        cropped.save(buf, format='JPEG', quality=85)
+        cropped_bytes = buf.getvalue()
+
+        # Upload via storage module
+        unique_filename = f"{uuid.uuid4().hex}.jpg"
+        image_url = upload_file(cropped_bytes, unique_filename, 'projects')
+
+        return jsonify({'success': True, 'image_url': image_url})
+
+    except Exception as e:
+        print(f"Error cropping image: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @projects_bp.route('/list-images', methods=['GET'])
 def list_images():
     """List uploaded images for the image browser modal"""

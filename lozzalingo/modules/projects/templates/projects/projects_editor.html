@@ -1280,14 +1280,27 @@
             document.getElementById('fsCancelBtn').addEventListener('click', () => { fsModal.style.display = 'none'; });
             fsModal.addEventListener('click', (e) => { if (e.target === fsModal) fsModal.style.display = 'none'; });
 
-            // --- Helper: insert one filmstrip image and set data-layout via blot ---
-            function insertCarouselImage(idx, url) {
-                quill.insertEmbed(idx, 'image', url);
-                // Set data-layout directly on the blot's DOM node
-                const [leaf] = quill.getLeaf(idx);
-                if (leaf && leaf.domNode && leaf.domNode.tagName === 'IMG') {
-                    leaf.domNode.setAttribute('data-layout', 'carousel');
-                }
+            // --- Helper: insert filmstrip images and set data-layout via DOM ---
+            function insertFilmstripIntoQuill(startIdx, images) {
+                // Collect URLs to mark
+                const urls = new Set(images.map(img => img.url));
+
+                // Insert all images as plain embeds
+                let idx = startIdx;
+                images.forEach(img => {
+                    quill.insertEmbed(idx, 'image', img.url);
+                    idx++;
+                });
+
+                // Set data-layout on DOM nodes, then sync Quill
+                setTimeout(function() {
+                    quill.root.querySelectorAll('img:not([data-layout])').forEach(function(imgEl) {
+                        if (urls.has(imgEl.getAttribute('src'))) {
+                            imgEl.setAttribute('data-layout', 'carousel');
+                        }
+                    });
+                    quill.update();
+                }, 10);
             }
 
             // --- Insert / Update filmstrip ---
@@ -1318,19 +1331,11 @@
                     }
                     if (groupStart >= 0 && groupCount > 0) {
                         quill.deleteText(groupStart, groupCount);
-                        let insertIdx = groupStart;
-                        fsImages.forEach(img => {
-                            insertCarouselImage(insertIdx, img.url);
-                            insertIdx++;
-                        });
+                        insertFilmstripIntoQuill(groupStart, fsImages);
                     }
                 } else {
-                    // Insert at cursor
-                    let insertIdx = fsSavedRange ? fsSavedRange.index : quill.getLength() - 1;
-                    fsImages.forEach(img => {
-                        insertCarouselImage(insertIdx, img.url);
-                        insertIdx++;
-                    });
+                    const insertIdx = fsSavedRange ? fsSavedRange.index : quill.getLength() - 1;
+                    insertFilmstripIntoQuill(insertIdx, fsImages);
                 }
 
                 fsModal.style.display = 'none';
@@ -1607,38 +1612,30 @@
             document.addEventListener('touchmove', onCropMove, { passive: false });
             document.addEventListener('touchend', onCropEnd);
 
-            // Apply crop
+            // Apply crop — server-side (avoids CORS canvas taint)
+            const CROP_URL = '/admin/projects-editor/crop-image';
             document.getElementById('cropApplyBtn').addEventListener('click', async function() {
                 if (cropIdx < 0 || !cropImg) return;
                 this.disabled = true;
                 this.textContent = 'Applying...';
                 try {
-                    // Draw cropped region to canvas
-                    const cw = Math.round(cropRect.w), ch = Math.round(cropRect.h);
-                    let blob;
-                    if (typeof OffscreenCanvas !== 'undefined') {
-                        const oc = new OffscreenCanvas(cw, ch);
-                        const octx = oc.getContext('2d');
-                        octx.drawImage(cropImg, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0, 0, cw, ch);
-                        blob = await oc.convertToBlob({ type: 'image/jpeg', quality: 0.85 });
-                    } else {
-                        const tc = document.createElement('canvas');
-                        tc.width = cw; tc.height = ch;
-                        const tctx = tc.getContext('2d');
-                        tctx.drawImage(cropImg, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0, 0, cw, ch);
-                        blob = await new Promise(resolve => tc.toBlob(resolve, 'image/jpeg', 0.85));
-                    }
-
-                    // Upload
-                    const formData = new FormData();
-                    formData.append('image', new File([blob], 'cropped.jpg', { type: 'image/jpeg' }));
-                    const res = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
+                    const res = await fetch(CROP_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            url: fsImages[cropIdx].url,
+                            x: Math.round(cropRect.x),
+                            y: Math.round(cropRect.y),
+                            w: Math.round(cropRect.w),
+                            h: Math.round(cropRect.h)
+                        })
+                    });
                     const data = await res.json();
                     if (data.success) {
                         fsImages[cropIdx] = { url: data.image_url, cropped: true };
                         renderFsPreview();
                     } else {
-                        alert('Crop upload failed: ' + (data.error || 'Unknown error'));
+                        alert('Crop failed: ' + (data.error || 'Unknown error'));
                     }
                 } catch (e) {
                     alert('Crop error: ' + e.message);
