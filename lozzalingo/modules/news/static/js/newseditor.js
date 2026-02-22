@@ -169,15 +169,17 @@ function setupInlineImageUpload() {
             return;
         }
 
-        if (file.size > 10 * 1024 * 1024) {
-            showMessage('File too large. Please use an image under 10MB.', 'error');
+        if (file.size > 50 * 1024 * 1024) {
+            showMessage('File too large. Please use an image under 50MB.', 'error');
             fileInput.value = '';
             return;
         }
 
         try {
+            const compressed = typeof compressImageFile === 'function' ? await compressImageFile(file) : file;
+
             const formData = new FormData();
-            formData.append('image', file);
+            formData.append('image', compressed);
 
             const response = await fetch('/admin/news-editor/upload-image', {
                 method: 'POST',
@@ -438,19 +440,22 @@ function setupImageUpload() {
             return;
         }
 
-        if (file.size > 10 * 1024 * 1024) {
-            showMessage('File too large. Please use an image under 10MB.', 'error');
+        if (file.size > 50 * 1024 * 1024) {
+            showMessage('File too large. Please use an image under 50MB.', 'error');
             imageFile.value = '';
             return;
         }
 
         uploadProgress.style.display = 'block';
         progressFill.style.width = '0%';
-        progressText.textContent = 'Uploading...';
+        progressText.textContent = 'Compressing...';
 
         try {
+            const compressed = typeof compressImageFile === 'function' ? await compressImageFile(file) : file;
+            progressText.textContent = 'Uploading...';
+
             const formData = new FormData();
-            formData.append('image', file);
+            formData.append('image', compressed);
 
             const xhr = new XMLHttpRequest();
 

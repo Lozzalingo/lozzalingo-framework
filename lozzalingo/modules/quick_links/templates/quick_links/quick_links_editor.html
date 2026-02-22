@@ -171,6 +171,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+    <script src="{{ url_for('admin.static', filename='js/image-compress.js') }}"></script>
     <script>
     (function() {
         const API_BASE = '/admin/quick-links-editor/api/links';
@@ -254,9 +255,10 @@
             const fileInput = document.getElementById('avatarFile');
             if (!fileInput.files[0] || !avatarCropper) return;
 
+            const compressed = typeof compressImageFile === 'function' ? await compressImageFile(fileInput.files[0]) : fileInput.files[0];
             const cropData = avatarCropper.getData(true);
             const formData = new FormData();
-            formData.append('image', fileInput.files[0]);
+            formData.append('image', compressed);
             formData.append('mode', 'crop');
             formData.append('crop_x', Math.round(cropData.x));
             formData.append('crop_y', Math.round(cropData.y));
@@ -531,8 +533,9 @@
             const fileInput = document.getElementById('imageFile');
             if (!fileInput.files[0]) return;
 
+            const compressed = typeof compressImageFile === 'function' ? await compressImageFile(fileInput.files[0]) : fileInput.files[0];
             const formData = new FormData();
-            formData.append('image', fileInput.files[0]);
+            formData.append('image', compressed);
             formData.append('mode', currentMode);
 
             if (currentMode === 'crop') {

@@ -71,7 +71,7 @@
                     <div class="form-group">
                         <label for="technologies">Technologies</label>
                         <input type="text" id="technologies" name="technologies" placeholder="e.g. Python, Flask, React, PostgreSQL">
-                        <small class="form-hint">Comma-separated list</small>
+                        <small class="form-hint">Comma-separated list — <a href="{{ url_for('projects_admin.tech_registry') }}" style="color: var(--lz-accent, #c4788a);">Manage Tech Registry</a></small>
                     </div>
 
                     <div class="form-group">
@@ -161,6 +161,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <script src="{{ url_for('admin.static', filename='js/image-compress.js') }}"></script>
     <script>
     (function() {
         const API_BASE = '/admin/projects-editor/api/projects';
@@ -291,8 +292,9 @@
         // Image upload
         document.getElementById('imageFile')?.addEventListener('change', async function() {
             if (!this.files[0]) return;
+            const compressed = typeof compressImageFile === 'function' ? await compressImageFile(this.files[0]) : this.files[0];
             const formData = new FormData();
-            formData.append('image', this.files[0]);
+            formData.append('image', compressed);
             const progress = document.getElementById('uploadProgress');
             progress.style.display = 'block';
             try {
