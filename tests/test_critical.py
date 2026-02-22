@@ -42,8 +42,16 @@ def app(tmp_db_dir):
     app.config["USER_DB"] = os.path.join(tmp_db_dir, "users.db")
     app.config["NEWS_DB"] = os.path.join(tmp_db_dir, "news.db")
     app.config["ANALYTICS_DB"] = os.path.join(tmp_db_dir, "analytics.db")
+    app.config["PROJECTS_DB"] = os.path.join(tmp_db_dir, "projects.db")
+    app.config["QUICK_LINKS_DB"] = os.path.join(tmp_db_dir, "quick_links.db")
     # Prevent real OAuth init -- no credentials set
-    lozzalingo = Lozzalingo(app)
+    lozzalingo = Lozzalingo(app, {
+        'features': {
+            'projects': True,
+            'projects_public': True,
+            'quick_links': True,
+        }
+    })
     return app
 
 
@@ -65,8 +73,16 @@ def test_framework_initialisation(tmp_db_dir):
     app.config["USER_DB"] = os.path.join(tmp_db_dir, "users.db")
     app.config["NEWS_DB"] = os.path.join(tmp_db_dir, "news.db")
     app.config["ANALYTICS_DB"] = os.path.join(tmp_db_dir, "analytics.db")
+    app.config["PROJECTS_DB"] = os.path.join(tmp_db_dir, "projects.db")
+    app.config["QUICK_LINKS_DB"] = os.path.join(tmp_db_dir, "quick_links.db")
 
-    lozzalingo = Lozzalingo(app)
+    lozzalingo = Lozzalingo(app, {
+        'features': {
+            'projects': True,
+            'projects_public': True,
+            'quick_links': True,
+        }
+    })
 
     assert "lozzalingo" in app.extensions
     assert app.extensions["lozzalingo"] is lozzalingo
@@ -142,6 +158,9 @@ EXPECTED_MODULES = [
     "orders",
     "external_api",
     "settings",
+    "projects",
+    "projects_public",
+    "quick_links",
 ]
 
 
@@ -194,8 +213,16 @@ def test_database_dir_creation():
         app.config["USER_DB"] = os.path.join(target, "users.db")
         app.config["NEWS_DB"] = os.path.join(target, "news.db")
         app.config["ANALYTICS_DB"] = os.path.join(target, "analytics.db")
+        app.config["PROJECTS_DB"] = os.path.join(target, "projects.db")
+        app.config["QUICK_LINKS_DB"] = os.path.join(target, "quick_links.db")
 
-        Lozzalingo(app)
+        Lozzalingo(app, {
+            'features': {
+                'projects': True,
+                'projects_public': True,
+                'quick_links': True,
+            }
+        })
 
         assert os.path.isdir(target), f"DB_DIR was not created at {target}"
     finally:
@@ -251,8 +278,16 @@ def test_subscriber_post_route_exists(tmp_db_dir):
     app.config["USER_DB"] = os.path.join(tmp_db_dir, "users.db")
     app.config["NEWS_DB"] = os.path.join(tmp_db_dir, "news.db")
     app.config["ANALYTICS_DB"] = os.path.join(tmp_db_dir, "analytics.db")
+    app.config["PROJECTS_DB"] = os.path.join(tmp_db_dir, "projects.db")
+    app.config["QUICK_LINKS_DB"] = os.path.join(tmp_db_dir, "quick_links.db")
 
-    Lozzalingo(app)
+    Lozzalingo(app, {
+        'features': {
+            'projects': True,
+            'projects_public': True,
+            'quick_links': True,
+        }
+    })
     app.register_blueprint(subscribers_bp)
 
     rules = [rule.rule for rule in app.url_map.iter_rules()]
@@ -285,3 +320,29 @@ def test_admin_auth_redirect(client):
     assert "/admin" in response.headers.get("Location", ""), (
         "Redirect location should point to /admin (login)"
     )
+
+
+# ---------------------------------------------------------------------------
+# 11. Template filters -- all custom Jinja filters are registered
+# ---------------------------------------------------------------------------
+
+EXPECTED_TEMPLATE_FILTERS = [
+    "parse_gallery",
+    "format_project_content",
+]
+
+
+def test_template_filters_registered(app):
+    """Custom Jinja template filters defined in blueprints must be available
+    on the app after initialisation.  A missing filter causes
+    TemplateAssertionError at render time."""
+    registered_filters = app.jinja_env.filters
+
+    for name in EXPECTED_TEMPLATE_FILTERS:
+        assert name in registered_filters, (
+            f"Template filter '{name}' is not registered. "
+            f"Check that the blueprint defining it is imported and registered."
+        )
+        assert callable(registered_filters[name]), (
+            f"Template filter '{name}' is registered but not callable."
+        )
