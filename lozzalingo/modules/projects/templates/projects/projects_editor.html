@@ -500,14 +500,21 @@
         // === Inline Image Toolbar ===
         (function() {
             const toolbar = document.getElementById('imgToolbar');
-            const qlContainer = document.querySelector('.ql-container');
             const qlEditor = document.querySelector('.ql-editor');
             let activeImg = null;
 
-            // Move toolbar into .ql-container so absolute positioning works
-            if (qlContainer && toolbar) {
-                qlContainer.style.position = 'relative';
-                qlContainer.appendChild(toolbar);
+            function positionToolbar(img) {
+                const imgRect = img.getBoundingClientRect();
+                const tbHeight = toolbar.offsetHeight;
+                let top = imgRect.top - tbHeight - 8;
+
+                // If no room above viewport, place below the image
+                if (top < 8) {
+                    top = imgRect.bottom + 8;
+                }
+
+                toolbar.style.top = top + 'px';
+                toolbar.style.left = Math.max(8, imgRect.left) + 'px';
             }
 
             function showToolbar(img) {
@@ -525,19 +532,7 @@
                     );
                 });
 
-                // Position above the image
-                const containerRect = qlContainer.getBoundingClientRect();
-                const imgRect = img.getBoundingClientRect();
-                const tbHeight = toolbar.offsetHeight;
-                let top = imgRect.top - containerRect.top - tbHeight - 8;
-
-                // If no room above, place below
-                if (top < 0) {
-                    top = imgRect.bottom - containerRect.top + 8;
-                }
-
-                toolbar.style.top = top + 'px';
-                toolbar.style.left = Math.max(0, (imgRect.left - containerRect.left)) + 'px';
+                positionToolbar(img);
             }
 
             function hideToolbar() {
@@ -546,23 +541,30 @@
                 activeImg = null;
             }
 
-            // Click on image in editor
-            qlEditor.addEventListener('click', function(e) {
-                if (e.target.tagName === 'IMG') {
-                    e.stopPropagation();
-                    if (activeImg) activeImg.classList.remove('img-selected');
-                    showToolbar(e.target);
-                } else {
-                    hideToolbar();
+            // Use mousedown on document — Quill can swallow click events on images
+            document.addEventListener('mousedown', function(e) {
+                const img = e.target.closest ? e.target.closest('.ql-editor img') : null;
+                if (img) {
+                    // Delay slightly so Quill processes its own selection first
+                    setTimeout(function() {
+                        if (activeImg && activeImg !== img) activeImg.classList.remove('img-selected');
+                        showToolbar(img);
+                    }, 0);
+                    return;
                 }
+                // Clicking on the toolbar itself — don't hide
+                if (toolbar.contains(e.target)) return;
+                // Clicking anywhere else — hide
+                if (activeImg) hideToolbar();
             });
 
-            // Click outside editor hides toolbar
-            document.addEventListener('click', function(e) {
-                if (!toolbar.contains(e.target) && !qlEditor.contains(e.target)) {
-                    hideToolbar();
-                }
+            // Reposition on scroll (editor can scroll)
+            qlEditor.addEventListener('scroll', function() {
+                if (activeImg) positionToolbar(activeImg);
             });
+            window.addEventListener('scroll', function() {
+                if (activeImg) positionToolbar(activeImg);
+            }, { passive: true });
 
             // Escape hides toolbar
             document.addEventListener('keydown', function(e) {
@@ -571,7 +573,8 @@
 
             // Size buttons
             toolbar.querySelectorAll('.img-tb-btn[data-size]').forEach(btn => {
-                btn.addEventListener('click', function(e) {
+                btn.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
                     e.stopPropagation();
                     if (!activeImg) return;
                     const size = this.dataset.size;
@@ -585,7 +588,8 @@
 
             // Layout buttons
             toolbar.querySelectorAll('.img-tb-btn[data-layout]').forEach(btn => {
-                btn.addEventListener('click', function(e) {
+                btn.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
                     e.stopPropagation();
                     if (!activeImg) return;
                     const layout = this.dataset.layout;
@@ -1193,8 +1197,8 @@
 
     /* Inline image toolbar */
     .img-toolbar {
-        position: absolute;
-        z-index: 100;
+        position: fixed;
+        z-index: 1000;
         display: flex;
         align-items: center;
         gap: 4px;
