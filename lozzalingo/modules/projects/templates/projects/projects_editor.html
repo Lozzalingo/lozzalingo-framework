@@ -200,6 +200,60 @@
         </div>
     </div>
 
+    <!-- Filmstrip Modal -->
+    <div id="filmstripModal" class="ib-overlay" style="display:none;">
+        <div class="ib-card" style="max-width:800px;">
+            <div class="ib-header">
+                <h3 id="fsModalTitle">Insert Filmstrip</h3>
+                <button type="button" class="ib-close" id="fsCloseBtn">&times;</button>
+            </div>
+            <div class="fs-body">
+                <div class="fs-preview" id="fsPreview">
+                    <p class="fs-empty" id="fsEmpty">No images added yet — upload, browse, or paste a URL below.</p>
+                </div>
+                <div class="fs-add-section">
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="file" id="fsFileInput" accept="image/*,.heic,.heif" multiple style="flex:1;">
+                        <button type="button" class="btn-secondary" id="fsBrowseBtn" style="white-space:nowrap;">Browse Library</button>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+                        <input type="text" id="fsUrlInput" placeholder="Paste image URL..." style="flex:1;">
+                        <button type="button" class="btn-secondary" id="fsAddUrlBtn" style="white-space:nowrap;">Add URL</button>
+                    </div>
+                    <div class="upload-progress" id="fsUploadProgress" style="display:none;">
+                        <div class="progress-bar"><div class="progress-fill" id="fsProgressFill"></div></div>
+                        <span class="progress-text" id="fsProgressText">Uploading...</span>
+                    </div>
+                </div>
+                <div class="fs-actions">
+                    <button type="button" class="btn-primary" id="fsInsertBtn">Insert Filmstrip</button>
+                    <button type="button" class="btn-secondary" id="fsCancelBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Crop Modal (sub-modal above filmstrip modal) -->
+    <div id="cropModal" class="ib-overlay" style="display:none; z-index:1100;">
+        <div class="ib-card crop-card">
+            <div class="ib-header">
+                <h3>Crop Image</h3>
+                <button type="button" class="ib-close" id="cropCloseBtn">&times;</button>
+            </div>
+            <div class="crop-body">
+                <div class="crop-canvas-wrap">
+                    <canvas id="cropCanvas"></canvas>
+                </div>
+                <div class="crop-info" id="cropInfo">1920 x 1080</div>
+                <div class="crop-actions">
+                    <button type="button" class="btn-primary" id="cropApplyBtn">Apply Crop</button>
+                    <button type="button" class="btn-secondary" id="cropResetBtn">Reset</button>
+                    <button type="button" class="btn-secondary" id="cropCancelBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Floating image toolbar (positioned inside .ql-container) -->
     <div id="imgToolbar" class="img-toolbar" style="display:none;">
         <span class="img-tb-group">
@@ -215,6 +269,8 @@
             <button type="button" class="img-tb-btn" data-layout="carousel">Carousel</button>
             <button type="button" class="img-tb-btn" data-layout="grid">Grid</button>
         </span>
+        <span class="img-tb-sep img-tb-sep-fs" style="display:none;"></span>
+        <button type="button" class="img-tb-btn" id="editFilmstripBtn" style="display:none;">Edit Filmstrip</button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
@@ -498,7 +554,7 @@
                     ['bold', 'italic', 'underline', 'strike'],
                     [{ 'list': 'ordered'}, { 'list': 'bullet' }],
                     ['blockquote', 'code-block'],
-                    ['link', 'image'],
+                    ['link', 'image', 'filmstrip'],
                     ['clean']
                 ]
             }
@@ -778,6 +834,7 @@
         const ibModal = document.getElementById('imageBrowserModal');
         const ibGrid = document.getElementById('ibGrid');
         let ibCurrentFolder = 'projects';
+        let ibSelectCallback = null; // When set, Select button calls this instead of addGalleryImage
 
         document.getElementById('browseImagesBtn').addEventListener('click', () => {
             ibModal.style.display = 'flex';
@@ -786,10 +843,11 @@
 
         document.getElementById('ibCloseBtn').addEventListener('click', () => {
             ibModal.style.display = 'none';
+            ibSelectCallback = null;
         });
 
         ibModal.addEventListener('click', (e) => {
-            if (e.target === ibModal) ibModal.style.display = 'none';
+            if (e.target === ibModal) { ibModal.style.display = 'none'; ibSelectCallback = null; }
         });
 
         document.querySelectorAll('.ib-tab').forEach(tab => {
@@ -824,7 +882,12 @@
                 ibGrid.querySelectorAll('.ib-select-btn').forEach(btn => {
                     btn.addEventListener('click', function(e) {
                         e.stopPropagation();
-                        addGalleryImage(this.dataset.url);
+                        const url = this.dataset.url;
+                        if (ibSelectCallback) {
+                            ibSelectCallback(url);
+                        } else {
+                            addGalleryImage(url);
+                        }
                         ibModal.style.display = 'none';
                     });
                 });
@@ -1072,6 +1135,524 @@
                 if (data.success) loadProjects(); else alert('Error: ' + (data.error || 'Unknown error'));
             } catch (e) { alert('Error: ' + e.message); }
         };
+
+        // === Filmstrip Modal ===
+        (function() {
+            let fsImages = [];       // [{url, cropped}]
+            let fsEditMode = false;  // true when editing existing filmstrip
+            let fsEditIndex = 0;     // Quill index of first image in group being edited
+            let fsSavedRange = null; // cursor position when modal opened
+
+            const fsModal = document.getElementById('filmstripModal');
+            const fsPreview = document.getElementById('fsPreview');
+            const fsEmpty = document.getElementById('fsEmpty');
+            const fsModalTitle = document.getElementById('fsModalTitle');
+
+            // --- Render preview strip ---
+            function renderFsPreview() {
+                if (!fsImages.length) {
+                    fsPreview.innerHTML = '<p class="fs-empty">No images added yet — upload, browse, or paste a URL below.</p>';
+                    return;
+                }
+                fsPreview.innerHTML = fsImages.map((img, i) => `
+                    <div class="fs-thumb" draggable="true" data-idx="${i}">
+                        <img src="${img.url}" alt="Filmstrip image ${i + 1}">
+                        <div class="fs-thumb-actions">
+                            <button type="button" class="fs-crop-btn" data-idx="${i}" title="Crop">&#9986;</button>
+                            <button type="button" class="fs-remove-btn" data-idx="${i}" title="Remove">&times;</button>
+                        </div>
+                        ${img.cropped ? '<span class="fs-crop-badge">Cropped</span>' : ''}
+                    </div>
+                `).join('');
+
+                // Remove buttons
+                fsPreview.querySelectorAll('.fs-remove-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        fsImages.splice(+this.dataset.idx, 1);
+                        renderFsPreview();
+                    });
+                });
+
+                // Crop buttons
+                fsPreview.querySelectorAll('.fs-crop-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        openCropModal(+this.dataset.idx);
+                    });
+                });
+
+                // Drag-to-reorder
+                let dragIdx = null;
+                fsPreview.querySelectorAll('.fs-thumb').forEach(thumb => {
+                    thumb.addEventListener('dragstart', function(e) {
+                        dragIdx = +this.dataset.idx;
+                        this.classList.add('dragging');
+                        e.dataTransfer.effectAllowed = 'move';
+                    });
+                    thumb.addEventListener('dragend', function() {
+                        this.classList.remove('dragging');
+                        dragIdx = null;
+                    });
+                    thumb.addEventListener('dragover', function(e) {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                        this.classList.add('drag-over');
+                    });
+                    thumb.addEventListener('dragleave', function() {
+                        this.classList.remove('drag-over');
+                    });
+                    thumb.addEventListener('drop', function(e) {
+                        e.preventDefault();
+                        this.classList.remove('drag-over');
+                        const dropIdx = +this.dataset.idx;
+                        if (dragIdx === null || dragIdx === dropIdx) return;
+                        const [moved] = fsImages.splice(dragIdx, 1);
+                        fsImages.splice(dropIdx, 0, moved);
+                        renderFsPreview();
+                    });
+                });
+            }
+
+            // --- Add image to filmstrip ---
+            function addFsImage(url) {
+                if (!url || fsImages.some(img => img.url === url)) return;
+                fsImages.push({ url: url, cropped: false });
+                renderFsPreview();
+            }
+
+            // --- File upload ---
+            document.getElementById('fsFileInput').addEventListener('change', async function() {
+                const files = Array.from(this.files);
+                if (!files.length) return;
+                const progress = document.getElementById('fsUploadProgress');
+                const progressText = document.getElementById('fsProgressText');
+                progress.style.display = 'block';
+                for (let i = 0; i < files.length; i++) {
+                    progressText.textContent = `Uploading ${i + 1}/${files.length}...`;
+                    try {
+                        const compressed = typeof compressImageFile === 'function' ? await compressImageFile(files[i]) : files[i];
+                        const formData = new FormData();
+                        formData.append('image', compressed);
+                        const res = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
+                        const data = await res.json();
+                        if (data.success) addFsImage(data.image_url);
+                    } catch (e) { console.error('Upload error:', e); }
+                }
+                progress.style.display = 'none';
+                this.value = '';
+            });
+
+            // --- Browse library ---
+            document.getElementById('fsBrowseBtn').addEventListener('click', function() {
+                ibSelectCallback = function(url) {
+                    addFsImage(url);
+                    ibSelectCallback = null;
+                };
+                ibModal.style.display = 'flex';
+                loadBrowserImages(ibCurrentFolder);
+            });
+
+            // --- URL paste ---
+            document.getElementById('fsAddUrlBtn').addEventListener('click', function() {
+                const input = document.getElementById('fsUrlInput');
+                const url = input.value.trim();
+                if (url) { addFsImage(url); input.value = ''; }
+            });
+            document.getElementById('fsUrlInput').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); document.getElementById('fsAddUrlBtn').click(); }
+            });
+
+            // --- Open filmstrip modal ---
+            function openFilmstripModal(editMode, images, editIndex) {
+                fsEditMode = !!editMode;
+                fsEditIndex = editIndex || 0;
+                fsImages = images ? images.map(url => ({ url: url, cropped: false })) : [];
+                fsSavedRange = quill.getSelection();
+                fsModalTitle.textContent = fsEditMode ? 'Edit Filmstrip' : 'Insert Filmstrip';
+                document.getElementById('fsInsertBtn').textContent = fsEditMode ? 'Update Filmstrip' : 'Insert Filmstrip';
+                renderFsPreview();
+                fsModal.style.display = 'flex';
+            }
+
+            // --- Close ---
+            document.getElementById('fsCloseBtn').addEventListener('click', () => { fsModal.style.display = 'none'; });
+            document.getElementById('fsCancelBtn').addEventListener('click', () => { fsModal.style.display = 'none'; });
+            fsModal.addEventListener('click', (e) => { if (e.target === fsModal) fsModal.style.display = 'none'; });
+
+            // --- Insert / Update filmstrip ---
+            document.getElementById('fsInsertBtn').addEventListener('click', function() {
+                if (!fsImages.length) { fsModal.style.display = 'none'; return; }
+
+                if (fsEditMode) {
+                    // Delete old carousel images from Quill
+                    const delta = quill.getContents();
+                    let idx = 0, startIdx = -1, count = 0;
+                    for (const op of delta.ops) {
+                        if (op.insert && typeof op.insert === 'object' && op.insert.image) {
+                            const layout = (typeof op.insert.image === 'object' ? op.insert.image['data-layout'] : '') || '';
+                            if (layout === 'carousel') {
+                                if (startIdx === -1 || idx === startIdx + count) {
+                                    if (startIdx === -1) startIdx = idx;
+                                    count++;
+                                }
+                            }
+                            idx++;
+                        } else {
+                            const len = typeof op.insert === 'string' ? op.insert.length : 1;
+                            if (startIdx !== -1 && count > 0) {
+                                // Check if this group contains our edit index
+                                if (startIdx <= fsEditIndex && fsEditIndex < startIdx + count) break;
+                                startIdx = -1;
+                                count = 0;
+                            }
+                            idx += len;
+                        }
+                    }
+                    // Find the actual group by walking ops more carefully
+                    // Simpler approach: delete from fsEditIndex, count old images
+                    const oldDelta = quill.getContents();
+                    let charIdx = 0, groupStart = -1, groupCount = 0, inGroup = false;
+                    for (const op of oldDelta.ops) {
+                        if (op.insert && typeof op.insert === 'object' && op.insert.image) {
+                            const layout = (typeof op.insert.image === 'object' ? op.insert.image['data-layout'] : '') || '';
+                            if (layout === 'carousel') {
+                                if (!inGroup) { groupStart = charIdx; groupCount = 0; inGroup = true; }
+                                groupCount++;
+                            } else {
+                                if (inGroup && groupStart === fsEditIndex) break;
+                                inGroup = false;
+                            }
+                        } else {
+                            if (inGroup && groupStart === fsEditIndex) break;
+                            inGroup = false;
+                        }
+                        const len = (op.insert && typeof op.insert === 'string') ? op.insert.length : 1;
+                        charIdx += len;
+                    }
+                    if (groupStart >= 0 && groupCount > 0) {
+                        quill.deleteText(groupStart, groupCount);
+                        // Insert new images at same position
+                        let insertIdx = groupStart;
+                        fsImages.forEach(img => {
+                            quill.insertEmbed(insertIdx, 'image', { src: img.url, 'data-layout': 'carousel' });
+                            insertIdx++;
+                        });
+                    }
+                } else {
+                    // Insert at cursor
+                    let insertIdx = fsSavedRange ? fsSavedRange.index : quill.getLength() - 1;
+                    fsImages.forEach(img => {
+                        quill.insertEmbed(insertIdx, 'image', { src: img.url, 'data-layout': 'carousel' });
+                        insertIdx++;
+                    });
+                }
+
+                fsModal.style.display = 'none';
+            });
+
+            // --- Quill toolbar: filmstrip button ---
+            const toolbarModule = quill.getModule('toolbar');
+            if (toolbarModule) {
+                toolbarModule.addHandler('filmstrip', function() {
+                    openFilmstripModal(false, null, 0);
+                });
+            }
+            // Style the filmstrip toolbar button
+            setTimeout(function() {
+                const btn = document.querySelector('.ql-filmstrip');
+                if (btn) {
+                    btn.innerHTML = '<svg viewBox="0 0 18 18" width="18" height="18"><rect x="1" y="4" width="4" height="10" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="7" y="4" width="4" height="10" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="13" y="4" width="4" height="10" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';
+                    btn.title = 'Insert Filmstrip';
+                }
+            }, 100);
+
+            // --- Edit existing filmstrip from inline toolbar ---
+            document.getElementById('editFilmstripBtn').addEventListener('click', function() {
+                const toolbar = document.getElementById('imgToolbar');
+                const activeImg = document.querySelector('.ql-editor img.img-selected');
+                if (!activeImg || activeImg.getAttribute('data-layout') !== 'carousel') return;
+
+                // Walk Quill delta to find consecutive carousel images in the group
+                const delta = quill.getContents();
+                let charIdx = 0, groupStart = -1, groupUrls = [], inGroup = false;
+                let targetCharIdx = -1;
+
+                // Find the char index of the selected img
+                const blot = Quill.find(activeImg);
+                if (blot) targetCharIdx = quill.getIndex(blot);
+
+                for (const op of delta.ops) {
+                    if (op.insert && typeof op.insert === 'object' && op.insert.image) {
+                        const imgVal = op.insert.image;
+                        const layout = (typeof imgVal === 'object' ? imgVal['data-layout'] : '') || '';
+                        const src = (typeof imgVal === 'object' ? imgVal.src : imgVal) || '';
+                        if (layout === 'carousel') {
+                            if (!inGroup) { groupStart = charIdx; groupUrls = []; inGroup = true; }
+                            groupUrls.push(src);
+                        } else {
+                            if (inGroup && targetCharIdx >= groupStart && targetCharIdx < groupStart + groupUrls.length) break;
+                            inGroup = false;
+                        }
+                    } else {
+                        if (inGroup && targetCharIdx >= groupStart && targetCharIdx < groupStart + groupUrls.length) break;
+                        inGroup = false;
+                    }
+                    const len = (op.insert && typeof op.insert === 'string') ? op.insert.length : 1;
+                    charIdx += len;
+                }
+
+                if (groupUrls.length) {
+                    toolbar.style.display = 'none';
+                    if (activeImg) activeImg.classList.remove('img-selected');
+                    openFilmstripModal(true, groupUrls, groupStart);
+                }
+            });
+
+            // --- Show/hide Edit Filmstrip button in inline toolbar ---
+            const origShowToolbar = null; // We'll hook into the mousedown handler
+            const imgToolbar = document.getElementById('imgToolbar');
+            const editFsBtn = document.getElementById('editFilmstripBtn');
+            const editFsSep = imgToolbar.querySelector('.img-tb-sep-fs');
+
+            // Use MutationObserver to detect when toolbar becomes visible
+            new MutationObserver(function() {
+                if (imgToolbar.style.display !== 'none') {
+                    const activeImg = document.querySelector('.ql-editor img.img-selected');
+                    const isCarousel = activeImg && activeImg.getAttribute('data-layout') === 'carousel';
+                    editFsBtn.style.display = isCarousel ? '' : 'none';
+                    editFsSep.style.display = isCarousel ? '' : 'none';
+                }
+            }).observe(imgToolbar, { attributes: true, attributeFilter: ['style'] });
+
+            // === Crop Modal ===
+            const cropModal = document.getElementById('cropModal');
+            const cropCanvas = document.getElementById('cropCanvas');
+            const cropCtx = cropCanvas.getContext('2d');
+            const cropInfo = document.getElementById('cropInfo');
+            let cropImg = null;
+            let cropIdx = -1;
+            let cropRect = { x: 0, y: 0, w: 0, h: 0 }; // in image pixels
+            let imgW = 0, imgH = 0;
+            let canvasDisplayW = 0, canvasDisplayH = 0;
+            let cropDragging = null; // null | 'left' | 'right' | 'top' | 'bottom' | 'tl' | 'tr' | 'bl' | 'br'
+
+            function openCropModal(idx) {
+                cropIdx = idx;
+                cropImg = new Image();
+                cropImg.crossOrigin = 'anonymous';
+                cropImg.onload = function() {
+                    imgW = cropImg.naturalWidth;
+                    imgH = cropImg.naturalHeight;
+                    cropRect = { x: 0, y: 0, w: imgW, h: imgH };
+                    sizeCropCanvas();
+                    drawCrop();
+                    cropModal.style.display = 'flex';
+                };
+                cropImg.src = fsImages[idx].url;
+            }
+
+            function sizeCropCanvas() {
+                const dpr = window.devicePixelRatio || 1;
+                const maxW = Math.min(700, window.innerWidth - 80);
+                const maxH = Math.min(500, window.innerHeight - 200);
+                const scale = Math.min(maxW / imgW, maxH / imgH, 1);
+                canvasDisplayW = Math.round(imgW * scale);
+                canvasDisplayH = Math.round(imgH * scale);
+                cropCanvas.style.width = canvasDisplayW + 'px';
+                cropCanvas.style.height = canvasDisplayH + 'px';
+                cropCanvas.width = canvasDisplayW * dpr;
+                cropCanvas.height = canvasDisplayH * dpr;
+                cropCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+
+            function drawCrop() {
+                const scaleX = canvasDisplayW / imgW;
+                const scaleY = canvasDisplayH / imgH;
+
+                // Draw full image dimmed
+                cropCtx.clearRect(0, 0, canvasDisplayW, canvasDisplayH);
+                cropCtx.globalAlpha = 0.3;
+                cropCtx.drawImage(cropImg, 0, 0, canvasDisplayW, canvasDisplayH);
+
+                // Draw crop region bright
+                const cx = cropRect.x * scaleX;
+                const cy = cropRect.y * scaleY;
+                const cw = cropRect.w * scaleX;
+                const ch = cropRect.h * scaleY;
+
+                cropCtx.globalAlpha = 1;
+                cropCtx.save();
+                cropCtx.beginPath();
+                cropCtx.rect(cx, cy, cw, ch);
+                cropCtx.clip();
+                cropCtx.drawImage(cropImg, 0, 0, canvasDisplayW, canvasDisplayH);
+                cropCtx.restore();
+
+                // White border on crop edges
+                cropCtx.strokeStyle = '#fff';
+                cropCtx.lineWidth = 1.5;
+                cropCtx.strokeRect(cx, cy, cw, ch);
+
+                // Corner handles
+                const hs = 8;
+                cropCtx.fillStyle = '#fff';
+                [[cx, cy], [cx + cw, cy], [cx, cy + ch], [cx + cw, cy + ch]].forEach(([hx, hy]) => {
+                    cropCtx.fillRect(hx - hs/2, hy - hs/2, hs, hs);
+                });
+
+                // Update info
+                cropInfo.textContent = `${Math.round(cropRect.w)} x ${Math.round(cropRect.h)}`;
+            }
+
+            // Edge detection
+            function detectEdge(mx, my) {
+                const scaleX = canvasDisplayW / imgW;
+                const scaleY = canvasDisplayH / imgH;
+                const cx = cropRect.x * scaleX, cy = cropRect.y * scaleY;
+                const cw = cropRect.w * scaleX, ch = cropRect.h * scaleY;
+                const t = 12; // threshold
+
+                const nearL = Math.abs(mx - cx) < t;
+                const nearR = Math.abs(mx - (cx + cw)) < t;
+                const nearT = Math.abs(my - cy) < t;
+                const nearB = Math.abs(my - (cy + ch)) < t;
+
+                if (nearT && nearL) return 'tl';
+                if (nearT && nearR) return 'tr';
+                if (nearB && nearL) return 'bl';
+                if (nearB && nearR) return 'br';
+                if (nearL && my > cy && my < cy + ch) return 'left';
+                if (nearR && my > cy && my < cy + ch) return 'right';
+                if (nearT && mx > cx && mx < cx + cw) return 'top';
+                if (nearB && mx > cx && mx < cx + cw) return 'bottom';
+                return null;
+            }
+
+            let cropStartRect = null, cropStartPos = null;
+
+            function getCanvasPos(e) {
+                const rect = cropCanvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: clientX - rect.left, y: clientY - rect.top };
+            }
+
+            function onCropStart(e) {
+                const pos = getCanvasPos(e);
+                const edge = detectEdge(pos.x, pos.y);
+                if (!edge) return;
+                e.preventDefault();
+                cropDragging = edge;
+                cropStartRect = { ...cropRect };
+                cropStartPos = pos;
+                cropCanvas.style.cursor = getCropCursor(edge);
+            }
+
+            function onCropMove(e) {
+                if (!cropDragging) {
+                    // Only update cursor when hovering over canvas
+                    if (e.target !== cropCanvas) return;
+                    const pos = getCanvasPos(e);
+                    const edge = detectEdge(pos.x, pos.y);
+                    cropCanvas.style.cursor = edge ? getCropCursor(edge) : 'default';
+                    return;
+                }
+                e.preventDefault();
+                const pos = getCanvasPos(e);
+                const dx = (pos.x - cropStartPos.x) / (canvasDisplayW / imgW);
+                const dy = (pos.y - cropStartPos.y) / (canvasDisplayH / imgH);
+
+                const r = { ...cropStartRect };
+                const minSize = 20;
+
+                const moveL = cropDragging === 'left' || cropDragging === 'tl' || cropDragging === 'bl';
+                const moveR = cropDragging === 'right' || cropDragging === 'tr' || cropDragging === 'br';
+                const moveT = cropDragging === 'top' || cropDragging === 'tl' || cropDragging === 'tr';
+                const moveB = cropDragging === 'bottom' || cropDragging === 'bl' || cropDragging === 'br';
+
+                if (moveL) {
+                    const newX = Math.max(0, Math.min(r.x + dx, r.x + r.w - minSize));
+                    r.w -= (newX - r.x);
+                    r.x = newX;
+                }
+                if (moveR) {
+                    r.w = Math.max(minSize, Math.min(r.w + dx, imgW - r.x));
+                }
+                if (moveT) {
+                    const newY = Math.max(0, Math.min(r.y + dy, r.y + r.h - minSize));
+                    r.h -= (newY - r.y);
+                    r.y = newY;
+                }
+                if (moveB) {
+                    r.h = Math.max(minSize, Math.min(r.h + dy, imgH - r.y));
+                }
+
+                cropRect = r;
+                drawCrop();
+            }
+
+            function onCropEnd() {
+                cropDragging = null;
+                cropCanvas.style.cursor = 'default';
+            }
+
+            function getCropCursor(edge) {
+                const map = { tl: 'nwse-resize', br: 'nwse-resize', tr: 'nesw-resize', bl: 'nesw-resize',
+                              left: 'ew-resize', right: 'ew-resize', top: 'ns-resize', bottom: 'ns-resize' };
+                return map[edge] || 'default';
+            }
+
+            cropCanvas.addEventListener('mousedown', onCropStart);
+            document.addEventListener('mousemove', onCropMove);
+            document.addEventListener('mouseup', onCropEnd);
+            cropCanvas.addEventListener('touchstart', onCropStart, { passive: false });
+            document.addEventListener('touchmove', onCropMove, { passive: false });
+            document.addEventListener('touchend', onCropEnd);
+
+            // Apply crop
+            document.getElementById('cropApplyBtn').addEventListener('click', async function() {
+                if (cropIdx < 0 || !cropImg) return;
+                this.disabled = true;
+                this.textContent = 'Applying...';
+                try {
+                    // Draw cropped region to offscreen canvas
+                    const oc = new OffscreenCanvas(Math.round(cropRect.w), Math.round(cropRect.h));
+                    const octx = oc.getContext('2d');
+                    octx.drawImage(cropImg, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0, 0, cropRect.w, cropRect.h);
+                    const blob = await oc.convertToBlob({ type: 'image/jpeg', quality: 0.85 });
+
+                    // Upload
+                    const formData = new FormData();
+                    formData.append('image', new File([blob], 'cropped.jpg', { type: 'image/jpeg' }));
+                    const res = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
+                    const data = await res.json();
+                    if (data.success) {
+                        fsImages[cropIdx] = { url: data.image_url, cropped: true };
+                        renderFsPreview();
+                    } else {
+                        alert('Crop upload failed: ' + (data.error || 'Unknown error'));
+                    }
+                } catch (e) {
+                    alert('Crop error: ' + e.message);
+                }
+                this.disabled = false;
+                this.textContent = 'Apply Crop';
+                cropModal.style.display = 'none';
+            });
+
+            // Reset crop
+            document.getElementById('cropResetBtn').addEventListener('click', function() {
+                cropRect = { x: 0, y: 0, w: imgW, h: imgH };
+                drawCrop();
+            });
+
+            // Cancel/close crop
+            document.getElementById('cropCancelBtn').addEventListener('click', () => { cropModal.style.display = 'none'; });
+            document.getElementById('cropCloseBtn').addEventListener('click', () => { cropModal.style.display = 'none'; });
+            cropModal.addEventListener('click', (e) => { if (e.target === cropModal) cropModal.style.display = 'none'; });
+
+            // Expose openFilmstripModal for toolbar button
+            window._openFilmstripModal = openFilmstripModal;
+        })();
 
         function resetForm() {
             editingId = null;
@@ -1402,6 +1983,74 @@
     .ql-editor img[data-size="small"] { max-width: 33%; }
     .ql-editor img[data-size="medium"] { max-width: 50%; }
     .ql-editor img[data-size="full"] { max-width: 100%; }
+
+    /* Filmstrip Modal */
+    .fs-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+    .fs-preview {
+        display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden;
+        padding: 10px; min-height: 120px; align-items: center;
+        background: var(--noir-dark, #0f0f1a);
+        border: 1px solid var(--noir-gray, rgba(255,255,255,0.1));
+        border-radius: 8px;
+        -webkit-overflow-scrolling: touch;
+    }
+    .fs-preview::-webkit-scrollbar { height: 5px; }
+    .fs-preview::-webkit-scrollbar-track { background: transparent; }
+    .fs-preview::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+    .fs-empty { color: rgba(255,255,255,0.3); font-size: 0.85rem; text-align: center; width: 100%; }
+    .fs-thumb {
+        position: relative; flex: none; height: 100px;
+        border-radius: 6px; overflow: hidden;
+        border: 2px solid transparent; cursor: grab;
+        transition: border-color 0.2s, opacity 0.2s;
+    }
+    .fs-thumb:hover { border-color: var(--lz-accent, #c4788a); }
+    .fs-thumb.dragging { opacity: 0.4; }
+    .fs-thumb.drag-over { border-color: #4a90d9; }
+    .fs-thumb img { height: 100%; width: auto; display: block; }
+    .fs-thumb-actions {
+        position: absolute; top: 3px; right: 3px;
+        display: none; gap: 3px;
+    }
+    .fs-thumb:hover .fs-thumb-actions { display: flex; }
+    .fs-crop-btn, .fs-remove-btn {
+        width: 22px; height: 22px; border-radius: 4px;
+        border: none; cursor: pointer; font-size: 0.8rem;
+        display: flex; align-items: center; justify-content: center;
+        line-height: 1;
+    }
+    .fs-crop-btn {
+        background: rgba(74,144,217,0.85); color: #fff;
+    }
+    .fs-crop-btn:hover { background: #4a90d9; }
+    .fs-remove-btn {
+        background: rgba(231,76,60,0.85); color: #fff;
+    }
+    .fs-remove-btn:hover { background: #e74c3c; }
+    .fs-crop-badge {
+        position: absolute; bottom: 3px; left: 3px;
+        background: rgba(46,204,64,0.85); color: #fff;
+        font-size: 0.6rem; padding: 1px 6px; border-radius: 3px;
+        pointer-events: none;
+    }
+    .fs-add-section { display: flex; flex-direction: column; gap: 6px; }
+    .fs-actions { display: flex; gap: 8px; justify-content: flex-end; padding-top: 8px; }
+
+    /* Crop Modal */
+    .crop-card { max-width: 800px; }
+    .crop-body { padding: 16px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .crop-canvas-wrap {
+        background: #000; border-radius: 6px; overflow: hidden;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .crop-info {
+        font-size: 0.8rem; color: rgba(255,255,255,0.5);
+        font-family: monospace; letter-spacing: 0.05em;
+    }
+    .crop-actions { display: flex; gap: 8px; }
+
+    /* Quill filmstrip toolbar button */
+    .ql-filmstrip { position: relative; }
 
     /* Editor-side carousel → filmstrip: same height, side by side */
     .ql-editor p:has(> img[data-layout="carousel"]) {
