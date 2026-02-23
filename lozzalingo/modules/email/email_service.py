@@ -805,6 +805,104 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
 </html>
         """
 
+    # ==================== Project Notifications ====================
+
+    def send_project_notification(self, subscribers: List[str], project: Dict[str, Any]) -> bool:
+        """Send project notification to all subscribers"""
+        subject = f"New Project: {project.get('title', f'{self.brand_name} Project')}"
+
+        html_body = self._get_project_template(project)
+        text_body = f"""
+New project from {self.brand_name}!
+
+{project.get('title', 'New Project')}
+
+{project.get('excerpt', project.get('content', '')[:200] + '...')}
+
+Check it out: {self.website_url}{project.get('url', '/projects/' + project.get('slug', ''))}
+
+Best regards,
+The {self.brand_name} Team
+
+To unsubscribe, visit: {self.website_url}/unsubscribe
+        """
+
+        return self.send_email(subscribers, subject, html_body, text_body)
+
+    def _get_project_template(self, project: Dict[str, Any]) -> str:
+        """Get project notification email HTML template"""
+        title = project.get('title', 'New Project')
+        excerpt = project.get('excerpt', project.get('content', '')[:320] + '...')
+        project_url = f"{self.website_url}{project.get('url', '/projects/' + project.get('slug', ''))}"
+        technologies = project.get('technologies', '')
+
+        tech_html = ''
+        if technologies:
+            tech_list = [t.strip() for t in technologies.split(',') if t.strip()]
+            if tech_list:
+                tech_tags = ' '.join(
+                    f'<span style="display:inline-block;background:#f0ebe0;color:#2a2a2a;padding:4px 10px;font-size:12px;border:1px solid #d4c5a0;margin:2px;">{t}</span>'
+                    for t in tech_list[:6]
+                )
+                tech_html = f'<div style="margin:16px 0;">{tech_tags}</div>'
+
+        return f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title} - {self.brand_name}</title>
+    <style>
+        body {{ font-family: 'Georgia', serif; line-height: 1.6; color: #2a2a2a; background: #f8f6f0; max-width: 600px; margin: 0 auto; padding: 24px; }}
+        .container {{ background: #fff; border: 1px solid #d4c5a0; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }}
+        .header {{ background: #2a2a2a; color: #f8f6f0; padding: 32px; text-align: center; }}
+        .content {{ background: #fff; padding: 40px 32px; color: #2a2a2a; }}
+        .footer {{ background: #f8f6f0; padding: 24px; text-align: center; font-size: 13px; color: #666; border-top: 1px solid #d4c5a0; }}
+        h1 {{ font-size: 24px; margin: 0 0 8px 0; font-weight: normal; letter-spacing: 2px; }}
+        h2 {{ font-size: 22px; margin: 0 0 16px 0; font-weight: normal; color: #2a2a2a; line-height: 1.3; }}
+        p {{ font-size: 16px; margin: 16px 0; line-height: 1.7; }}
+        .project-preview {{ background: #f8f6f0; padding: 24px; margin: 24px 0; border-left: 4px solid #2a2a2a; }}
+        .project-preview p {{ font-size: 15px; line-height: 1.6; margin: 0; }}
+        a {{ color: #2a2a2a; text-decoration: underline; }}
+        .divider {{ border-top: 1px solid #e0d5b7; margin: 32px 0; }}
+        .cta-section {{ text-align: center; margin: 32px 0; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{self.brand_name.upper()}</h1>
+            <p>New Project</p>
+        </div>
+
+        <div class="content">
+            <h2>{title}</h2>
+
+            {tech_html}
+
+            <div class="project-preview">
+                <p>{excerpt}</p>
+            </div>
+
+            <div class="cta-section">
+                <a href="{project_url}" style="display: inline-block; background: #2a2a2a; color: #f8f6f0; padding: 14px 28px; text-decoration: none; font-weight: bold; font-size: 16px;">View Project</a>
+            </div>
+
+            <div class="divider"></div>
+
+            <p>Check out the latest from {self.brand_name}.</p>
+        </div>
+
+        <div class="footer">
+            <p>{self.brand_name} . {datetime.now().year}</p>
+            <p><a href="{self.website_url}/unsubscribe">Unsubscribe</a> | <a href="{self.website_url}">Website</a></p>
+        </div>
+    </div>
+</body>
+</html>
+        """
+
     # ==================== Admin Notifications ====================
 
     def send_admin_order_notification(self, order_details: Dict[str, Any]) -> bool:

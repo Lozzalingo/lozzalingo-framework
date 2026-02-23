@@ -1134,6 +1134,7 @@
                             ${p.project_status === 'active' ? 'Set Inactive' : 'Set Active'}
                         </button>
                         <button class="btn-small btn-delete" onclick="window._deleteProject(${p.id})">Delete</button>
+                        ${p.status === 'published' ? `<button class="btn-small email-btn" name="send_project_email_${p.id}" onclick="window._sendProjectEmail(${p.id})">${p.email_sent ? 'Resend Email' : 'Send Email'}</button>` : ''}
                     </div>
                 </div>
             `).join('');
@@ -1257,6 +1258,32 @@
                 const data = await res.json();
                 if (data.success) loadProjects(); else alert('Error: ' + (data.error || 'Unknown error'));
             } catch (e) { alert('Error: ' + e.message); }
+        };
+
+        window._sendProjectEmail = async function(id) {
+            if (!confirm('Send this project to all subscribers via email?')) return;
+            const btn = document.querySelector(`button[onclick="window._sendProjectEmail(${id})"]`);
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            try {
+                const res = await fetch(`${API_BASE}/${id}/send-email`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    alert(`Email sent to ${data.subscriber_count} subscribers!`);
+                    loadProjects();
+                } else {
+                    alert(data.message || data.error || 'Failed to send email');
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
         };
 
         // === Filmstrip Modal ===

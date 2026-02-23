@@ -282,8 +282,10 @@ class Lozzalingo:
             email_config.get('from_address') or os.environ.get('EMAIL_ADDRESS'))
         self.app.config.setdefault('EMAIL_BRAND_NAME', self._config.get('brand_name'))
         self.app.config.setdefault('EMAIL_BRAND_TAGLINE', self._config.get('brand_tagline'))
-        self.app.config.setdefault('EMAIL_SUPPORT_EMAIL', email_config.get('support_email'))
-        self.app.config.setdefault('EMAIL_ADMIN_EMAIL', email_config.get('admin_email'))
+        self.app.config.setdefault('EMAIL_SUPPORT_EMAIL',
+            email_config.get('support_email') or os.environ.get('EMAIL_SUPPORT_EMAIL'))
+        self.app.config.setdefault('EMAIL_ADMIN_EMAIL',
+            email_config.get('admin_email') or os.environ.get('EMAIL_ADMIN_EMAIL'))
 
         # Database configuration
         db_dir = os.path.join(self.app.root_path, self._config.get('db_dir', 'databases'))

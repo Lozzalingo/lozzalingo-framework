@@ -89,6 +89,7 @@ def init_projects_db():
                 ('gallery_layout', 'TEXT DEFAULT "single"'),
                 ('content_image_layout', 'TEXT DEFAULT "carousel"'),
                 ('hero_image_align', 'TEXT DEFAULT "center center"'),
+                ('email_sent', 'BOOLEAN DEFAULT 0'),
             ]
             for col_name, col_type in new_columns:
                 if col_name not in columns:
@@ -145,7 +146,7 @@ def get_all_tech_categories():
 _SELECT_COLS = '''id, title, slug, content, image_url, year, status, project_status,
                   excerpt, meta_description, technologies, created_at, updated_at,
                   year_end, gross_earnings, earnings_currency,
-                  gallery_images, gallery_layout, hero_image_align'''
+                  gallery_images, gallery_layout, hero_image_align, email_sent'''
 
 def _row_to_dict(row):
     """Convert a DB row to a project dict"""
@@ -162,6 +163,7 @@ def _row_to_dict(row):
     d['gallery_images'] = row[16] if len(row) > 16 else None
     d['gallery_layout'] = row[17] if len(row) > 17 else None
     d['hero_image_align'] = row[18] if len(row) > 18 else 'center center'
+    d['email_sent'] = bool(row[19]) if len(row) > 19 else False
     return d
 
 def create_slug(title):
@@ -872,6 +874,101 @@ def add_tech_registry():
     except Exception as e:
         print(f"Error adding tech registry entry: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@projects_bp.route('/api/projects/<int:project_id>/send-email', methods=['POST'])
+def send_project_email(project_id):
+    """Send project email to subscribers"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Admin access required'}), 401
+
+    try:
+        init_projects_db()
+        project = get_project_db(project_id)
+        if not project:
+            return jsonify({'error': 'Project not found'}), 404
+
+        # Get subscriber emails
+        get_subscriber_emails = None
+        try:
+            from lozzalingo.modules.subscribers.routes import get_all_subscriber_emails
+            get_subscriber_emails = get_all_subscriber_emails
+        except ImportError:
+            pass
+
+        if get_subscriber_emails is None:
+            return jsonify({'error': 'Subscribers module not available'}), 500
+
+        subscribers = get_subscriber_emails()
+        if not subscribers:
+            return jsonify({
+                'success': False,
+                'message': 'No subscribers found',
+                'subscriber_count': 0
+            }), 200
+
+        # Build project URL
+        slug = project.get('slug', '')
+        project_url = f"/projects/{slug}"
+
+        # Prepare project data
+        content = project.get('content', '')
+        project_data = {
+            'id': project['id'],
+            'title': project['title'],
+            'content': content,
+            'slug': slug,
+            'excerpt': project.get('excerpt') or (content[:300] + '...' if len(content) > 300 else content),
+            'image_url': project.get('image_url', ''),
+            'technologies': project.get('technologies', ''),
+            'url': project_url
+        }
+
+        # Get email service
+        email_svc = None
+        try:
+            from lozzalingo.modules.email.email_service import email_service
+            email_svc = email_service
+        except ImportError:
+            pass
+
+        if email_svc is None:
+            return jsonify({'error': 'Email service not available'}), 500
+
+        success = email_svc.send_project_notification(subscribers, project_data)
+
+        if success:
+            _mark_project_email_sent(project_id)
+            return jsonify({
+                'success': True,
+                'message': f'Email sent successfully to {len(subscribers)} subscribers',
+                'subscriber_count': len(subscribers)
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to send email',
+                'subscriber_count': len(subscribers)
+            }), 500
+
+    except Exception as e:
+        print(f"Error sending project email: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+def _mark_project_email_sent(project_id):
+    """Mark a project as having had its email sent"""
+    projects_db = get_db_config()
+    db_connect = get_db_connection()
+    try:
+        with db_connect(projects_db) as conn:
+            conn.execute(
+                'UPDATE projects SET email_sent = 1 WHERE id = ?',
+                (project_id,)
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"Error marking project email sent: {e}")
 
 
 @projects_bp.route('/api/tech-registry/<name>', methods=['DELETE'])
