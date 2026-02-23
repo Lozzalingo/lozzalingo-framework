@@ -31,6 +31,18 @@ Lozzalingo(app, {'features': {'news': False}})
 - All error/exception `except` blocks MUST include a `db_log('error', ...)` call alongside any `logger.error()`
 - Logs persist in `analytics_log.db` → `app_logs` table, backed up daily to DO Spaces
 
+## Email Service Configuration
+- Provider: `EMAIL_PROVIDER` ('resend', 'ses', or 'smtp') — set in host app config or env var
+- Required config: `EMAIL_ADDRESS`, `EMAIL_BRAND_NAME`, `EMAIL_WEBSITE_URL`, `EMAIL_ADMIN_EMAIL`
+- `EMAIL_WELCOME` dict: customise welcome email content per host app (greeting, intro, bullets, closing, signoff)
+- `EMAIL_STYLE` dict: customise all email template colors/fonts per host app. Keys:
+  - `bg`, `card_bg`, `header_bg`, `header_text`, `text`, `text_secondary`, `accent`
+  - `highlight_bg`, `highlight_border`, `border`, `link`, `btn_bg`, `btn_text`, `footer_bg`
+  - `font`, `font_heading`
+- Defaults: cream/beige editorial theme — host apps override for their own brand (e.g. laurence.computer uses dark retro synth)
+- All templates use inline styles from `self.style` — no `<style>` blocks (email client compatibility)
+- Templates: welcome, news notification, project notification, purchase confirmation, shipping
+
 ## Critical Warnings
 
 ### Adding New Modules
