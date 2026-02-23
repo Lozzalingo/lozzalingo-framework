@@ -114,7 +114,7 @@ class SubscriptionPopup {
         const modalHTML = `
             <div class="subscription-popup-overlay" id="subscriptionPopup">
                 <div class="subscription-popup">
-                    <button class="subscription-popup-close" id="popupClose" aria-label="Close popup">&times;</button>
+                    <button class="subscription-popup-close" id="popupClose" name="subscribe_popup_close" aria-label="Close popup">&times;</button>
 
                     <h2 class="subscription-popup-title">${this._esc(c.title)}</h2>
                     <p class="subscription-popup-subtitle">${this._esc(c.subtitle)}</p>
@@ -134,7 +134,7 @@ class SubscriptionPopup {
 
                         ${feedsHTML}
 
-                        <button type="submit" class="subscription-popup-submit" id="popupSubmit">
+                        <button type="submit" class="subscription-popup-submit" id="popupSubmit" name="subscribe_popup_submit">
                             <span class="popup-btn-text">${this._esc(c.button_text)}</span>
                             <span class="popup-btn-loading" style="display: none;">
                                 <span class="popup-loading-spinner"></span>
@@ -144,7 +144,7 @@ class SubscriptionPopup {
                         <div class="subscription-popup-message" id="popupMessage"></div>
                     </form>
 
-                    <button class="subscription-popup-skip" id="popupSkip">
+                    <button class="subscription-popup-skip" id="popupSkip" name="subscribe_popup_skip">
                         ${this._esc(c.skip_text)}
                     </button>
                 </div>

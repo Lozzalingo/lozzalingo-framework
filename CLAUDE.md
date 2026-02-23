@@ -14,6 +14,14 @@ All enabled by default via `DEFAULT_CONFIG['features']`. Host apps can disable w
 Lozzalingo(app, {'features': {'news': False}})
 ```
 
+## Analytics Button Labeling (MANDATORY)
+- Every `<button>` in framework templates MUST have a `name="descriptive_snake_case"` attribute
+- Every important `<a>` link MUST have a `name` attribute
+- The analytics JS auto-captures clicks as `button_click_${name}` / `link_click_${name}`
+- Falls back to `id` then `'unnamed'` — but `unnamed` is useless in analytics, so always set `name`
+- This applies to ALL buttons without exception: modals, popups, navigation, forms, share buttons, etc.
+- Host apps inherit this rule — all sites using the framework must label every button
+
 ## Critical Warnings
 
 ### Adding New Modules

@@ -209,7 +209,7 @@
                        placeholder="Enter your email address"
                        value="{{ email }}" required>
             </div>
-            <button class="btn btn-primary" id="lookupBtn" onclick="lookupPreferences()">
+            <button class="btn btn-primary" id="lookupBtn" name="manage_lookup" onclick="lookupPreferences()">
                 Continue
             </button>
         </div>
@@ -224,17 +224,17 @@
             </div>
 
             <div class="btn-group">
-                <button class="btn btn-primary" id="saveBtn" onclick="savePreferences()">
+                <button class="btn btn-primary" id="saveBtn" name="manage_save_preferences" onclick="savePreferences()">
                     Update Preferences
                 </button>
-                <button class="btn btn-danger" id="unsubAllBtn" onclick="unsubscribeAll()">
+                <button class="btn btn-danger" id="unsubAllBtn" name="manage_unsubscribe_all" onclick="unsubscribeAll()">
                     Unsubscribe from All
                 </button>
             </div>
         </div>
 
         <div class="message" id="message"></div>
-        <a href="/" class="back-link">&larr; Back to homepage</a>
+        <a href="/" class="back-link" name="manage_back_home">&larr; Back to homepage</a>
     </div>
 
     <script>
