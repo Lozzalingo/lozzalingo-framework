@@ -163,6 +163,7 @@
                         <button type="button" class="btn-primary" id="publishBtn" name="project_publish">Publish Project</button>
                         <button type="button" class="btn-secondary" id="draftBtn" name="project_save_draft">Save as Draft</button>
                         <button type="button" class="btn-secondary" id="cancelBtn" name="project_cancel_edit" style="display: none;">Cancel Edit</button>
+                        <span id="saveFlash" class="save-flash" style="display:none;"></span>
                     </div>
                     <div id="statusIndicator" class="status-indicator" style="display: none;">
                         Visibility: <span id="currentStatus"></span> &nbsp;|&nbsp; Activity: <span id="currentProjectStatus"></span>
@@ -1192,11 +1193,29 @@
             };
 
             try {
+                const wasEditing = !!editingId;
                 const url = editingId ? `${API_BASE}/${editingId}` : API_BASE;
                 const method = editingId ? 'PUT' : 'POST';
                 const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
                 const data = await res.json();
-                if (data.success || data.id) { resetForm(); loadProjects(); }
+                if (data.success || data.id) {
+                    loadProjects();
+                    if (wasEditing) {
+                        // Stay in editor — just flash a confirmation and update status
+                        var flash = document.getElementById('saveFlash');
+                        flash.textContent = 'Saved';
+                        flash.style.display = 'inline';
+                        flash.classList.remove('flash-fade');
+                        void flash.offsetWidth;
+                        flash.classList.add('flash-fade');
+                        document.getElementById('currentStatus').textContent = status;
+                    } else {
+                        // New project — switch into edit mode for it
+                        var newId = data.id;
+                        resetForm();
+                        if (newId) window._editProject(newId);
+                    }
+                }
                 else alert('Error: ' + (data.error || 'Unknown error'));
             } catch (e) { alert('Error saving project: ' + e.message); }
         }
@@ -1789,6 +1808,20 @@
     .status-draft { background: #f0ad4e; color: #fff; }
     .ps-active { background: #2ecc40; color: #fff; }
     .ps-inactive { background: #e74c3c; color: #fff; }
+
+    /* Save flash */
+    .save-flash {
+        color: var(--lz-success, #4ade80);
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-left: 12px;
+        opacity: 1;
+        transition: none;
+    }
+    .save-flash.flash-fade {
+        transition: opacity 1.5s ease 1s;
+        opacity: 0;
+    }
 
     /* Image Browser Modal */
     .ib-overlay {
