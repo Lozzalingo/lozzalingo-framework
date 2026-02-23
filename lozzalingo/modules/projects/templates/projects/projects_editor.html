@@ -624,7 +624,7 @@
                     '<td style="width:28px;text-align:center;"><span class="insight-dot" style="background:' + c + ';"></span></td>' +
                     '<td style="width:80px;color:' + c + ';font-weight:600;font-size:0.8rem;">' + insightTypeLabels[item.type] + '</td>' +
                     '<td>' + item.text.replace(/</g, '&lt;') + '</td>' +
-                    '<td style="width:60px;"><button type="button" class="insight-remove" data-idx="' + i + '" name="insight_remove_' + i + '">Remove</button></td>' +
+                    '<td style="width:100px;white-space:nowrap;"><button type="button" class="insight-edit" data-idx="' + i + '" name="insight_edit_' + i + '">Edit</button> <button type="button" class="insight-remove" data-idx="' + i + '" name="insight_remove_' + i + '">Remove</button></td>' +
                     '</tr>';
             }).join('');
             insightsBody.querySelectorAll('.insight-remove').forEach(function(btn) {
@@ -632,6 +632,18 @@
                     insightItems.splice(+this.dataset.idx, 1);
                     renderInsights();
                     syncInsightsHidden();
+                });
+            });
+            insightsBody.querySelectorAll('.insight-edit').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var idx = +this.dataset.idx;
+                    var item = insightItems[idx];
+                    document.getElementById('insightType').value = item.type;
+                    document.getElementById('insightText').value = item.text;
+                    insightItems.splice(idx, 1);
+                    renderInsights();
+                    syncInsightsHidden();
+                    document.getElementById('insightText').focus();
                 });
             });
         }
@@ -1950,6 +1962,12 @@
         border-radius: 4px; line-height: 1.4; font-weight: 600;
     }
     .insight-remove:hover { background: rgba(248, 113, 113, 0.25); color: #ff4444; }
+    .insight-edit {
+        background: rgba(212, 168, 85, 0.1); border: 1px solid rgba(212, 168, 85, 0.25);
+        color: #d4a855; cursor: pointer; font-size: 0.75rem; padding: 2px 8px;
+        border-radius: 4px; line-height: 1.4; font-weight: 600;
+    }
+    .insight-edit:hover { background: rgba(212, 168, 85, 0.25); color: #e8b960; }
 
     /* Image Browser Modal */
     .ib-overlay {
