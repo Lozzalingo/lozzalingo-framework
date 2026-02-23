@@ -265,6 +265,8 @@
             <button type="button" class="img-tb-btn" data-size="medium">M</button>
             <button type="button" class="img-tb-btn" data-size="large">L</button>
         </span>
+        <span class="img-tb-sep img-tb-sep-edit" style="display:none;"></span>
+        <button type="button" class="img-tb-btn" id="imgTbEditBtn" style="display:none;">Edit</button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
@@ -356,9 +358,9 @@
                 editBtn.type = 'button';
                 editBtn.className = 'fs-edit-overlay';
                 editBtn.textContent = 'Edit Filmstrip';
-                editBtn.addEventListener('click', function(e) {
+                editBtn.addEventListener('mousedown', function(e) {
                     e.preventDefault();
-                    e.stopPropagation();
+                    e.stopImmediatePropagation();
                     var blot = Quill.find(node);
                     if (blot && window._openFilmstripModal) {
                         var idx = blot.offset(blot.scroll);
@@ -631,11 +633,18 @@
                 toolbar.style.left = Math.max(8, rect.left) + 'px';
             }
 
+            var editBtn = document.getElementById('imgTbEditBtn');
+            var editSep = toolbar.querySelector('.img-tb-sep-edit');
+
             function showToolbar(el, isFilmstrip) {
                 activeEl = el;
                 activeIsFilmstrip = isFilmstrip;
                 el.classList.add('img-selected');
                 toolbar.style.display = 'flex';
+
+                // Show/hide Edit button for filmstrips
+                editBtn.style.display = isFilmstrip ? '' : 'none';
+                editSep.style.display = isFilmstrip ? '' : 'none';
 
                 // Highlight active size
                 var curSize;
@@ -644,7 +653,7 @@
                 } else {
                     curSize = el.getAttribute('data-size') || 'large';
                 }
-                toolbar.querySelectorAll('.img-tb-btn').forEach(function(btn) {
+                toolbar.querySelectorAll('.img-tb-btn[data-size]').forEach(function(btn) {
                     btn.classList.toggle('active', btn.dataset.size === curSize);
                 });
 
@@ -739,6 +748,20 @@
                         showToolbar(activeEl, false);
                     }
                 });
+            });
+
+            // Edit button — opens filmstrip modal
+            editBtn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!activeEl || !activeIsFilmstrip) return;
+                var blot = Quill.find(activeEl);
+                if (blot && window._openFilmstripModal) {
+                    var val = blot.constructor.value(activeEl);
+                    var idx = blot.offset(blot.scroll);
+                    hideToolbar();
+                    window._openFilmstripModal(true, val.images, idx);
+                }
             });
         })();
 
