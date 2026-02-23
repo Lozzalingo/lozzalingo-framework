@@ -4,20 +4,377 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ project.title }}</title>
+    <style>
+    /* Project content styling */
+    .project-content {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        font-size: 1rem;
+        line-height: 1.8;
+    }
+    .project-content img {
+        max-width: 100%;
+        border-radius: 6px;
+        margin: 16px 0;
+    }
+    .project-content img[data-size="small"] { max-width: 33%; }
+    .project-content img[data-size="medium"] { max-width: 50%; }
+    .project-content img[data-size="large"] { max-width: 100%; }
+
+    /* Filmstrip — scrollable horizontal strip of images */
+    .img-filmstrip {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 3px;
+        margin: 24px 0;
+        border-radius: 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        border: 1px solid rgba(128,128,128,0.2);
+        scrollbar-width: none;
+    }
+    .img-filmstrip::-webkit-scrollbar { height: 0; display: none; }
+    .img-filmstrip img {
+        flex: 0 0 auto;
+        width: auto !important;
+        max-width: none !important;
+        height: 300px;
+        object-fit: cover;
+        display: block;
+        margin: 0 !important;
+        border-radius: 0 !important;
+    }
+    /* Filmstrip sizes */
+    .img-filmstrip[data-size="small"] img { height: 180px; }
+    .img-filmstrip[data-size="medium"] img { height: 300px; }
+    .img-filmstrip[data-size="large"] img { height: 450px; }
+
+    /* Image grid — masonry layout */
+    .img-grid {
+        columns: 2;
+        column-gap: 12px;
+        margin: 24px 0;
+    }
+    .img-grid-item {
+        break-inside: avoid;
+        margin-bottom: 12px;
+    }
+    .img-grid-item img {
+        width: 100%;
+        border-radius: 8px;
+        display: block;
+    }
+
+    /* Image carousel */
+    .img-carousel {
+        position: relative;
+        margin: 24px 0;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid rgba(128,128,128,0.2);
+    }
+    .carousel-track { position: relative; width: 100%; }
+    .carousel-slide { display: none; }
+    .carousel-slide.active { display: block; }
+    .carousel-slide img {
+        width: 100%;
+        height: 420px;
+        object-fit: cover;
+        display: block;
+        margin: 0;
+        border-radius: 0;
+    }
+    .carousel-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(0,0,0,0.6);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.15);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        font-size: 1.4rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2;
+        line-height: 1;
+        padding: 0 0 2px 0;
+    }
+    .carousel-prev { left: 10px; }
+    .carousel-next { right: 10px; }
+    .carousel-counter {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.6);
+        color: rgba(255,255,255,0.8);
+        padding: 3px 12px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        z-index: 2;
+    }
+
+    /* Gallery carousel (hero) */
+    .project-gallery-carousel { margin-bottom: 32px; max-height: 420px; overflow: hidden; }
+    .project-gallery-carousel .carousel-slide img { height: 420px; object-fit: cover; }
+
+    /* Gallery grid */
+    .project-gallery-grid { columns: 2; column-gap: 12px; margin-bottom: 32px; }
+    .project-gallery-grid .gallery-grid-item { break-inside: avoid; margin-bottom: 12px; }
+    .project-gallery-grid .gallery-grid-item img { width: 100%; border-radius: 8px; display: block; }
+
+    @media (max-width: 1024px) {
+        .carousel-slide img { height: 340px; }
+        .project-gallery-carousel { max-height: 340px; }
+        .project-gallery-carousel .carousel-slide img { height: 340px; }
+        .img-filmstrip img { height: 240px; }
+        .img-filmstrip[data-size="small"] img { height: 140px; }
+        .img-filmstrip[data-size="medium"] img { height: 240px; }
+        .img-filmstrip[data-size="large"] img { height: 360px; }
+    }
+
+    @media (max-width: 768px) {
+        .carousel-slide img { height: 260px; }
+        .project-gallery-carousel { max-height: 260px; }
+        .project-gallery-carousel .carousel-slide img { height: 260px; }
+        .carousel-arrow { width: 30px; height: 30px; font-size: 1.2rem; }
+        .carousel-prev { left: 6px; }
+        .carousel-next { right: 6px; }
+        .project-gallery-grid { columns: 1; }
+        .img-grid { columns: 1; }
+        .img-filmstrip img { height: 160px; }
+        .img-filmstrip[data-size="small"] img { height: 100px; }
+        .img-filmstrip[data-size="medium"] img { height: 160px; }
+        .img-filmstrip[data-size="large"] img { height: 240px; }
+        .project-content img[data-size="small"],
+        .project-content img[data-size="medium"] { max-width: 100%; }
+    }
+    </style>
 </head>
 <body>
     <h1>{{ project.title }}</h1>
     {% if project.year %}<span>{{ project.year }}</span>{% endif %}
     {% if project.project_status %}<span>{{ project.project_status }}</span>{% endif %}
-    {% if project.image_url %}<img src="{{ project.image_url }}" alt="{{ project.title }}">{% endif %}
-    <div>{{ project.content | safe }}</div>
+
+    {% set gallery = project.gallery_images | parse_gallery if project.gallery_images else [] %}
+    {% set layout = project.gallery_layout or 'single' %}
+    {% if gallery %}
+        {% if layout == 'carousel' and gallery|length > 1 %}
+        <div class="img-carousel project-gallery-carousel">
+            <div class="carousel-track">
+                {% for img in gallery %}
+                <div class="carousel-slide{{ ' active' if loop.first else '' }}">
+                    <img src="{{ img }}" alt="{{ project.title }} - image {{ loop.index }}" loading="lazy">
+                </div>
+                {% endfor %}
+            </div>
+            <button class="carousel-arrow carousel-prev" aria-label="Previous">&#8249;</button>
+            <button class="carousel-arrow carousel-next" aria-label="Next">&#8250;</button>
+            <div class="carousel-counter">1 / {{ gallery|length }}</div>
+        </div>
+        {% elif layout == 'grid' and gallery|length > 1 %}
+        <div class="project-gallery-grid">
+            {% for img in gallery %}
+            <div class="gallery-grid-item">
+                <img src="{{ img }}" alt="{{ project.title }} - image {{ loop.index }}" loading="lazy">
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <img src="{{ gallery[0] }}" alt="{{ project.title }}" style="max-width:100%; border-radius:8px; margin-bottom:24px;">
+        {% endif %}
+    {% elif project.image_url %}
+    <img src="{{ project.image_url }}" alt="{{ project.title }}" style="max-width:100%; border-radius:8px; margin-bottom:24px;">
+    {% endif %}
+
+    <div class="project-content">
+        {{ project.content | safe }}
+    </div>
+
     {% if project.technologies %}
-    <div>
+    <div style="margin-top:32px; padding-top:24px; border-top:1px solid rgba(128,128,128,0.2);">
         <strong>Technologies:</strong>
         {% for tech in project.technologies.split(',') %}
-        <span>{{ tech.strip() }}</span>
+        <span style="display:inline-block; padding:2px 8px; margin:2px; border-radius:4px; font-size:0.85rem; background:rgba(128,128,128,0.1);">{{ tech.strip() }}</span>
         {% endfor %}
     </div>
     {% endif %}
+
+    <script>
+    // Auto-group consecutive images by per-image data-layout attribute
+    (function() {
+        var content = document.querySelector('.project-content');
+        if (!content) return;
+
+        var children = Array.from(content.children);
+        var entries = [];
+
+        children.forEach(function(el) {
+            var imgs = el.tagName === 'IMG' ? [el] : Array.from(el.querySelectorAll ? el.querySelectorAll('img') : []);
+            var isEmpty = el.tagName === 'P' && !el.textContent.trim() && imgs.length === 0;
+
+            if (imgs.length > 0) {
+                imgs.forEach(function(img) {
+                    entries.push({
+                        el: el,
+                        img: img,
+                        layout: img.getAttribute('data-layout') || 'single',
+                        src: img.src,
+                        alt: img.alt || ''
+                    });
+                });
+            } else if (isEmpty && entries.length && entries[entries.length - 1].layout !== '_skip') {
+                entries.push({ el: el, layout: '_empty' });
+            } else {
+                entries.push({ el: el, layout: '_skip' });
+            }
+        });
+
+        var groups = [];
+        var current = [];
+        var currentLayout = null;
+
+        entries.forEach(function(entry) {
+            if (entry.layout === '_empty' && current.length > 0) {
+                current.push(entry);
+                return;
+            }
+            if (entry.layout === '_skip' || entry.layout === 'single') {
+                if (current.length > 0) {
+                    var imgEntries = current.filter(function(e) { return e.src; });
+                    if (imgEntries.length > 1) groups.push({ layout: currentLayout, items: current });
+                    current = [];
+                    currentLayout = null;
+                }
+                return;
+            }
+            if (currentLayout && currentLayout !== entry.layout) {
+                var imgEntries = current.filter(function(e) { return e.src; });
+                if (imgEntries.length > 1) groups.push({ layout: currentLayout, items: current });
+                current = [];
+            }
+            currentLayout = entry.layout;
+            current.push(entry);
+        });
+        if (current.length > 0) {
+            var imgEntries = current.filter(function(e) { return e.src; });
+            if (imgEntries.length > 1) groups.push({ layout: currentLayout, items: current });
+        }
+
+        function removeGroupEls(items) {
+            var seen = new Set();
+            items.forEach(function(item) {
+                if (!seen.has(item.el)) { seen.add(item.el); item.el.remove(); }
+            });
+        }
+
+        groups.forEach(function(group) {
+            var imgItems = group.items.filter(function(e) { return e.src; });
+            var firstEl = group.items[0].el;
+
+            if (group.layout === 'grid') {
+                var wrapper = document.createElement('div');
+                wrapper.className = 'img-grid';
+                imgItems.forEach(function(item) {
+                    var cell = document.createElement('div');
+                    cell.className = 'img-grid-item';
+                    var img = document.createElement('img');
+                    img.src = item.src; img.alt = item.alt; img.loading = 'lazy';
+                    cell.appendChild(img); wrapper.appendChild(cell);
+                });
+                firstEl.parentNode.insertBefore(wrapper, firstEl);
+                removeGroupEls(group.items);
+            } else {
+                var wrapper = document.createElement('div');
+                wrapper.className = 'img-filmstrip';
+                imgItems.forEach(function(item) {
+                    var img = document.createElement('img');
+                    img.src = item.src; img.alt = item.alt; img.loading = 'lazy';
+                    wrapper.appendChild(img);
+                });
+                firstEl.parentNode.insertBefore(wrapper, firstEl);
+                removeGroupEls(group.items);
+            }
+        });
+    })();
+
+    // Infinite auto-scroll for filmstrips
+    (function() {
+        document.querySelectorAll('.img-filmstrip').forEach(function(strip) {
+            var imgs = strip.querySelectorAll('img');
+            if (imgs.length < 2) return;
+
+            strip.style.scrollSnapType = 'none';
+
+            imgs.forEach(function(img) {
+                strip.appendChild(img.cloneNode(true));
+            });
+
+            var speed = 0.5;
+            var paused = false;
+            var rafId = null;
+
+            function tick() {
+                if (!paused) {
+                    strip.scrollLeft += speed;
+                    var halfScroll = strip.scrollWidth / 2;
+                    if (strip.scrollLeft >= halfScroll) {
+                        strip.scrollLeft -= halfScroll;
+                    }
+                }
+                rafId = requestAnimationFrame(tick);
+            }
+
+            strip.addEventListener('mouseenter', function() { paused = true; });
+            strip.addEventListener('mouseleave', function() { paused = false; });
+            strip.addEventListener('touchstart', function() { paused = true; }, { passive: true });
+            strip.addEventListener('touchend', function() {
+                setTimeout(function() { paused = false; }, 2000);
+            });
+
+            var observer = new IntersectionObserver(function(entries) {
+                if (entries[0].isIntersecting) {
+                    if (!rafId) rafId = requestAnimationFrame(tick);
+                } else {
+                    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+                }
+            }, { threshold: 0.1 });
+            observer.observe(strip);
+        });
+    })();
+
+    // Gallery carousel controls
+    (function() {
+        var gc = document.querySelector('.project-gallery-carousel');
+        if (!gc) return;
+
+        var slides = gc.querySelectorAll('.carousel-slide');
+        var counter = gc.querySelector('.carousel-counter');
+        var total = slides.length;
+        var idx = 0;
+
+        function show(n) {
+            idx = (n + total) % total;
+            slides.forEach(function(s, i) { s.classList.toggle('active', i === idx); });
+            counter.textContent = (idx + 1) + ' / ' + total;
+        }
+
+        gc.querySelector('.carousel-prev').addEventListener('click', function() { show(idx - 1); });
+        gc.querySelector('.carousel-next').addEventListener('click', function() { show(idx + 1); });
+
+        var startX = 0;
+        var track = gc.querySelector('.carousel-track');
+        track.addEventListener('touchstart', function(e) { startX = e.touches[0].clientX; }, { passive: true });
+        track.addEventListener('touchend', function(e) {
+            var diff = startX - e.changedTouches[0].clientX;
+            if (Math.abs(diff) > 40) show(idx + (diff > 0 ? 1 : -1));
+        });
+    })();
+    </script>
 </body>
 </html>
