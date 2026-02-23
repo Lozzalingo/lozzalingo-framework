@@ -615,7 +615,9 @@
         function renderInsights() {
             // Sort: wins first, then losses, then takeaways
             insightItems.sort(function(a, b) {
-                return (insightTypeOrder[a.type] || 9) - (insightTypeOrder[b.type] || 9);
+                var oa = a.type in insightTypeOrder ? insightTypeOrder[a.type] : 9;
+                var ob = b.type in insightTypeOrder ? insightTypeOrder[b.type] : 9;
+                return oa - ob;
             });
             insightsTable.style.display = insightItems.length ? '' : 'none';
             insightsBody.innerHTML = insightItems.map(function(item, i) {
