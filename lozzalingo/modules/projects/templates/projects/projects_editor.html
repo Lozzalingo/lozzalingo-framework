@@ -102,6 +102,25 @@
                     </div>
 
                     <div class="form-group">
+                        <label>Insights</label>
+                        <div class="insights-input-wrap">
+                            <div class="insights-add-row">
+                                <select id="insightType">
+                                    <option value="win">Win</option>
+                                    <option value="loss">Loss</option>
+                                    <option value="takeaway">Takeaway</option>
+                                </select>
+                                <input type="text" id="insightText" placeholder="Add an insight..." style="flex:1;">
+                                <button type="button" class="btn-secondary" id="insightAddBtn" name="insight_add">Add</button>
+                            </div>
+                            <table class="insights-table" id="insightsTable" style="display:none;">
+                                <tbody id="insightsBody"></tbody>
+                            </table>
+                        </div>
+                        <input type="hidden" id="insightsHidden" name="insights">
+                    </div>
+
+                    <div class="form-group">
                         <label>Gallery Layout</label>
                         <div class="gallery-layout-picker" id="galleryLayoutPicker">
                             <button type="button" class="gl-btn active" data-layout="single" name="gallery_layout_single">Single</button>
@@ -577,6 +596,65 @@
             });
             renderTechTags();
             syncTechHidden();
+        }
+
+        // ===== Insights Picker =====
+        let insightItems = []; // [{type, text}, ...]
+        const insightsBody = document.getElementById('insightsBody');
+        const insightsTable = document.getElementById('insightsTable');
+        const insightsHidden = document.getElementById('insightsHidden');
+        const insightTypeColors = { win: '#2ecc40', loss: '#ff2d95', takeaway: '#d4a855' };
+        const insightTypeLabels = { win: 'Win', loss: 'Loss', takeaway: 'Takeaway' };
+
+        function syncInsightsHidden() {
+            insightsHidden.value = insightItems.length ? JSON.stringify(insightItems) : '';
+        }
+
+        function renderInsights() {
+            insightsTable.style.display = insightItems.length ? '' : 'none';
+            insightsBody.innerHTML = insightItems.map(function(item, i) {
+                var c = insightTypeColors[item.type] || '#aaa';
+                return '<tr>' +
+                    '<td style="width:28px;text-align:center;"><span class="insight-dot" style="background:' + c + ';"></span></td>' +
+                    '<td style="width:80px;color:' + c + ';font-weight:600;font-size:0.8rem;">' + insightTypeLabels[item.type] + '</td>' +
+                    '<td>' + item.text.replace(/</g, '&lt;') + '</td>' +
+                    '<td style="width:28px;"><button type="button" class="insight-remove" data-idx="' + i + '" name="insight_remove_' + i + '">&times;</button></td>' +
+                    '</tr>';
+            }).join('');
+            insightsBody.querySelectorAll('.insight-remove').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    insightItems.splice(+this.dataset.idx, 1);
+                    renderInsights();
+                    syncInsightsHidden();
+                });
+            });
+        }
+
+        document.getElementById('insightAddBtn').addEventListener('click', function() {
+            var text = document.getElementById('insightText').value.trim();
+            if (!text) return;
+            insightItems.push({ type: document.getElementById('insightType').value, text: text });
+            document.getElementById('insightText').value = '';
+            renderInsights();
+            syncInsightsHidden();
+        });
+
+        document.getElementById('insightText').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); document.getElementById('insightAddBtn').click(); }
+        });
+
+        function setInsightsFromJSON(json) {
+            insightItems = [];
+            if (!json) { renderInsights(); syncInsightsHidden(); return; }
+            try { insightItems = JSON.parse(json); } catch (e) { insightItems = []; }
+            renderInsights();
+            syncInsightsHidden();
+        }
+
+        function clearInsights() {
+            insightItems = [];
+            renderInsights();
+            syncInsightsHidden();
         }
 
         function clearTechs() {
@@ -1189,7 +1267,8 @@
                 earnings_label: document.getElementById('earningsLabel').value || null,
                 gallery_images: document.getElementById('galleryImagesHidden').value || null,
                 gallery_layout: document.getElementById('galleryLayout').value || 'single',
-                hero_image_align: document.getElementById('heroImageAlign').value || 'center center'
+                hero_image_align: document.getElementById('heroImageAlign').value || 'center center',
+                insights: document.getElementById('insightsHidden').value || null
             };
 
             try {
@@ -1267,6 +1346,7 @@
                 document.getElementById('grossEarnings').value = p.gross_earnings || '';
                 document.getElementById('earningsCurrency').value = p.earnings_currency || '£';
                 document.getElementById('earningsLabel').value = p.earnings_label || '';
+                setInsightsFromJSON(p.insights || '');
                 quill.root.innerHTML = p.content || '';
 
                 document.getElementById('formTitle').textContent = 'Edit Project';
@@ -1771,6 +1851,7 @@
             document.getElementById('yearEnd').value = '';
             document.getElementById('projectStatus').value = 'active';
             clearTechs();
+            clearInsights();
             galleryImages = [];
             galleryLayout = 'single';
             document.getElementById('galleryLayout').value = 'single';
@@ -1822,6 +1903,32 @@
         transition: opacity 1.5s ease 1s;
         opacity: 0;
     }
+
+    /* Insights picker */
+    .insights-add-row {
+        display: flex; gap: 8px; align-items: center; margin-bottom: 8px;
+    }
+    .insights-add-row select {
+        width: 120px; padding: 6px 8px;
+        background: var(--lz-input-bg, #111); color: var(--noir-white, #eee);
+        border: 1px solid var(--noir-gray, rgba(255,255,255,0.1)); border-radius: 6px;
+    }
+    .insights-table {
+        width: 100%; border-collapse: collapse;
+    }
+    .insights-table td {
+        padding: 6px 8px; border-bottom: 1px solid var(--noir-gray, rgba(255,255,255,0.06));
+        font-size: 0.85rem; color: var(--noir-silver, #aaa);
+        vertical-align: middle;
+    }
+    .insight-dot {
+        display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    }
+    .insight-remove {
+        background: none; border: none; color: var(--noir-silver, #888);
+        cursor: pointer; font-size: 1.1rem; padding: 0 4px; line-height: 1;
+    }
+    .insight-remove:hover { color: var(--lz-danger, #f87171); }
 
     /* Image Browser Modal */
     .ib-overlay {

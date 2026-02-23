@@ -328,6 +328,7 @@ def test_admin_auth_redirect(client):
 
 EXPECTED_TEMPLATE_FILTERS = [
     "parse_gallery",
+    "parse_insights",
     "format_project_content",
 ]
 

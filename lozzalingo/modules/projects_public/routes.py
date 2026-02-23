@@ -50,6 +50,22 @@ def parse_gallery_filter(value):
     return []
 
 
+@projects_public_bp.app_template_filter('parse_insights')
+def parse_insights_filter(value):
+    """Parse a JSON insights string into a list of {type, text} dicts."""
+    if not value:
+        return []
+    if isinstance(value, list):
+        return value
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, list):
+            return parsed
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return []
+
+
 # ===== Routes =====
 
 @projects_public_bp.route('/')

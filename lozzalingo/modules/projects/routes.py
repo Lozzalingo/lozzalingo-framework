@@ -91,6 +91,7 @@ def init_projects_db():
                 ('hero_image_align', 'TEXT DEFAULT "center center"'),
                 ('email_sent', 'BOOLEAN DEFAULT 0'),
                 ('earnings_label', 'TEXT'),
+                ('insights', 'TEXT'),
             ]
             for col_name, col_type in new_columns:
                 if col_name not in columns:
@@ -148,7 +149,7 @@ _SELECT_COLS = '''id, title, slug, content, image_url, year, status, project_sta
                   excerpt, meta_description, technologies, created_at, updated_at,
                   year_end, gross_earnings, earnings_currency,
                   gallery_images, gallery_layout, hero_image_align, email_sent,
-                  earnings_label'''
+                  earnings_label, insights'''
 
 def _row_to_dict(row):
     """Convert a DB row to a project dict"""
@@ -167,6 +168,7 @@ def _row_to_dict(row):
     d['hero_image_align'] = row[18] if len(row) > 18 else 'center center'
     d['email_sent'] = bool(row[19]) if len(row) > 19 else False
     d['earnings_label'] = row[20] if len(row) > 20 else None
+    d['insights'] = row[21] if len(row) > 21 else None
     return d
 
 def create_slug(title):
@@ -231,7 +233,7 @@ def create_project_db(title, content, image_url=None, year=None,
                       meta_description=None, technologies=None,
                       year_end=None, gross_earnings=None, earnings_currency=None,
                       gallery_images=None, gallery_layout=None,
-                      hero_image_align=None, earnings_label=None):
+                      hero_image_align=None, earnings_label=None, insights=None):
     """Create new project in database"""
     projects_db = get_db_config()
     db_connect = get_db_connection()
@@ -245,12 +247,14 @@ def create_project_db(title, content, image_url=None, year=None,
                 INSERT INTO projects (title, slug, content, image_url, year,
                     status, project_status, excerpt, meta_description, technologies,
                     year_end, gross_earnings, earnings_currency,
-                    gallery_images, gallery_layout, hero_image_align, earnings_label)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    gallery_images, gallery_layout, hero_image_align, earnings_label,
+                    insights)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (title, slug, content, image_url, year,
                   status, project_status, excerpt, meta_description, technologies,
                   year_end, gross_earnings, earnings_currency,
-                  gallery_images, gallery_layout, hero_image_align, earnings_label))
+                  gallery_images, gallery_layout, hero_image_align, earnings_label,
+                  insights))
             conn.commit()
             return cursor.lastrowid, slug
     except Exception as e:
@@ -262,7 +266,7 @@ def update_project_db(project_id, title, content, image_url=None, year=None,
                       meta_description=None, technologies=None,
                       year_end=None, gross_earnings=None, earnings_currency=None,
                       gallery_images=None, gallery_layout=None,
-                      hero_image_align=None, earnings_label=None):
+                      hero_image_align=None, earnings_label=None, insights=None):
     """Update existing project"""
     projects_db = get_db_config()
     db_connect = get_db_connection()
@@ -298,14 +302,14 @@ def update_project_db(project_id, title, content, image_url=None, year=None,
                     status = ?, project_status = ?, excerpt = ?, meta_description = ?,
                     technologies = ?, year_end = ?, gross_earnings = ?,
                     earnings_currency = ?, gallery_images = ?, gallery_layout = ?,
-                    hero_image_align = ?, earnings_label = ?,
+                    hero_image_align = ?, earnings_label = ?, insights = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (title.strip(), slug, content.strip(), image_url, year,
                   status, project_status, excerpt, meta_description,
                   technologies, year_end, gross_earnings, earnings_currency,
                   gallery_images, gallery_layout, hero_image_align, earnings_label,
-                  project_id))
+                  insights, project_id))
             conn.commit()
 
             return cursor.rowcount > 0
@@ -505,6 +509,7 @@ def create_project():
         gallery_layout = data.get('gallery_layout') or None
         hero_image_align = data.get('hero_image_align') or None
         earnings_label = data.get('earnings_label') or None
+        insights = data.get('insights') or None
 
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
@@ -536,7 +541,8 @@ def create_project():
             technologies=technologies, year_end=year_end,
             gross_earnings=gross_earnings, earnings_currency=earnings_currency,
             gallery_images=gallery_images, gallery_layout=gallery_layout,
-            hero_image_align=hero_image_align, earnings_label=earnings_label
+            hero_image_align=hero_image_align, earnings_label=earnings_label,
+            insights=insights
         )
 
         return jsonify({
@@ -577,6 +583,7 @@ def update_project(project_id):
         gallery_layout = data.get('gallery_layout') or None
         hero_image_align = data.get('hero_image_align') or None
         earnings_label = data.get('earnings_label') or None
+        insights = data.get('insights') or None
 
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
@@ -608,7 +615,8 @@ def update_project(project_id):
             technologies=technologies, year_end=year_end,
             gross_earnings=gross_earnings, earnings_currency=earnings_currency,
             gallery_images=gallery_images, gallery_layout=gallery_layout,
-            hero_image_align=hero_image_align, earnings_label=earnings_label
+            hero_image_align=hero_image_align, earnings_label=earnings_label,
+            insights=insights
         )
 
         if success:
