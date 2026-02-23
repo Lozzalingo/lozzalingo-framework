@@ -1,4 +1,5 @@
 # Lozzalingo Framework - Claude Guidelines
+Shared rules (analytics labeling, logging, email config, admin security, config pattern) are in the parent `Programming/CLAUDE.md`.
 
 ## Architecture
 - Batteries-included Flask admin framework, installed via `pip install` from git
@@ -13,35 +14,6 @@ All enabled by default via `DEFAULT_CONFIG['features']`. Host apps can disable w
 ```python
 Lozzalingo(app, {'features': {'news': False}})
 ```
-
-## Analytics Button Labeling (MANDATORY)
-- Every `<button>` in framework templates MUST have a `name="descriptive_snake_case"` attribute
-- Every important `<a>` link MUST have a `name` attribute
-- The analytics JS auto-captures clicks as `button_click_${name}` / `link_click_${name}`
-- Falls back to `id` then `'unnamed'` — but `unnamed` is useless in analytics, so always set `name`
-- This applies to ALL buttons without exception: modals, popups, navigation, forms, share buttons, etc.
-- Host apps inherit this rule — all sites using the framework must label every button
-
-## Persistent Logging (MANDATORY)
-- All 5xx responses are auto-logged to the `app_logs` DB table via `_setup_error_logging()` — this works out of the box
-- For explicit logging in module code, use the shared helper: `from lozzalingo.core import db_log`
-- Call pattern: `db_log('error', 'module_name', 'What happened', {'key': 'value'})`
-- Levels: `debug`, `info`, `warning`, `error`, `critical`
-- **NEVER use Python's stdlib `logging.getLogger()` as the only logger** — stdout logs are lost on container rebuild
-- All error/exception `except` blocks MUST include a `db_log('error', ...)` call alongside any `logger.error()`
-- Logs persist in `analytics_log.db` → `app_logs` table, backed up daily to DO Spaces
-
-## Email Service Configuration
-- Provider: `EMAIL_PROVIDER` ('resend', 'ses', or 'smtp') — set in host app config or env var
-- Required config: `EMAIL_ADDRESS`, `EMAIL_BRAND_NAME`, `EMAIL_WEBSITE_URL`, `EMAIL_ADMIN_EMAIL`
-- `EMAIL_WELCOME` dict: customise welcome email content per host app (greeting, intro, bullets, closing, signoff)
-- `EMAIL_STYLE` dict: customise all email template colors/fonts per host app. Keys:
-  - `bg`, `card_bg`, `header_bg`, `header_text`, `text`, `text_secondary`, `accent`
-  - `highlight_bg`, `highlight_border`, `border`, `link`, `btn_bg`, `btn_text`, `footer_bg`
-  - `font`, `font_heading`
-- Defaults: cream/beige editorial theme — host apps override for their own brand (e.g. laurence.computer uses dark retro synth)
-- All templates use inline styles from `self.style` — no `<style>` blocks (email client compatibility)
-- Templates: welcome, news notification, project notification, purchase confirmation, shipping
 
 ## Critical Warnings
 
@@ -60,23 +32,9 @@ When adding a new module:
 - Framework SQL queries MUST detect available columns dynamically using `PRAGMA table_info`
 - Never assume optional columns exist — use safe defaults
 
-### Admin Creation Security
-- The "Create one here" link on the login page is ONLY shown when the host is localhost/127.0.0.1
-- In production, the link is hidden — admins can only be created by logged-in admins via the dashboard
-- The `/admin/create-admin` route still allows unauthenticated access when zero admins exist (bootstrap case)
-- NEVER make the create-admin link publicly visible in production
-
 ### Dependencies
 - `flask-cors` is required by `merchandise_public` — host apps must have it in their requirements.txt
 - Core deps: Flask, Flask-SQLAlchemy, Flask-CORS, python-dotenv, requests, PyYAML
-
-### Config Pattern for Modules
-All modules MUST use the 3-tier `get_db_config()` pattern for DB paths and table names — NEVER access `Config.ANALYTICS_DB` (or similar) directly at module level. The pattern:
-1. `current_app.config.get('KEY')` — Flask app config (highest priority)
-2. `Config.KEY` with `hasattr()` guard — framework default
-3. `os.getenv('KEY', 'fallback')` — env var fallback
-
-This prevents `AttributeError` when host apps define their own Config class without all framework attributes.
 
 ### New Host App Setup
 When creating a new host app:
@@ -89,11 +47,13 @@ When creating a new host app:
 ## Host Apps
 | App | Install Method | Registration | Server |
 |-----|---------------|-------------|--------|
+| laurence.computer | Symlink (`lozzalingo -> ../lozzalingo-framework/lozzalingo`) | `Lozzalingo(app)` auto | DigitalOcean 143.110.152.203 |
 | Crowd Sauced | Symlink (`lozzalingo -> lozzalingo-repo/lozzalingo`) | Manual imports in `main.py` | DigitalOcean 143.110.152.203 |
 | Mario Pinto | `pip install` from git | Manual imports in `app/__init__.py` | AWS EC2 eu-north-1 |
 
 ### Updating Framework on Servers
-- **Crowd Sauced**: `cd /var/www/crowd-sauced/lozzalingo-repo && git pull` then `docker compose up -d --build` (must rebuild image)
+- **laurence.computer**: `cd /var/www/laurence.computer/lozzalingo-repo && git pull` then `docker compose up -d --build`
+- **Crowd Sauced**: `cd /var/www/crowd-sauced/lozzalingo-repo && git pull` then `docker compose up -d --build`
 - **Mario Pinto**: `docker compose exec -T web pip install --no-cache-dir --force-reinstall git+https://github.com/Lozzalingo/lozzalingo-framework.git@main` then `docker compose restart web`
 
 ## Key Files
