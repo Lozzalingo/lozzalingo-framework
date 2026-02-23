@@ -587,18 +587,36 @@
             techCategoryPicker.style.display = 'none';
         }
 
+        // Register horizontal rule blot
+        var BlockEmbed = Quill.import('blots/block/embed');
+        class DividerBlot extends BlockEmbed {}
+        DividerBlot.blotName = 'divider';
+        DividerBlot.tagName = 'hr';
+        Quill.register(DividerBlot);
+
         const quill = new Quill('#editor', {
             theme: 'snow',
             placeholder: 'Write project description...',
             modules: {
-                toolbar: [
-                    [{ 'header': [1, 2, 3, false] }],
-                    ['bold', 'italic', 'underline', 'strike'],
-                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                    ['blockquote', 'code-block'],
-                    ['link', 'image'],
-                    ['clean']
-                ]
+                toolbar: {
+                    container: [
+                        [{ 'header': [1, 2, 3, false] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        ['blockquote', 'code-block'],
+                        ['link', 'image'],
+                        ['divider'],
+                        ['clean']
+                    ],
+                    handlers: {
+                        'divider': function() {
+                            var range = this.quill.getSelection(true);
+                            this.quill.insertText(range.index, '\n', Quill.sources.USER);
+                            this.quill.insertEmbed(range.index + 1, 'divider', true, Quill.sources.USER);
+                            this.quill.setSelection(range.index + 2, Quill.sources.SILENT);
+                        }
+                    }
+                }
             }
         });
 

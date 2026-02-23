@@ -18,6 +18,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ===== Quill Initialization =====
 
+// Register horizontal rule blot
+var BlockEmbed = Quill.import('blots/block/embed');
+class DividerBlot extends BlockEmbed {}
+DividerBlot.blotName = 'divider';
+DividerBlot.tagName = 'hr';
+Quill.register(DividerBlot);
+
 function initQuill() {
     quill = new Quill('#editor', {
         theme: 'snow',
@@ -33,11 +40,18 @@ function initQuill() {
                     [{ 'color': [] }, { 'background': [] }],
                     ['blockquote', 'code-block'],
                     ['link', 'image', 'video'],
+                    ['divider'],
                     ['clean']
                 ],
                 handlers: {
                     'image': imageHandler,
-                    'link': linkHandler
+                    'link': linkHandler,
+                    'divider': function() {
+                        var range = this.quill.getSelection(true);
+                        this.quill.insertText(range.index, '\n', Quill.sources.USER);
+                        this.quill.insertEmbed(range.index + 1, 'divider', true, Quill.sources.USER);
+                        this.quill.setSelection(range.index + 2, Quill.sources.SILENT);
+                    }
                 }
             }
         }

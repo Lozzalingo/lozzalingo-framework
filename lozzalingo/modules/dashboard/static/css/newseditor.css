@@ -929,6 +929,31 @@
     color: var(--noir-silver);
 }
 
+/* Editor horizontal rule / divider */
+.ql-editor hr {
+    border: none;
+    border-top: 1px solid var(--noir-light-gray, #555);
+    margin: 24px 0;
+}
+
+/* Divider toolbar button label */
+.ql-snow .ql-toolbar .ql-divider,
+.ql-snow.ql-toolbar .ql-divider {
+    width: auto;
+    padding: 0 8px;
+    font-size: 0.75rem;
+    font-family: inherit;
+    color: var(--noir-silver, #aaa);
+}
+.ql-snow .ql-toolbar .ql-divider::after,
+.ql-snow.ql-toolbar .ql-divider::after {
+    content: '—';
+}
+.ql-snow .ql-toolbar .ql-divider:hover,
+.ql-snow.ql-toolbar .ql-divider:hover {
+    color: var(--noir-white, #fff);
+}
+
 /* ===== Image Gallery Modal ===== */
 
 .image-modal-overlay {
