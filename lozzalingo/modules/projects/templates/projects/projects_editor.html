@@ -106,11 +106,11 @@
                         <div class="insights-input-wrap">
                             <div class="insights-add-row">
                                 <select id="insightType">
-                                    <option value="win">Win</option>
-                                    <option value="loss">Loss</option>
-                                    <option value="takeaway">Takeaway</option>
+                                    <option value="win">Wins</option>
+                                    <option value="loss">Losses</option>
+                                    <option value="takeaway">Takeaways</option>
                                 </select>
-                                <input type="text" id="insightText" placeholder="Add an insight..." style="flex:1;">
+                                <input type="text" id="insightText" placeholder="Add an insight...">
                                 <button type="button" class="btn-secondary" id="insightAddBtn" name="insight_add">Add</button>
                             </div>
                             <table class="insights-table" id="insightsTable" style="display:none;">
@@ -604,7 +604,7 @@
         const insightsTable = document.getElementById('insightsTable');
         const insightsHidden = document.getElementById('insightsHidden');
         const insightTypeColors = { win: '#2ecc40', loss: '#ff2d95', takeaway: '#d4a855' };
-        const insightTypeLabels = { win: 'Win', loss: 'Loss', takeaway: 'Takeaway' };
+        const insightTypeLabels = { win: 'Wins', loss: 'Losses', takeaway: 'Takeaways' };
 
         function syncInsightsHidden() {
             insightsHidden.value = insightItems.length ? JSON.stringify(insightItems) : '';
@@ -618,7 +618,7 @@
                     '<td style="width:28px;text-align:center;"><span class="insight-dot" style="background:' + c + ';"></span></td>' +
                     '<td style="width:80px;color:' + c + ';font-weight:600;font-size:0.8rem;">' + insightTypeLabels[item.type] + '</td>' +
                     '<td>' + item.text.replace(/</g, '&lt;') + '</td>' +
-                    '<td style="width:28px;"><button type="button" class="insight-remove" data-idx="' + i + '" name="insight_remove_' + i + '">&times;</button></td>' +
+                    '<td style="width:60px;"><button type="button" class="insight-remove" data-idx="' + i + '" name="insight_remove_' + i + '">Remove</button></td>' +
                     '</tr>';
             }).join('');
             insightsBody.querySelectorAll('.insight-remove').forEach(function(btn) {
@@ -1906,12 +1906,25 @@
 
     /* Insights picker */
     .insights-add-row {
-        display: flex; gap: 8px; align-items: center; margin-bottom: 8px;
+        display: flex; gap: 8px; align-items: stretch; margin-bottom: 8px;
+    }
+    .insights-add-row select,
+    .insights-add-row input,
+    .insights-add-row .btn-secondary {
+        padding: 10px 14px;
+        font-size: 0.9rem;
+        border-radius: 8px;
+        border: 2px solid var(--noir-gray, rgba(255,255,255,0.1));
+        box-sizing: border-box;
     }
     .insights-add-row select {
-        width: 120px; padding: 6px 8px;
-        background: var(--lz-input-bg, #111); color: var(--noir-white, #eee);
-        border: 1px solid var(--noir-gray, rgba(255,255,255,0.1)); border-radius: 6px;
+        width: auto; min-width: 130px;
+        background: var(--noir-dark, #111); color: var(--noir-white, #eee);
+        cursor: pointer;
+    }
+    .insights-add-row input {
+        flex: 1;
+        background: var(--noir-dark, #111); color: var(--noir-white, #eee);
     }
     .insights-table {
         width: 100%; border-collapse: collapse;
@@ -1925,10 +1938,11 @@
         display: inline-block; width: 10px; height: 10px; border-radius: 50%;
     }
     .insight-remove {
-        background: none; border: none; color: var(--noir-silver, #888);
-        cursor: pointer; font-size: 1.1rem; padding: 0 4px; line-height: 1;
+        background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.25);
+        color: #f87171; cursor: pointer; font-size: 0.75rem; padding: 2px 8px;
+        border-radius: 4px; line-height: 1.4; font-weight: 600;
     }
-    .insight-remove:hover { color: var(--lz-danger, #f87171); }
+    .insight-remove:hover { background: rgba(248, 113, 113, 0.25); color: #ff4444; }
 
     /* Image Browser Modal */
     .ib-overlay {
