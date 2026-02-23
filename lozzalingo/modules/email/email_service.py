@@ -72,6 +72,7 @@ class EmailService:
         self.admin_email = None
         self.user_db = None
         self.welcome_config = {}
+        self.style = {}
 
         if app is not None:
             self.init_app(app)
@@ -95,6 +96,25 @@ class EmailService:
         self.admin_email = app.config.get('EMAIL_ADMIN_EMAIL')
         self.user_db = app.config.get('USER_DB')
         self.welcome_config = app.config.get('EMAIL_WELCOME', {})
+        custom_style = app.config.get('EMAIL_STYLE', {})
+        self.style = {
+            'bg': custom_style.get('bg', '#f8f6f0'),
+            'card_bg': custom_style.get('card_bg', '#ffffff'),
+            'header_bg': custom_style.get('header_bg', '#2a2a2a'),
+            'header_text': custom_style.get('header_text', '#f8f6f0'),
+            'text': custom_style.get('text', '#2a2a2a'),
+            'text_secondary': custom_style.get('text_secondary', '#666666'),
+            'accent': custom_style.get('accent', '#2a2a2a'),
+            'highlight_bg': custom_style.get('highlight_bg', '#f8f6f0'),
+            'highlight_border': custom_style.get('highlight_border', '#2a2a2a'),
+            'border': custom_style.get('border', '#d4c5a0'),
+            'link': custom_style.get('link', '#2a2a2a'),
+            'btn_bg': custom_style.get('btn_bg', '#2a2a2a'),
+            'btn_text': custom_style.get('btn_text', '#f8f6f0'),
+            'footer_bg': custom_style.get('footer_bg', '#f8f6f0'),
+            'font': custom_style.get('font', "'Georgia', serif"),
+            'font_heading': custom_style.get('font_heading', "'Georgia', serif"),
+        }
 
         logger.info(f"Sender email: {self.sender_email}")
         logger.info(f"Brand name: {self.brand_name}")
@@ -418,6 +438,7 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
     def _get_welcome_template(self, greeting: str, intro: str,
                                bullets: List[str], closing: str) -> str:
         """Get welcome email HTML template"""
+        s = self.style
         bullets_html = '\n'.join(f'<li>{b}</li>' for b in bullets)
         return f"""
 <!DOCTYPE html>
@@ -426,56 +447,38 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Welcome to {self.brand_name}</title>
-    <style>
-        body {{ font-family: 'Georgia', serif; line-height: 1.6; color: #2a2a2a; background: #f8f6f0; max-width: 600px; margin: 0 auto; padding: 24px; }}
-        .container {{ background: #fff; border: 1px solid #d4c5a0; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }}
-        .header {{ background: #2a2a2a; color: #f8f6f0; padding: 32px; text-align: center; }}
-        .content {{ background: #fff; padding: 40px 32px; color: #2a2a2a; }}
-        .footer {{ background: #f8f6f0; padding: 24px; text-align: center; font-size: 13px; color: #666; border-top: 1px solid #d4c5a0; }}
-        h1 {{ font-size: 24px; margin: 0 0 8px 0; font-weight: normal; letter-spacing: 2px; }}
-        h2 {{ font-size: 20px; margin: 0 0 24px 0; font-weight: normal; color: #4a4a4a; }}
-        p {{ font-size: 16px; margin: 16px 0; line-height: 1.7; }}
-        .welcome-box {{ background: #f8f6f0; padding: 24px; margin: 24px 0; border-left: 4px solid #2a2a2a; }}
-        .welcome-box p {{ margin: 8px 0; font-size: 15px; }}
-        a {{ color: #2a2a2a; text-decoration: underline; }}
-        a:hover {{ color: #000; }}
-        .divider {{ border-top: 1px solid #e0d5b7; margin: 32px 0; }}
-        ul {{ padding-left: 0; list-style: none; }}
-        li {{ margin: 8px 0; padding-left: 16px; position: relative; }}
-        li:before {{ content: '.'; position: absolute; left: 0; color: #2a2a2a; }}
-    </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>{self.brand_name.upper()}</h1>
-            {f'<p>{self.brand_tagline}</p>' if self.brand_tagline else ''}
+<body style="font-family: {s['font']}; line-height: 1.6; color: {s['text']}; background: {s['bg']}; max-width: 600px; margin: 0 auto; padding: 24px;">
+    <div style="background: {s['card_bg']}; border: 1px solid {s['border']}; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+        <div style="background: {s['header_bg']}; color: {s['header_text']}; padding: 32px; text-align: center;">
+            <h1 style="font-family: {s['font_heading']}; font-size: 24px; margin: 0 0 8px 0; font-weight: normal; letter-spacing: 2px;">{self.brand_name.upper()}</h1>
+            {f'<p style="font-size: 14px; margin: 0; opacity: 0.8;">{self.brand_tagline}</p>' if self.brand_tagline else ''}
         </div>
 
-        <div class="content">
-            <h2>{greeting}</h2>
+        <div style="padding: 40px 32px;">
+            <h2 style="font-family: {s['font_heading']}; font-size: 20px; margin: 0 0 24px 0; font-weight: normal; color: {s['text']};">{greeting}</h2>
 
-            <p>{intro}</p>
+            <p style="font-size: 16px; margin: 16px 0; line-height: 1.7;">{intro}</p>
 
-            <div class="welcome-box">
-                <p><strong>What you'll receive:</strong></p>
-                <ul>
+            <div style="background: {s['highlight_bg']}; padding: 24px; margin: 24px 0; border-left: 4px solid {s['highlight_border']};">
+                <p style="margin: 0 0 8px 0; font-size: 15px;"><strong>What you'll receive:</strong></p>
+                <ul style="padding-left: 0; list-style: none; margin: 0;">
                     {bullets_html}
                 </ul>
             </div>
 
-            <div class="divider"></div>
+            <div style="border-top: 1px solid {s['border']}; margin: 32px 0;"></div>
 
-            <p>{closing}</p>
+            <p style="font-size: 16px; margin: 16px 0; line-height: 1.7;">{closing}</p>
 
             <p style="text-align: center; margin-top: 32px;">
-                <a href="{self.website_url}" style="display: inline-block; background: #2a2a2a; color: #f8f6f0; padding: 12px 24px; text-decoration: none; font-weight: bold;">Visit Website</a>
+                <a href="{self.website_url}" style="display: inline-block; background: {s['btn_bg']}; color: {s['btn_text']}; padding: 12px 24px; text-decoration: none; font-weight: bold; font-family: {s['font_heading']};">Visit Website</a>
             </p>
         </div>
 
-        <div class="footer">
-            <p>{self.brand_name} . {datetime.now().year}</p>
-            <p><a href="{self.website_url}/unsubscribe">Unsubscribe</a> | <a href="{self.website_url}">Website</a></p>
+        <div style="background: {s['footer_bg']}; padding: 24px; text-align: center; font-size: 13px; color: {s['text_secondary']}; border-top: 1px solid {s['border']};">
+            <p style="margin: 4px 0;">{self.brand_name} . {datetime.now().year}</p>
+            <p style="margin: 4px 0;"><a href="{self.website_url}/unsubscribe" style="color: {s['link']};">Unsubscribe</a> | <a href="{self.website_url}" style="color: {s['link']};">Website</a></p>
         </div>
     </div>
 </body>
@@ -518,6 +521,7 @@ The {self.brand_name} Team
 
     def _get_purchase_template(self, order_details: Dict[str, Any]) -> str:
         """Get purchase confirmation email HTML template"""
+        s = self.style
         product_name = order_details.get('product_name', 'N/A')
         amount = order_details.get('amount', 0) / 100
         currency = order_details.get('currency', 'GBP')
@@ -533,81 +537,59 @@ The {self.brand_name} Team
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Order Confirmation - {self.brand_name}</title>
-    <style>
-        body {{ font-family: 'Georgia', serif; line-height: 1.6; color: #2a2a2a; background: #f8f6f0; max-width: 600px; margin: 0 auto; padding: 24px; }}
-        .container {{ background: #fff; border: 1px solid #d4c5a0; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }}
-        .header {{ background: #2a2a2a; color: #f8f6f0; padding: 32px; text-align: center; }}
-        .content {{ background: #fff; padding: 40px 32px; color: #2a2a2a; }}
-        .footer {{ background: #f8f6f0; padding: 24px; text-align: center; font-size: 13px; color: #666; border-top: 1px solid #d4c5a0; }}
-        h1 {{ font-size: 24px; margin: 0 0 8px 0; font-weight: normal; letter-spacing: 2px; }}
-        h2 {{ font-size: 20px; margin: 0 0 24px 0; font-weight: normal; color: #4a4a4a; }}
-        p {{ font-size: 16px; margin: 16px 0; line-height: 1.7; }}
-        .order-summary {{ background: #f8f6f0; padding: 24px; margin: 24px 0; border-left: 4px solid #2a2a2a; }}
-        .order-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e0d5b7; font-size: 15px; }}
-        .order-row:last-child {{ border-bottom: none; font-weight: bold; padding-top: 16px; font-size: 18px; color: #2a2a2a; }}
-        .order-row span:first-child {{ color: #666; }}
-        a {{ color: #2a2a2a; text-decoration: underline; }}
-        .divider {{ border-top: 1px solid #e0d5b7; margin: 32px 0; }}
-        .shipping-info {{ background: #f8f6f0; padding: 20px; margin: 24px 0; }}
-        .shipping-info h3 {{ margin: 0 0 12px 0; font-size: 16px; color: #2a2a2a; }}
-        .shipping-info p {{ margin: 8px 0; font-size: 14px; }}
-        .preorder-notice {{ background: #fff3cd; border: 1px solid #ffecb5; padding: 16px; margin: 16px 0; border-radius: 4px; }}
-        .preorder-notice h4 {{ margin: 0 0 12px 0; color: #856404; }}
-        .preorder-notice p {{ margin: 8px 0; font-size: 14px; color: #856404; }}
-    </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>ORDER CONFIRMATION</h1>
-            <p>{self.brand_name}</p>
+<body style="font-family: {s['font']}; line-height: 1.6; color: {s['text']}; background: {s['bg']}; max-width: 600px; margin: 0 auto; padding: 24px;">
+    <div style="background: {s['card_bg']}; border: 1px solid {s['border']}; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+        <div style="background: {s['header_bg']}; color: {s['header_text']}; padding: 32px; text-align: center;">
+            <h1 style="font-family: {s['font_heading']}; font-size: 24px; margin: 0 0 8px 0; font-weight: normal; letter-spacing: 2px;">ORDER CONFIRMATION</h1>
+            <p style="font-size: 14px; margin: 0; opacity: 0.8;">{self.brand_name}</p>
         </div>
 
-        <div class="content">
-            <h2>Thank you for your purchase!</h2>
+        <div style="padding: 40px 32px;">
+            <h2 style="font-family: {s['font_heading']}; font-size: 20px; margin: 0 0 24px 0; font-weight: normal; color: {s['text']};">Thank you for your purchase!</h2>
 
-            <p>Your order has been successfully received and will be processed with care.</p>
+            <p style="font-size: 16px; margin: 16px 0; line-height: 1.7;">Your order has been successfully received and will be processed with care.</p>
 
-            <div class="order-summary">
-                <div class="order-row">
-                    <span>Order ID:</span>
+            <div style="background: {s['highlight_bg']}; padding: 24px; margin: 24px 0; border-left: 4px solid {s['highlight_border']};">
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid {s['border']}; font-size: 15px;">
+                    <span style="color: {s['text_secondary']};">Order ID:</span>
                     <span><strong>{order_id}</strong></span>
                 </div>
-                <div class="order-row">
-                    <span>Product:</span>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid {s['border']}; font-size: 15px;">
+                    <span style="color: {s['text_secondary']};">Product:</span>
                     <span>{product_name}</span>
                 </div>
-                {f'<div class="order-row"><span>Size:</span><span>{size}</span></div>' if size else ''}
-                <div class="order-row">
+                {f'<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid {s["border"]}; font-size: 15px;"><span style="color: {s["text_secondary"]};">Size:</span><span>{size}</span></div>' if size else ''}
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 18px; font-weight: bold; padding-top: 16px; color: {s['accent']};">
                     <span>Total:</span>
                     <span>{currency_symbol}{amount:.2f}</span>
                 </div>
             </div>
 
-            <div class="shipping-info">
-                <h3>Shipping Information</h3>
+            <div style="background: {s['highlight_bg']}; padding: 20px; margin: 24px 0;">
+                <h3 style="margin: 0 0 12px 0; font-size: 16px; color: {s['text']}; font-family: {s['font_heading']};">Shipping Information</h3>
                 {f'''
-                <div class="preorder-notice">
-                    <h4>Pre-Order Information</h4>
-                    <p><strong>This is a pre-order purchase.</strong> We will update you via email about when your item will be shipped.</p>
+                <div style="background: rgba(212,168,85,0.15); border: 1px solid {s["accent"]}; padding: 16px; margin: 16px 0; border-radius: 4px;">
+                    <h4 style="margin: 0 0 12px 0; color: {s["accent"]}; font-family: {s["font_heading"]};">Pre-Order Information</h4>
+                    <p style="margin: 8px 0; font-size: 14px; color: {s["text"]};"><strong>This is a pre-order purchase.</strong> We will update you via email about when your item will be shipped.</p>
                 </div>
                 ''' if is_preorder else ''}
-                <p>Processing time: {('We will update you with shipping information' if is_preorder else '4-7 business days')}</p>
-                <p>You will receive {'updates via email about shipping status' if is_preorder else 'a tracking number via email once your order ships'}.</p>
+                <p style="margin: 8px 0; font-size: 14px; color: {s['text_secondary']};">Processing time: {('We will update you with shipping information' if is_preorder else '4-7 business days')}</p>
+                <p style="margin: 8px 0; font-size: 14px; color: {s['text_secondary']};">You will receive {'updates via email about shipping status' if is_preorder else 'a tracking number via email once your order ships'}.</p>
             </div>
 
-            <div class="divider"></div>
+            <div style="border-top: 1px solid {s['border']}; margin: 32px 0;"></div>
 
-            <p>If you have any questions, please contact our support team.</p>
+            <p style="font-size: 16px; margin: 16px 0; line-height: 1.7;">If you have any questions, please contact our support team.</p>
 
             <p style="text-align: center; margin-top: 32px;">
-                <a href="mailto:{self.support_email}" style="display: inline-block; background: #2a2a2a; color: #f8f6f0; padding: 12px 24px; text-decoration: none; font-weight: bold;">Contact Support</a>
+                <a href="mailto:{self.support_email}" style="display: inline-block; background: {s['btn_bg']}; color: {s['btn_text']}; padding: 12px 24px; text-decoration: none; font-weight: bold; font-family: {s['font_heading']};">Contact Support</a>
             </p>
         </div>
 
-        <div class="footer">
-            <p>{self.brand_name} . {datetime.now().year}</p>
-            <p><a href="{self.website_url}">Website</a> | <a href="mailto:{self.support_email}">Support</a></p>
+        <div style="background: {s['footer_bg']}; padding: 24px; text-align: center; font-size: 13px; color: {s['text_secondary']}; border-top: 1px solid {s['border']};">
+            <p style="margin: 4px 0;">{self.brand_name} . {datetime.now().year}</p>
+            <p style="margin: 4px 0;"><a href="{self.website_url}" style="color: {s['link']};">Website</a> | <a href="mailto:{self.support_email}" style="color: {s['link']};">Support</a></p>
         </div>
     </div>
 </body>
@@ -762,6 +744,7 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
 
     def _get_news_template(self, article: Dict[str, Any]) -> str:
         """Get news notification email HTML template"""
+        s = self.style
         title = article.get('title', 'Latest News')
         excerpt = article.get('excerpt', article.get('content', '')[:320] + '...')
         article_url = f"{self.website_url}{article.get('url', '/news/' + article.get('slug', ''))}"
@@ -774,50 +757,34 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title} - {self.brand_name}</title>
-    <style>
-        body {{ font-family: 'Georgia', serif; line-height: 1.6; color: #2a2a2a; background: #f8f6f0; max-width: 600px; margin: 0 auto; padding: 24px; }}
-        .container {{ background: #fff; border: 1px solid #d4c5a0; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }}
-        .header {{ background: #2a2a2a; color: #f8f6f0; padding: 32px; text-align: center; }}
-        .content {{ background: #fff; padding: 40px 32px; color: #2a2a2a; }}
-        .footer {{ background: #f8f6f0; padding: 24px; text-align: center; font-size: 13px; color: #666; border-top: 1px solid #d4c5a0; }}
-        h1 {{ font-size: 24px; margin: 0 0 8px 0; font-weight: normal; letter-spacing: 2px; }}
-        h2 {{ font-size: 22px; margin: 0 0 16px 0; font-weight: normal; color: #2a2a2a; line-height: 1.3; }}
-        p {{ font-size: 16px; margin: 16px 0; line-height: 1.7; }}
-        .date {{ font-size: 14px; color: #666; margin-bottom: 24px; font-style: italic; }}
-        .article-preview {{ background: #f8f6f0; padding: 24px; margin: 24px 0; border-left: 4px solid #2a2a2a; }}
-        .article-preview p {{ font-size: 15px; line-height: 1.6; margin: 0; }}
-        a {{ color: #2a2a2a; text-decoration: underline; }}
-        .divider {{ border-top: 1px solid #e0d5b7; margin: 32px 0; }}
-        .cta-section {{ text-align: center; margin: 32px 0; }}
-    </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>{self.brand_name.upper()}</h1>
-            <p>Latest News Update</p>
+<body style="font-family: {s['font']}; line-height: 1.6; color: {s['text']}; background: {s['bg']}; max-width: 600px; margin: 0 auto; padding: 24px;">
+    <div style="background: {s['card_bg']}; border: 1px solid {s['border']}; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+        <div style="background: {s['header_bg']}; color: {s['header_text']}; padding: 32px; text-align: center;">
+            <h1 style="font-family: {s['font_heading']}; font-size: 24px; margin: 0 0 8px 0; font-weight: normal; letter-spacing: 2px;">{self.brand_name.upper()}</h1>
+            <p style="font-size: 14px; margin: 0; opacity: 0.8;">New Post</p>
         </div>
 
-        <div class="content">
-            <h2>{title}</h2>
-            <div class="date">{date}</div>
+        <div style="padding: 40px 32px;">
+            <h2 style="font-family: {s['font_heading']}; font-size: 22px; margin: 0 0 16px 0; font-weight: normal; color: {s['text']}; line-height: 1.3;">{title}</h2>
+            <div style="font-size: 14px; color: {s['text_secondary']}; margin-bottom: 24px; font-style: italic;">{date}</div>
 
-            <div class="article-preview">
-                <p>{excerpt}</p>
+            <div style="background: {s['highlight_bg']}; padding: 24px; margin: 24px 0; border-left: 4px solid {s['highlight_border']};">
+                <p style="font-size: 15px; line-height: 1.6; margin: 0; color: {s['text']};">{excerpt}</p>
             </div>
 
-            <div class="cta-section">
-                <a href="{article_url}" style="display: inline-block; background: #2a2a2a; color: #f8f6f0; padding: 14px 28px; text-decoration: none; font-weight: bold; font-size: 16px;">Read Full Article</a>
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="{article_url}" style="display: inline-block; background: {s['btn_bg']}; color: {s['btn_text']}; padding: 14px 28px; text-decoration: none; font-weight: bold; font-size: 16px; font-family: {s['font_heading']};">Read Full Article</a>
             </div>
 
-            <div class="divider"></div>
+            <div style="border-top: 1px solid {s['border']}; margin: 32px 0;"></div>
 
-            <p>Stay connected and never miss an important update.</p>
+            <p style="font-size: 16px; margin: 16px 0; line-height: 1.7;">Stay connected and never miss an update.</p>
         </div>
 
-        <div class="footer">
-            <p>{self.brand_name} News . {datetime.now().year}</p>
-            <p><a href="{self.website_url}/unsubscribe">Unsubscribe</a> | <a href="{self.website_url}">Website</a></p>
+        <div style="background: {s['footer_bg']}; padding: 24px; text-align: center; font-size: 13px; color: {s['text_secondary']}; border-top: 1px solid {s['border']};">
+            <p style="margin: 4px 0;">{self.brand_name} . {datetime.now().year}</p>
+            <p style="margin: 4px 0;"><a href="{self.website_url}/unsubscribe" style="color: {s['link']};">Unsubscribe</a> | <a href="{self.website_url}" style="color: {s['link']};">Website</a></p>
         </div>
     </div>
 </body>
@@ -850,6 +817,7 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
 
     def _get_project_template(self, project: Dict[str, Any]) -> str:
         """Get project notification email HTML template"""
+        s = self.style
         title = project.get('title', 'New Project')
         excerpt = project.get('excerpt', project.get('content', '')[:320] + '...')
         project_url = f"{self.website_url}{project.get('url', '/projects/' + project.get('slug', ''))}"
@@ -860,7 +828,7 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
             tech_list = [t.strip() for t in technologies.split(',') if t.strip()]
             if tech_list:
                 tech_tags = ' '.join(
-                    f'<span style="display:inline-block;background:#f0ebe0;color:#2a2a2a;padding:4px 10px;font-size:12px;border:1px solid #d4c5a0;margin:2px;">{t}</span>'
+                    f'<span style="display:inline-block;background:{s["highlight_bg"]};color:{s["accent"]};padding:4px 10px;font-size:12px;border:1px solid {s["border"]};margin:2px;font-family:{s["font_heading"]};">{t}</span>'
                     for t in tech_list[:6]
                 )
                 tech_html = f'<div style="margin:16px 0;">{tech_tags}</div>'
@@ -872,50 +840,35 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title} - {self.brand_name}</title>
-    <style>
-        body {{ font-family: 'Georgia', serif; line-height: 1.6; color: #2a2a2a; background: #f8f6f0; max-width: 600px; margin: 0 auto; padding: 24px; }}
-        .container {{ background: #fff; border: 1px solid #d4c5a0; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }}
-        .header {{ background: #2a2a2a; color: #f8f6f0; padding: 32px; text-align: center; }}
-        .content {{ background: #fff; padding: 40px 32px; color: #2a2a2a; }}
-        .footer {{ background: #f8f6f0; padding: 24px; text-align: center; font-size: 13px; color: #666; border-top: 1px solid #d4c5a0; }}
-        h1 {{ font-size: 24px; margin: 0 0 8px 0; font-weight: normal; letter-spacing: 2px; }}
-        h2 {{ font-size: 22px; margin: 0 0 16px 0; font-weight: normal; color: #2a2a2a; line-height: 1.3; }}
-        p {{ font-size: 16px; margin: 16px 0; line-height: 1.7; }}
-        .project-preview {{ background: #f8f6f0; padding: 24px; margin: 24px 0; border-left: 4px solid #2a2a2a; }}
-        .project-preview p {{ font-size: 15px; line-height: 1.6; margin: 0; }}
-        a {{ color: #2a2a2a; text-decoration: underline; }}
-        .divider {{ border-top: 1px solid #e0d5b7; margin: 32px 0; }}
-        .cta-section {{ text-align: center; margin: 32px 0; }}
-    </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>{self.brand_name.upper()}</h1>
-            <p>New Project</p>
+<body style="font-family: {s['font']}; line-height: 1.6; color: {s['text']}; background: {s['bg']}; max-width: 600px; margin: 0 auto; padding: 24px;">
+    <div style="background: {s['card_bg']}; border: 1px solid {s['border']}; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+        <div style="background: {s['header_bg']}; color: {s['header_text']}; padding: 32px; text-align: center;">
+            <h1 style="font-family: {s['font_heading']}; font-size: 24px; margin: 0 0 8px 0; font-weight: normal; letter-spacing: 2px;">{self.brand_name.upper()}</h1>
+            <p style="font-size: 14px; margin: 0; opacity: 0.8;">New Project</p>
         </div>
 
-        <div class="content">
-            <h2>{title}</h2>
+        <div style="padding: 40px 32px;">
+            <h2 style="font-family: {s['font_heading']}; font-size: 22px; margin: 0 0 16px 0; font-weight: normal; color: {s['text']}; line-height: 1.3;">{title}</h2>
 
             {tech_html}
 
-            <div class="project-preview">
-                <p>{excerpt}</p>
+            <div style="background: {s['highlight_bg']}; padding: 24px; margin: 24px 0; border-left: 4px solid {s['highlight_border']};">
+                <p style="font-size: 15px; line-height: 1.6; margin: 0; color: {s['text']};">{excerpt}</p>
             </div>
 
-            <div class="cta-section">
-                <a href="{project_url}" style="display: inline-block; background: #2a2a2a; color: #f8f6f0; padding: 14px 28px; text-decoration: none; font-weight: bold; font-size: 16px;">View Project</a>
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="{project_url}" style="display: inline-block; background: {s['btn_bg']}; color: {s['btn_text']}; padding: 14px 28px; text-decoration: none; font-weight: bold; font-size: 16px; font-family: {s['font_heading']};">View Project</a>
             </div>
 
-            <div class="divider"></div>
+            <div style="border-top: 1px solid {s['border']}; margin: 32px 0;"></div>
 
-            <p>Check out the latest from {self.brand_name}.</p>
+            <p style="font-size: 16px; margin: 16px 0; line-height: 1.7;">Check out the latest from {self.brand_name}.</p>
         </div>
 
-        <div class="footer">
-            <p>{self.brand_name} . {datetime.now().year}</p>
-            <p><a href="{self.website_url}/unsubscribe">Unsubscribe</a> | <a href="{self.website_url}">Website</a></p>
+        <div style="background: {s['footer_bg']}; padding: 24px; text-align: center; font-size: 13px; color: {s['text_secondary']}; border-top: 1px solid {s['border']};">
+            <p style="margin: 4px 0;">{self.brand_name} . {datetime.now().year}</p>
+            <p style="margin: 4px 0;"><a href="{self.website_url}/unsubscribe" style="color: {s['link']};">Unsubscribe</a> | <a href="{self.website_url}" style="color: {s['link']};">Website</a></p>
         </div>
     </div>
 </body>
