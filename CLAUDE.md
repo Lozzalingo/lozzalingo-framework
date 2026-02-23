@@ -1,5 +1,5 @@
 # Lozzalingo Framework - Claude Guidelines
-Shared rules (analytics labeling, logging, email config, admin security, config pattern) are in the parent `Programming/CLAUDE.md`.
+Shared framework rules are auto-loaded from the parent `Lozzalingo-python/CLAUDE.md`.
 
 ## Architecture
 - Batteries-included Flask admin framework, installed via `pip install` from git
