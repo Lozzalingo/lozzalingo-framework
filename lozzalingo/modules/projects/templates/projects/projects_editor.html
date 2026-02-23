@@ -610,7 +610,13 @@
             insightsHidden.value = insightItems.length ? JSON.stringify(insightItems) : '';
         }
 
+        const insightTypeOrder = { win: 0, loss: 1, takeaway: 2 };
+
         function renderInsights() {
+            // Sort: wins first, then losses, then takeaways
+            insightItems.sort(function(a, b) {
+                return (insightTypeOrder[a.type] || 9) - (insightTypeOrder[b.type] || 9);
+            });
             insightsTable.style.display = insightItems.length ? '' : 'none';
             insightsBody.innerHTML = insightItems.map(function(item, i) {
                 var c = insightTypeColors[item.type] || '#aaa';
