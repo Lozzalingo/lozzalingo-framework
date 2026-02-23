@@ -42,6 +42,14 @@ EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_%+-]+(\.[a-zA-Z0-9_%+-]+)*@[a-zA-Z0-9-]+(
 # Setup logging
 logger = logging.getLogger(__name__)
 
+def _db_log(level, message, details=None):
+    """Log to framework's persistent DB logger (survives container rebuilds)"""
+    try:
+        from lozzalingo.core import logger as fw_logger
+        getattr(fw_logger, level)('subscribers', message, details)
+    except Exception:
+        pass  # Fall back to stdout logger only
+
 
 def get_db_config():
     """Get the database path from config or environment"""
@@ -335,6 +343,7 @@ def subscribe():
                 conn.commit()
 
                 logger.info(f"New subscription added: {email}")
+                _db_log('info', f'New subscriber: {email}', {'ip': ip_address})
 
                 # Send welcome email
                 svc = _get_email_service()
@@ -342,8 +351,10 @@ def subscribe():
                     try:
                         svc.send_welcome_email(email)
                         logger.info(f"Welcome email sent to: {email}")
+                        _db_log('info', f'Welcome email sent to: {email}')
                     except Exception as email_error:
                         logger.error(f"Failed to send welcome email to {email}: {email_error}")
+                        _db_log('error', f'Failed to send welcome email to {email}', {'error': str(email_error)})
 
                 _notify_admin_subscriber(email, ip_address, user_agent, 'website')
 
@@ -353,9 +364,11 @@ def subscribe():
 
     except sqlite3.Error as e:
         logger.error(f"Database error in subscribe: {e}")
+        _db_log('error', f'Database error in subscribe', {'error': str(e)})
         return jsonify({'error': 'Database error occurred'}), 500
     except Exception as e:
         logger.error(f"Error in subscribe: {e}")
+        _db_log('error', f'Error in subscribe', {'error': str(e)})
         return jsonify({'error': 'An unexpected error occurred'}), 500
 
 
@@ -449,9 +462,11 @@ def unsubscribe():
 
     except sqlite3.Error as e:
         logger.error(f"Database error in unsubscribe: {e}")
+        _db_log('error', f'Database error in unsubscribe', {'error': str(e)})
         return jsonify({'error': 'Database error occurred'}), 500
     except Exception as e:
         logger.error(f"Error in unsubscribe: {e}")
+        _db_log('error', f'Error in unsubscribe', {'error': str(e)})
         return jsonify({'error': 'An unexpected error occurred'}), 500
 
 
