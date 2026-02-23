@@ -251,6 +251,7 @@ def get_client_ip():
 @subscribers_bp.route('', methods=['POST'])
 def subscribe():
     """Handle new subscription requests. Accepts optional 'feed' param."""
+    init_subscribers_db()
     try:
         data = request.get_json()
 
@@ -379,6 +380,7 @@ def _notify_admin_subscriber(email, ip_address, user_agent, source):
 @subscribers_bp.route('/stats', methods=['GET'])
 def get_subscriber_stats():
     """Get subscriber statistics"""
+    init_subscribers_db()
     try:
         db_path = get_db_config()
         with sqlite3.connect(db_path) as conn:
@@ -412,6 +414,7 @@ def unsubscribe_page():
 @subscribers_bp.route('/unsubscribe', methods=['POST'])
 def unsubscribe():
     """Handle unsubscribe requests"""
+    init_subscribers_db()
     try:
         data = request.get_json()
 
@@ -455,6 +458,7 @@ def unsubscribe():
 @subscribers_bp.route('/export', methods=['GET'])
 def export_subscribers():
     """Export subscribers list (admin auth required)"""
+    init_subscribers_db()
     if 'admin_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
 
@@ -586,6 +590,7 @@ def manage_page():
 @subscribers_bp.route('/manage', methods=['POST'])
 def manage_preferences():
     """Update subscription feed preferences"""
+    init_subscribers_db()
     try:
         data = request.get_json()
         if not data or 'email' not in data:
@@ -648,6 +653,7 @@ def manage_preferences():
 @subscribers_bp.route('/preferences', methods=['GET'])
 def get_preferences():
     """Get current subscription preferences for an email"""
+    init_subscribers_db()
     email = request.args.get('email', '').lower().strip()
     if not email or not validate_email(email):
         return jsonify({'error': 'Valid email is required'}), 400
