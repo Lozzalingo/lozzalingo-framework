@@ -261,19 +261,10 @@
     <!-- Floating image toolbar (positioned inside .ql-container) -->
     <div id="imgToolbar" class="img-toolbar" style="display:none;">
         <span class="img-tb-group">
-            <span class="img-tb-label">Size</span>
             <button type="button" class="img-tb-btn" data-size="small">S</button>
             <button type="button" class="img-tb-btn" data-size="medium">M</button>
-            <button type="button" class="img-tb-btn" data-size="full">Full</button>
+            <button type="button" class="img-tb-btn" data-size="large">L</button>
         </span>
-        <span class="img-tb-sep"></span>
-        <span class="img-tb-group">
-            <span class="img-tb-label">Group</span>
-            <button type="button" class="img-tb-btn" data-layout="single">Single</button>
-            <button type="button" class="img-tb-btn" data-layout="carousel">Carousel</button>
-            <button type="button" class="img-tb-btn" data-layout="grid">Grid</button>
-        </span>
-        <!-- Filmstrip edit is handled by the blot's built-in overlay button -->
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
@@ -320,7 +311,7 @@
                     if (value) this.domNode.setAttribute('data-size', value);
                     else this.domNode.removeAttribute('data-size');
                     // Also set width
-                    const widths = { small: '33%', medium: '50%', full: '100%' };
+                    const widths = { small: '33%', medium: '50%', large: '100%', full: '100%' };
                     this.domNode.style.width = widths[value] || '';
                 } else if (name === 'data-layout') {
                     if (value) this.domNode.setAttribute('data-layout', value);
@@ -349,7 +340,9 @@
                 const node = super.create();
                 node.setAttribute('contenteditable', 'false');
                 const images = value.images || [];
+                const size = value.size || 'medium';
                 node.dataset.images = JSON.stringify(images);
+                node.dataset.size = size;
 
                 images.forEach(function(src) {
                     const img = document.createElement('img');
@@ -366,10 +359,9 @@
                 editBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    // Find blot index in Quill
-                    const blot = Quill.find(node);
+                    var blot = Quill.find(node);
                     if (blot && window._openFilmstripModal) {
-                        const idx = blot.offset(blot.scroll);
+                        var idx = blot.offset(blot.scroll);
                         window._openFilmstripModal(true, images, idx);
                     }
                 });
@@ -380,7 +372,8 @@
 
             static value(node) {
                 return {
-                    images: JSON.parse(node.dataset.images || '[]')
+                    images: JSON.parse(node.dataset.images || '[]'),
+                    size: node.dataset.size || 'medium'
                 };
             }
         }
@@ -622,107 +615,129 @@
 
         loadProjects();
 
-        // === Inline Image Toolbar ===
+        // === Inline Image Toolbar (works for both images and filmstrip blots) ===
         (function() {
             const toolbar = document.getElementById('imgToolbar');
             const qlEditor = document.querySelector('.ql-editor');
-            let activeImg = null;
+            let activeEl = null;      // the img or .img-filmstrip div
+            let activeIsFilmstrip = false;
 
-            function positionToolbar(img) {
-                const imgRect = img.getBoundingClientRect();
+            function positionToolbar(el) {
+                const rect = el.getBoundingClientRect();
                 const tbHeight = toolbar.offsetHeight;
-                let top = imgRect.top - tbHeight - 8;
-
-                // If no room above viewport, place below the image
-                if (top < 8) {
-                    top = imgRect.bottom + 8;
-                }
-
+                let top = rect.top - tbHeight - 8;
+                if (top < 8) top = rect.bottom + 8;
                 toolbar.style.top = top + 'px';
-                toolbar.style.left = Math.max(8, imgRect.left) + 'px';
+                toolbar.style.left = Math.max(8, rect.left) + 'px';
             }
 
-            function showToolbar(img) {
-                activeImg = img;
-                img.classList.add('img-selected');
+            function showToolbar(el, isFilmstrip) {
+                activeEl = el;
+                activeIsFilmstrip = isFilmstrip;
+                el.classList.add('img-selected');
                 toolbar.style.display = 'flex';
 
-                // Highlight active states
-                const curSize = img.getAttribute('data-size') || 'full';
-                const curLayout = img.getAttribute('data-layout') || 'single';
-                toolbar.querySelectorAll('.img-tb-btn').forEach(btn => {
-                    btn.classList.toggle('active',
-                        (btn.dataset.size && btn.dataset.size === curSize) ||
-                        (btn.dataset.layout && btn.dataset.layout === curLayout)
-                    );
+                // Highlight active size
+                var curSize;
+                if (isFilmstrip) {
+                    curSize = el.dataset.size || 'medium';
+                } else {
+                    curSize = el.getAttribute('data-size') || 'large';
+                }
+                toolbar.querySelectorAll('.img-tb-btn').forEach(function(btn) {
+                    btn.classList.toggle('active', btn.dataset.size === curSize);
                 });
 
-                positionToolbar(img);
+                positionToolbar(el);
             }
 
             function hideToolbar() {
                 toolbar.style.display = 'none';
-                if (activeImg) activeImg.classList.remove('img-selected');
-                activeImg = null;
+                if (activeEl) activeEl.classList.remove('img-selected');
+                activeEl = null;
+                activeIsFilmstrip = false;
             }
 
-            // Use mousedown on document — Quill can swallow click events on images
+            // Use mousedown on document
             document.addEventListener('mousedown', function(e) {
-                const img = e.target.closest ? e.target.closest('.ql-editor img') : null;
-                if (img) {
-                    // Delay slightly so Quill processes its own selection first
+                // Check for filmstrip click (but not on the edit overlay button)
+                var filmstrip = e.target.closest ? e.target.closest('.ql-editor .img-filmstrip') : null;
+                if (filmstrip && !e.target.closest('.fs-edit-overlay')) {
                     setTimeout(function() {
-                        if (activeImg && activeImg !== img) activeImg.classList.remove('img-selected');
-                        showToolbar(img);
+                        if (activeEl && activeEl !== filmstrip) activeEl.classList.remove('img-selected');
+                        showToolbar(filmstrip, true);
                     }, 0);
                     return;
                 }
+
+                // Check for regular image click
+                var img = e.target.closest ? e.target.closest('.ql-editor img') : null;
+                if (img && !img.closest('.img-filmstrip')) {
+                    setTimeout(function() {
+                        if (activeEl && activeEl !== img) activeEl.classList.remove('img-selected');
+                        showToolbar(img, false);
+                    }, 0);
+                    return;
+                }
+
                 // Clicking on the toolbar itself — don't hide
                 if (toolbar.contains(e.target)) return;
-                // Clicking anywhere else — hide
-                if (activeImg) hideToolbar();
+                if (activeEl) hideToolbar();
             });
 
-            // Reposition on scroll (editor can scroll)
+            // Reposition on scroll
             qlEditor.addEventListener('scroll', function() {
-                if (activeImg) positionToolbar(activeImg);
+                if (activeEl) positionToolbar(activeEl);
             });
             window.addEventListener('scroll', function() {
-                if (activeImg) positionToolbar(activeImg);
+                if (activeEl) positionToolbar(activeEl);
             }, { passive: true });
 
-            // Escape hides toolbar
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') hideToolbar();
             });
 
-            // Size buttons
-            toolbar.querySelectorAll('.img-tb-btn[data-size]').forEach(btn => {
+            // Size buttons — works for both images and filmstrips
+            toolbar.querySelectorAll('.img-tb-btn[data-size]').forEach(function(btn) {
                 btn.addEventListener('mousedown', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (!activeImg) return;
-                    const size = this.dataset.size;
-                    const blot = Quill.find(activeImg);
-                    if (blot) {
-                        blot.format('data-size', size);
-                    }
-                    showToolbar(activeImg); // refresh highlights
-                });
-            });
+                    if (!activeEl) return;
+                    var size = this.dataset.size;
 
-            // Layout buttons
-            toolbar.querySelectorAll('.img-tb-btn[data-layout]').forEach(btn => {
-                btn.addEventListener('mousedown', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (!activeImg) return;
-                    const layout = this.dataset.layout;
-                    const blot = Quill.find(activeImg);
-                    if (blot) {
-                        blot.format('data-layout', layout);
+                    if (activeIsFilmstrip) {
+                        // Update filmstrip: delete and re-insert with new size
+                        var blot = Quill.find(activeEl);
+                        if (blot) {
+                            var val = blot.constructor.value(activeEl);
+                            var idx = blot.offset(blot.scroll);
+                            quill.deleteText(idx, 1);
+                            quill.insertEmbed(idx, 'filmstrip', { images: val.images, size: size }, Quill.sources.USER);
+                            // Re-select the new filmstrip
+                            setTimeout(function() {
+                                var newFs = qlEditor.querySelector('.img-filmstrip.img-selected') ||
+                                            qlEditor.querySelectorAll('.img-filmstrip')[0];
+                                // Find the filmstrip at the same index
+                                var allFs = qlEditor.querySelectorAll('.img-filmstrip');
+                                for (var i = 0; i < allFs.length; i++) {
+                                    if (allFs[i].dataset.size === size) {
+                                        var b = Quill.find(allFs[i]);
+                                        if (b && b.offset(b.scroll) === idx) {
+                                            showToolbar(allFs[i], true);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }, 10);
+                        }
+                    } else {
+                        // Regular image
+                        var blot = Quill.find(activeEl);
+                        if (blot) {
+                            blot.format('data-size', size);
+                        }
+                        showToolbar(activeEl, false);
                     }
-                    showToolbar(activeImg); // refresh highlights
                 });
             });
         })();
@@ -2034,7 +2049,15 @@
     /* Editor-side image sizing */
     .ql-editor img[data-size="small"] { max-width: 33%; }
     .ql-editor img[data-size="medium"] { max-width: 50%; }
+    .ql-editor img[data-size="large"],
     .ql-editor img[data-size="full"] { max-width: 100%; }
+
+    /* Selected filmstrip highlight */
+    .ql-editor .img-filmstrip.img-selected {
+        outline: 2px solid var(--lz-accent, #c4788a);
+        outline-offset: 2px;
+        border-radius: 4px;
+    }
 
     /* Filmstrip Modal */
     .fs-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
@@ -2144,7 +2167,6 @@
         border: 1px solid rgba(255,255,255,0.1);
         background: rgba(0,0,0,0.2);
         position: relative;
-        max-height: 220px;
     }
     .ql-editor .img-filmstrip img {
         flex: none;
@@ -2155,6 +2177,10 @@
         margin: 0;
         border-radius: 0;
     }
+    /* Filmstrip sizes in editor */
+    .ql-editor .img-filmstrip[data-size="small"] img { height: 120px; }
+    .ql-editor .img-filmstrip[data-size="medium"] img { height: 200px; }
+    .ql-editor .img-filmstrip[data-size="large"] img { height: 320px; }
     .ql-editor .img-filmstrip::-webkit-scrollbar { height: 4px; }
     .ql-editor .img-filmstrip::-webkit-scrollbar-track { background: transparent; }
     .ql-editor .img-filmstrip::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
