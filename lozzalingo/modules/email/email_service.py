@@ -71,6 +71,7 @@ class EmailService:
         self.support_email = 'support@example.com'
         self.admin_email = None
         self.user_db = None
+        self.welcome_config = {}
 
         if app is not None:
             self.init_app(app)
@@ -93,6 +94,7 @@ class EmailService:
         self.support_email = app.config.get('EMAIL_SUPPORT_EMAIL', 'support@example.com')
         self.admin_email = app.config.get('EMAIL_ADMIN_EMAIL')
         self.user_db = app.config.get('USER_DB')
+        self.welcome_config = app.config.get('EMAIL_WELCOME', {})
 
         logger.info(f"Sender email: {self.sender_email}")
         logger.info(f"Brand name: {self.brand_name}")
@@ -372,31 +374,51 @@ class EmailService:
     # ==================== Welcome Email ====================
 
     def send_welcome_email(self, email: str, name: Optional[str] = None) -> bool:
-        """Send welcome email to new subscriber"""
+        """Send welcome email to new subscriber.
+
+        Customise via app.config['EMAIL_WELCOME'] dict:
+            greeting: str  - e.g. "Hey there" (default: "Welcome, {name}")
+            intro: str     - intro paragraph
+            bullets: list  - what they'll receive
+            closing: str   - closing paragraph
+            signoff: str   - e.g. "Cheers, Laurence" (default: "The {brand} Team")
+        """
+        wc = self.welcome_config
+        greeting = wc.get('greeting', f'Welcome, {name or "Friend"}')
+        intro = wc.get('intro', f'Thank you for joining the {self.brand_name} community. You\'re now part of an exclusive group that receives inside access to our latest updates.')
+        bullets = wc.get('bullets', [
+            'Latest news and announcements',
+            'Behind-the-scenes content',
+            'Early access to new releases',
+            'Exclusive subscriber-only updates',
+        ])
+        closing = wc.get('closing', 'Stay connected and never miss an important update.')
+        signoff = wc.get('signoff', f'The {self.brand_name} Team')
+
         subject = f"Welcome to {self.brand_name}!"
 
-        html_body = self._get_welcome_template(name or "Friend")
+        html_body = self._get_welcome_template(greeting, intro, bullets, closing)
+        bullets_text = '\n'.join(f'- {b}' for b in bullets)
         text_body = f"""
-Welcome to {self.brand_name}!
+{greeting}
 
-Thank you for subscribing. You'll now receive:
-- Latest news and updates
-- Behind-the-scenes content
-- Special offers and releases
-- Exclusive subscriber content
+{intro}
 
-Stay tuned for exciting updates!
+{bullets_text}
 
-Best regards,
-The {self.brand_name} Team
+{closing}
+
+{signoff}
 
 To unsubscribe, visit: {self.website_url}/unsubscribe
         """
 
         return self.send_email([email], subject, html_body, text_body)
 
-    def _get_welcome_template(self, name: str) -> str:
+    def _get_welcome_template(self, greeting: str, intro: str,
+                               bullets: List[str], closing: str) -> str:
         """Get welcome email HTML template"""
+        bullets_html = '\n'.join(f'<li>{b}</li>' for b in bullets)
         return f"""
 <!DOCTYPE html>
 <html>
@@ -431,23 +453,20 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
         </div>
 
         <div class="content">
-            <h2>Welcome, {name}</h2>
+            <h2>{greeting}</h2>
 
-            <p>Thank you for joining the {self.brand_name} community. You're now part of an exclusive group that receives inside access to our latest updates.</p>
+            <p>{intro}</p>
 
             <div class="welcome-box">
                 <p><strong>What you'll receive:</strong></p>
                 <ul>
-                    <li>Latest news and announcements</li>
-                    <li>Behind-the-scenes content</li>
-                    <li>Early access to new releases</li>
-                    <li>Exclusive subscriber-only updates</li>
+                    {bullets_html}
                 </ul>
             </div>
 
             <div class="divider"></div>
 
-            <p>Stay connected and never miss an important update.</p>
+            <p>{closing}</p>
 
             <p style="text-align: center; margin-top: 32px;">
                 <a href="{self.website_url}" style="display: inline-block; background: #2a2a2a; color: #f8f6f0; padding: 12px 24px; text-decoration: none; font-weight: bold;">Visit Website</a>
@@ -455,7 +474,7 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
         </div>
 
         <div class="footer">
-            <p>{self.brand_name} Updates . {datetime.now().year}</p>
+            <p>{self.brand_name} . {datetime.now().year}</p>
             <p><a href="{self.website_url}/unsubscribe">Unsubscribe</a> | <a href="{self.website_url}">Website</a></p>
         </div>
     </div>
