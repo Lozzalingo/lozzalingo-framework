@@ -625,7 +625,7 @@
                 return '<tr>' +
                     '<td style="width:28px;text-align:center;"><span class="insight-dot" style="background:' + c + ';"></span></td>' +
                     '<td style="width:80px;color:' + c + ';font-weight:600;font-size:0.8rem;">' + insightTypeLabels[item.type] + '</td>' +
-                    '<td>' + item.text.replace(/</g, '&lt;') + '</td>' +
+                    '<td class="insight-text-cell" data-idx="' + i + '">' + item.text.replace(/</g, '&lt;') + '</td>' +
                     '<td style="width:100px;white-space:nowrap;"><button type="button" class="insight-edit" data-idx="' + i + '" name="insight_edit_' + i + '">Edit</button> <button type="button" class="insight-remove" data-idx="' + i + '" name="insight_remove_' + i + '">Remove</button></td>' +
                     '</tr>';
             }).join('');
@@ -639,13 +639,28 @@
             insightsBody.querySelectorAll('.insight-edit').forEach(function(btn) {
                 btn.addEventListener('click', function() {
                     var idx = +this.dataset.idx;
-                    var item = insightItems[idx];
-                    document.getElementById('insightType').value = item.type;
-                    document.getElementById('insightText').value = item.text;
-                    insightItems.splice(idx, 1);
-                    renderInsights();
-                    syncInsightsHidden();
-                    document.getElementById('insightText').focus();
+                    var cell = insightsBody.querySelector('.insight-text-cell[data-idx="' + idx + '"]');
+                    if (cell.querySelector('input')) return; // already editing
+                    var original = insightItems[idx].text;
+                    cell.innerHTML = '<input type="text" class="insight-inline-edit" value="' + original.replace(/"/g, '&quot;') + '">' +
+                        '<button type="button" class="insight-save" data-idx="' + idx + '">Save</button> ' +
+                        '<button type="button" class="insight-cancel" data-idx="' + idx + '">Cancel</button>';
+                    var inp = cell.querySelector('input');
+                    inp.focus();
+                    inp.selectionStart = inp.value.length;
+                    cell.querySelector('.insight-save').addEventListener('click', function() {
+                        var val = inp.value.trim();
+                        if (val) { insightItems[idx].text = val; }
+                        renderInsights();
+                        syncInsightsHidden();
+                    });
+                    cell.querySelector('.insight-cancel').addEventListener('click', function() {
+                        renderInsights();
+                    });
+                    inp.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') { e.preventDefault(); cell.querySelector('.insight-save').click(); }
+                        if (e.key === 'Escape') { cell.querySelector('.insight-cancel').click(); }
+                    });
                 });
             });
         }
@@ -1970,6 +1985,24 @@
         border-radius: 4px; line-height: 1.4; font-weight: 600;
     }
     .insight-edit:hover { background: rgba(212, 168, 85, 0.25); color: #e8b960; }
+    .insight-inline-edit {
+        width: 100%; padding: 4px 8px; font-size: 0.85rem;
+        background: var(--noir-dark, #111); color: var(--noir-white, #eee);
+        border: 1px solid var(--noir-gray, rgba(255,255,255,0.2)); border-radius: 4px;
+        box-sizing: border-box; margin-bottom: 4px;
+    }
+    .insight-save {
+        background: rgba(46, 204, 64, 0.1); border: 1px solid rgba(46, 204, 64, 0.25);
+        color: #2ecc40; cursor: pointer; font-size: 0.75rem; padding: 2px 8px;
+        border-radius: 4px; line-height: 1.4; font-weight: 600;
+    }
+    .insight-save:hover { background: rgba(46, 204, 64, 0.25); }
+    .insight-cancel {
+        background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--noir-silver, #888); cursor: pointer; font-size: 0.75rem; padding: 2px 8px;
+        border-radius: 4px; line-height: 1.4; font-weight: 600;
+    }
+    .insight-cancel:hover { background: rgba(255, 255, 255, 0.1); }
 
     /* Image Browser Modal */
     .ib-overlay {
