@@ -44,8 +44,8 @@
                 <h1 class="text-3xl font-bold text-gray-900">API Keys</h1>
                 <p class="text-gray-600 mt-1">Manage API keys for external integrations</p>
             </div>
-            <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
-            <button onclick="showCreateModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+            <button name="theme_toggle" class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+            <button name="api_key_create" onclick="showCreateModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
                 <i class="fas fa-plus"></i>
                 Create API Key
             </button>
@@ -104,8 +104,8 @@
                 </div>
             </div>
             <div class="p-6 border-t bg-gray-50 rounded-b-lg flex justify-end gap-3">
-                <button onclick="hideCreateModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
-                <button onclick="createApiKey()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Create Key</button>
+                <button name="api_key_cancel_create" onclick="hideCreateModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
+                <button name="api_key_confirm_create" onclick="createApiKey()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Create Key</button>
             </div>
         </div>
     </div>
@@ -126,14 +126,14 @@
                     <div class="flex gap-2">
                         <input type="text" id="new-api-key" readonly
                                class="flex-1 px-4 py-2 border rounded-lg bg-gray-50 font-mono text-sm">
-                        <button onclick="copyApiKey()" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg">
+                        <button name="api_key_copy" onclick="copyApiKey()" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg">
                             <i class="fas fa-copy"></i>
                         </button>
                     </div>
                 </div>
             </div>
             <div class="p-6 border-t bg-gray-50 rounded-b-lg flex justify-end">
-                <button onclick="hideShowKeyModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Done</button>
+                <button name="api_key_done" onclick="hideShowKeyModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Done</button>
             </div>
         </div>
     </div>
@@ -191,11 +191,11 @@
                     </div>
                     <div class="flex gap-2">
                         ${key.is_active ? `
-                            <button onclick="revokeKey(${key.id})" class="text-yellow-600 hover:text-yellow-800 px-3 py-1 rounded hover:bg-yellow-50" title="Revoke">
+                            <button name="api_key_revoke" onclick="revokeKey(${key.id})" class="text-yellow-600 hover:text-yellow-800 px-3 py-1 rounded hover:bg-yellow-50" title="Revoke">
                                 <i class="fas fa-ban"></i>
                             </button>
                         ` : ''}
-                        <button onclick="deleteKey(${key.id})" class="text-red-600 hover:text-red-800 px-3 py-1 rounded hover:bg-red-50" title="Delete permanently">
+                        <button name="api_key_delete" onclick="deleteKey(${key.id})" class="text-red-600 hover:text-red-800 px-3 py-1 rounded hover:bg-red-50" title="Delete permanently">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>

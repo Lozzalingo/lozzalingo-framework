@@ -16,7 +16,7 @@
         <header class="editor-header">
             <h1>Technology Registry</h1>
             <div class="header-actions">
-                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+                <button class="lz-theme-toggle" name="theme_toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 <a href="{{ url_for('admin.dashboard') }}" class="back-link">Back to Dashboard</a>
             </div>
         </header>
@@ -46,7 +46,7 @@
                             </select>
                         </div>
                         <div class="form-group" style="align-self: flex-end;">
-                            <button type="submit" class="btn-primary">Add</button>
+                            <button type="submit" class="btn-primary" name="tech_add">Add</button>
                         </div>
                     </div>
                 </form>
@@ -184,7 +184,7 @@
                         <div class="tr-pills-wrap">
                             ${groups[cat].map(e => `
                                 <span class="tech-pill" data-cat="${e.category}">
-                                    ${escapeHtml(e.name)}<button class="tr-pill-x" onclick="window._deleteTech('${e.name.replace(/'/g, "\\'")}')">&times;</button>
+                                    ${escapeHtml(e.name)}<button class="tr-pill-x" name="tech_delete" onclick="window._deleteTech('${e.name.replace(/'/g, "\\'")}')">&times;</button>
                                 </span>
                             `).join('')}
                         </div>

@@ -45,8 +45,8 @@ logger = logging.getLogger(__name__)
 def _db_log(level, message, details=None):
     """Log to framework's persistent DB logger (survives container rebuilds)"""
     try:
-        from lozzalingo.core import logger as fw_logger
-        getattr(fw_logger, level)('subscribers', message, details)
+        from lozzalingo.core import db_log
+        db_log(level, 'subscribers', message, details)
     except Exception:
         pass  # Fall back to stdout logger only
 

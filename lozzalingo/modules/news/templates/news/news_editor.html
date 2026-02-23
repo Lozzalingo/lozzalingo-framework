@@ -26,7 +26,7 @@
         <header class="editor-header">
             <h1>News Editor</h1>
             <div class="header-actions">
-                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+                <button class="lz-theme-toggle" name="theme_toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 <a href="{{ url_for('admin.dashboard') }}" class="back-link">Back to Dashboard</a>
             </div>
         </header>
@@ -49,7 +49,7 @@
                         <label for="imageFile">Upload Image</label>
                         <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
                             <input type="file" id="imageFile" name="image" accept="image/*,.heic,.heif" style="flex:1;">
-                            <button type="button" class="btn-secondary" id="browseCoverImagesBtn" style="white-space:nowrap;">Browse Images</button>
+                            <button type="button" class="btn-secondary" id="browseCoverImagesBtn" name="news_browse_cover_images" style="white-space:nowrap;">Browse Images</button>
                         </div>
                         <small class="form-hint">Supported formats: PNG, JPG, JPEG, GIF, WEBP (max 10MB)</small>
                         <div class="upload-progress" id="uploadProgress" style="display: none;">
@@ -143,13 +143,13 @@
                     </div>
 
                     <div class="form-actions">
-                        <button type="button" class="btn-primary" id="publishBtn">
+                        <button type="button" class="btn-primary" id="publishBtn" name="news_publish">
                             Publish Article
                         </button>
-                        <button type="button" class="btn-secondary" id="draftBtn">
+                        <button type="button" class="btn-secondary" id="draftBtn" name="news_save_draft">
                             Save as Draft
                         </button>
-                        <button type="button" class="btn-secondary" id="cancelBtn" style="display: none;">
+                        <button type="button" class="btn-secondary" id="cancelBtn" name="news_cancel_edit" style="display: none;">
                             Cancel Edit
                         </button>
                     </div>
@@ -185,19 +185,19 @@
         <div class="image-modal-card">
             <div class="image-modal-header">
                 <h3 id="imageModalTitle">Insert Image</h3>
-                <button type="button" class="image-modal-close" onclick="closeImageModal()">&times;</button>
+                <button type="button" class="image-modal-close" name="news_image_modal_close" onclick="closeImageModal()">&times;</button>
             </div>
             <div class="image-modal-body">
                 <div class="image-modal-options" id="imageModalOptions">
-                    <button type="button" class="image-modal-btn" onclick="triggerInlineUpload()">Upload New Image</button>
-                    <button type="button" class="image-modal-btn" onclick="loadImageGallery()">Select from Uploaded</button>
-                    <button type="button" class="image-modal-btn" onclick="promptImageUrl()">Enter Image URL</button>
+                    <button type="button" class="image-modal-btn" name="news_upload_new_image" onclick="triggerInlineUpload()">Upload New Image</button>
+                    <button type="button" class="image-modal-btn" name="news_select_from_uploaded" onclick="loadImageGallery()">Select from Uploaded</button>
+                    <button type="button" class="image-modal-btn" name="news_enter_image_url" onclick="promptImageUrl()">Enter Image URL</button>
                 </div>
                 <input type="file" id="inlineImageFile" accept="image/*,.heic,.heif" style="display:none;">
                 <div class="ib-tabs" id="galleryFolderTabs" style="display:none;">
-                    <button type="button" class="ib-tab" data-folder="quick-links">Quick Links</button>
-                    <button type="button" class="ib-tab active" data-folder="blog">Blog</button>
-                    <button type="button" class="ib-tab" data-folder="projects">Projects</button>
+                    <button type="button" class="ib-tab" name="news_gallery_tab_quick_links" data-folder="quick-links">Quick Links</button>
+                    <button type="button" class="ib-tab active" name="news_gallery_tab_blog" data-folder="blog">Blog</button>
+                    <button type="button" class="ib-tab" name="news_gallery_tab_projects" data-folder="projects">Projects</button>
                 </div>
                 <div id="imageGalleryGrid" class="image-gallery-grid" style="display:none;"></div>
             </div>
@@ -209,12 +209,12 @@
         <div class="ib-card">
             <div class="ib-header">
                 <h3>Browse Images</h3>
-                <button type="button" class="ib-close" id="coverBrowserClose">&times;</button>
+                <button type="button" class="ib-close" id="coverBrowserClose" name="news_cover_browser_close">&times;</button>
             </div>
             <div class="ib-tabs" id="coverBrowserTabs">
-                <button type="button" class="ib-tab" data-folder="quick-links">Quick Links</button>
-                <button type="button" class="ib-tab active" data-folder="blog">Blog</button>
-                <button type="button" class="ib-tab" data-folder="projects">Projects</button>
+                <button type="button" class="ib-tab" name="news_cover_tab_quick_links" data-folder="quick-links">Quick Links</button>
+                <button type="button" class="ib-tab active" name="news_cover_tab_blog" data-folder="blog">Blog</button>
+                <button type="button" class="ib-tab" name="news_cover_tab_projects" data-folder="projects">Projects</button>
             </div>
             <div class="ib-body">
                 <div id="coverBrowserGrid" class="ib-grid"></div>

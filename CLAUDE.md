@@ -22,6 +22,15 @@ Lozzalingo(app, {'features': {'news': False}})
 - This applies to ALL buttons without exception: modals, popups, navigation, forms, share buttons, etc.
 - Host apps inherit this rule — all sites using the framework must label every button
 
+## Persistent Logging (MANDATORY)
+- All 5xx responses are auto-logged to the `app_logs` DB table via `_setup_error_logging()` — this works out of the box
+- For explicit logging in module code, use the shared helper: `from lozzalingo.core import db_log`
+- Call pattern: `db_log('error', 'module_name', 'What happened', {'key': 'value'})`
+- Levels: `debug`, `info`, `warning`, `error`, `critical`
+- **NEVER use Python's stdlib `logging.getLogger()` as the only logger** — stdout logs are lost on container rebuild
+- All error/exception `except` blocks MUST include a `db_log('error', ...)` call alongside any `logger.error()`
+- Logs persist in `analytics_log.db` → `app_logs` table, backed up daily to DO Spaces
+
 ## Critical Warnings
 
 ### Adding New Modules

@@ -17,7 +17,7 @@
         <header class="editor-header">
             <h1>Projects Editor</h1>
             <div class="header-actions">
-                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+                <button class="lz-theme-toggle" name="theme_toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 <a href="{{ url_for('admin.dashboard') }}" class="back-link">Back to Dashboard</a>
             </div>
         </header>
@@ -87,8 +87,8 @@
                                     <option value="services">Services</option>
                                     <option value="other">Other</option>
                                 </select>
-                                <button type="button" class="tcp-add" id="techCategoryAddBtn">Add</button>
-                                <button type="button" class="tcp-cancel" id="techCategoryCancelBtn">Cancel</button>
+                                <button type="button" class="tcp-add" id="techCategoryAddBtn" name="tech_category_add">Add</button>
+                                <button type="button" class="tcp-cancel" id="techCategoryCancelBtn" name="tech_category_cancel">Cancel</button>
                             </div>
                         </div>
                         <input type="hidden" id="technologies" name="technologies">
@@ -98,9 +98,9 @@
                     <div class="form-group">
                         <label>Gallery Layout</label>
                         <div class="gallery-layout-picker" id="galleryLayoutPicker">
-                            <button type="button" class="gl-btn active" data-layout="single">Single</button>
-                            <button type="button" class="gl-btn" data-layout="carousel">Carousel</button>
-                            <button type="button" class="gl-btn" data-layout="grid">Grid</button>
+                            <button type="button" class="gl-btn active" data-layout="single" name="gallery_layout_single">Single</button>
+                            <button type="button" class="gl-btn" data-layout="carousel" name="gallery_layout_carousel">Carousel</button>
+                            <button type="button" class="gl-btn" data-layout="grid" name="gallery_layout_grid">Grid</button>
                         </div>
                         <input type="hidden" id="galleryLayout" name="gallery_layout" value="single">
                     </div>
@@ -121,11 +121,11 @@
                         <div class="gallery-thumbs" id="galleryThumbs"></div>
                         <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
                             <input type="file" id="imageFile" name="image" accept="image/*,.heic,.heif" style="flex:1;">
-                            <button type="button" class="btn-secondary" id="browseImagesBtn" style="white-space:nowrap;">Browse</button>
+                            <button type="button" class="btn-secondary" id="browseImagesBtn" name="gallery_browse_images" style="white-space:nowrap;">Browse</button>
                         </div>
                         <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
                             <input type="text" id="galleryUrlInput" placeholder="Paste image URL..." style="flex:1;">
-                            <button type="button" class="btn-secondary" id="galleryAddUrlBtn" style="white-space:nowrap;">Add URL</button>
+                            <button type="button" class="btn-secondary" id="galleryAddUrlBtn" name="gallery_add_url" style="white-space:nowrap;">Add URL</button>
                         </div>
                         <div class="upload-progress" id="uploadProgress" style="display: none;">
                             <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
@@ -154,9 +154,9 @@
                     </div>
 
                     <div class="form-actions">
-                        <button type="button" class="btn-primary" id="publishBtn">Publish Project</button>
-                        <button type="button" class="btn-secondary" id="draftBtn">Save as Draft</button>
-                        <button type="button" class="btn-secondary" id="cancelBtn" style="display: none;">Cancel Edit</button>
+                        <button type="button" class="btn-primary" id="publishBtn" name="project_publish">Publish Project</button>
+                        <button type="button" class="btn-secondary" id="draftBtn" name="project_save_draft">Save as Draft</button>
+                        <button type="button" class="btn-secondary" id="cancelBtn" name="project_cancel_edit" style="display: none;">Cancel Edit</button>
                     </div>
                     <div id="statusIndicator" class="status-indicator" style="display: none;">
                         Visibility: <span id="currentStatus"></span> &nbsp;|&nbsp; Activity: <span id="currentProjectStatus"></span>
@@ -187,19 +187,19 @@
         <div class="ib-card">
             <div class="ib-header">
                 <h3>Browse Images</h3>
-                <button type="button" class="ib-close" id="ibCloseBtn">&times;</button>
+                <button type="button" class="ib-close" id="ibCloseBtn" name="image_browser_close">&times;</button>
             </div>
             <div class="ib-tabs">
-                <button type="button" class="ib-tab" data-folder="quick-links">Quick Links</button>
-                <button type="button" class="ib-tab" data-folder="blog">Blog</button>
-                <button type="button" class="ib-tab active" data-folder="projects">Projects</button>
+                <button type="button" class="ib-tab" data-folder="quick-links" name="image_browser_tab_quick_links">Quick Links</button>
+                <button type="button" class="ib-tab" data-folder="blog" name="image_browser_tab_blog">Blog</button>
+                <button type="button" class="ib-tab active" data-folder="projects" name="image_browser_tab_projects">Projects</button>
             </div>
             <div class="ib-body">
                 <div id="ibGrid" class="ib-grid"></div>
             </div>
             <div class="ib-footer" id="ibFooter" style="display:none;">
                 <span id="ibSelectedCount">0 selected</span>
-                <button type="button" class="btn-primary" id="ibAddSelectedBtn">Add Selected</button>
+                <button type="button" class="btn-primary" id="ibAddSelectedBtn" name="image_browser_add_selected">Add Selected</button>
             </div>
         </div>
     </div>
@@ -209,7 +209,7 @@
         <div class="ib-card" style="max-width:800px;">
             <div class="ib-header">
                 <h3 id="fsModalTitle">Insert Filmstrip</h3>
-                <button type="button" class="ib-close" id="fsCloseBtn">&times;</button>
+                <button type="button" class="ib-close" id="fsCloseBtn" name="filmstrip_close">&times;</button>
             </div>
             <div class="fs-body">
                 <div class="fs-preview" id="fsPreview">
@@ -218,11 +218,11 @@
                 <div class="fs-add-section">
                     <div style="display:flex; gap:8px; align-items:center;">
                         <input type="file" id="fsFileInput" accept="image/*,.heic,.heif" multiple style="flex:1;">
-                        <button type="button" class="btn-secondary" id="fsBrowseBtn" style="white-space:nowrap;">Browse Library</button>
+                        <button type="button" class="btn-secondary" id="fsBrowseBtn" name="filmstrip_browse" style="white-space:nowrap;">Browse Library</button>
                     </div>
                     <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
                         <input type="text" id="fsUrlInput" placeholder="Paste image URL..." style="flex:1;">
-                        <button type="button" class="btn-secondary" id="fsAddUrlBtn" style="white-space:nowrap;">Add URL</button>
+                        <button type="button" class="btn-secondary" id="fsAddUrlBtn" name="filmstrip_add_url" style="white-space:nowrap;">Add URL</button>
                     </div>
                     <div class="upload-progress" id="fsUploadProgress" style="display:none;">
                         <div class="progress-bar"><div class="progress-fill" id="fsProgressFill"></div></div>
@@ -230,8 +230,8 @@
                     </div>
                 </div>
                 <div class="fs-actions">
-                    <button type="button" class="btn-primary" id="fsInsertBtn">Insert Filmstrip</button>
-                    <button type="button" class="btn-secondary" id="fsCancelBtn">Cancel</button>
+                    <button type="button" class="btn-primary" id="fsInsertBtn" name="filmstrip_insert">Insert Filmstrip</button>
+                    <button type="button" class="btn-secondary" id="fsCancelBtn" name="filmstrip_cancel">Cancel</button>
                 </div>
             </div>
         </div>
@@ -242,7 +242,7 @@
         <div class="ib-card crop-card">
             <div class="ib-header">
                 <h3>Crop Image</h3>
-                <button type="button" class="ib-close" id="cropCloseBtn">&times;</button>
+                <button type="button" class="ib-close" id="cropCloseBtn" name="crop_close">&times;</button>
             </div>
             <div class="crop-body">
                 <div class="crop-canvas-wrap">
@@ -250,9 +250,9 @@
                 </div>
                 <div class="crop-info" id="cropInfo">1920 x 1080</div>
                 <div class="crop-actions">
-                    <button type="button" class="btn-primary" id="cropApplyBtn">Apply Crop</button>
-                    <button type="button" class="btn-secondary" id="cropResetBtn">Reset</button>
-                    <button type="button" class="btn-secondary" id="cropCancelBtn">Cancel</button>
+                    <button type="button" class="btn-primary" id="cropApplyBtn" name="crop_apply">Apply Crop</button>
+                    <button type="button" class="btn-secondary" id="cropResetBtn" name="crop_reset">Reset</button>
+                    <button type="button" class="btn-secondary" id="cropCancelBtn" name="crop_cancel">Cancel</button>
                 </div>
             </div>
         </div>
@@ -261,12 +261,12 @@
     <!-- Floating image toolbar (positioned inside .ql-container) -->
     <div id="imgToolbar" class="img-toolbar" style="display:none;">
         <span class="img-tb-group">
-            <button type="button" class="img-tb-btn" data-size="small">S</button>
-            <button type="button" class="img-tb-btn" data-size="medium">M</button>
-            <button type="button" class="img-tb-btn" data-size="large">L</button>
+            <button type="button" class="img-tb-btn" data-size="small" name="image_size_small">S</button>
+            <button type="button" class="img-tb-btn" data-size="medium" name="image_size_medium">M</button>
+            <button type="button" class="img-tb-btn" data-size="large" name="image_size_large">L</button>
         </span>
         <span class="img-tb-sep img-tb-sep-edit" style="display:none;"></span>
-        <button type="button" class="img-tb-btn" id="imgTbEditBtn" style="display:none;">Edit</button>
+        <button type="button" class="img-tb-btn" id="imgTbEditBtn" name="image_edit" style="display:none;">Edit</button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
@@ -414,7 +414,7 @@
         function renderTechTags() {
             techTagsEl.innerHTML = selectedTechs.map((t, i) => {
                 const c = TECH_COLORS[t.category] || TECH_COLORS.other;
-                return `<span class="tech-pill" style="background:rgba(${hexToRgb(c)},0.15);color:${c};border:1px solid rgba(${hexToRgb(c)},0.3);">${escHtml(t.name)}<button type="button" class="tech-pill-x" data-idx="${i}">&times;</button></span>`;
+                return `<span class="tech-pill" style="background:rgba(${hexToRgb(c)},0.15);color:${c};border:1px solid rgba(${hexToRgb(c)},0.3);">${escHtml(t.name)}<button type="button" class="tech-pill-x" name="tech_remove_${i}" data-idx="${i}">&times;</button></span>`;
             }).join('');
             techTagsEl.querySelectorAll('.tech-pill-x').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -773,7 +773,7 @@
                 <div class="gallery-thumb" draggable="true" data-idx="${i}">
                     <span class="gallery-thumb-num">${i + 1}</span>
                     <img src="${url}" alt="Gallery image ${i + 1}">
-                    <button type="button" class="gallery-thumb-remove" data-idx="${i}">&times;</button>
+                    <button type="button" class="gallery-thumb-remove" name="gallery_remove_${i}" data-idx="${i}">&times;</button>
                 </div>
             `).join('');
 
@@ -964,8 +964,8 @@
                         <img src="${img.url}" alt="${img.filename}" loading="lazy">
                         <span class="ib-filename">${img.filename}</span>
                         <div class="ib-actions">
-                            <button type="button" class="ib-select-btn" data-url="${img.url}">Select</button>
-                            <button type="button" class="ib-delete-btn" data-url="${img.url}" title="Delete">&#128465;</button>
+                            <button type="button" class="ib-select-btn" name="image_browser_select" data-url="${img.url}">Select</button>
+                            <button type="button" class="ib-delete-btn" name="image_browser_delete" data-url="${img.url}" title="Delete">&#128465;</button>
                         </div>
                     </div>
                 `).join('');
@@ -1126,14 +1126,14 @@
                         <span>Updated: ${new Date(p.updated_at).toLocaleDateString()}</span>
                     </div>
                     <div class="article-actions">
-                        <button class="btn-small btn-edit" onclick="window._editProject(${p.id})">Edit</button>
-                        <button class="btn-small btn-toggle" onclick="window._togglePublish(${p.id})">
+                        <button class="btn-small btn-edit" name="project_edit_${p.id}" onclick="window._editProject(${p.id})">Edit</button>
+                        <button class="btn-small btn-toggle" name="project_toggle_publish_${p.id}" onclick="window._togglePublish(${p.id})">
                             ${p.status === 'published' ? 'Unpublish' : 'Publish'}
                         </button>
-                        <button class="btn-small btn-toggle" onclick="window._toggleActivity(${p.id})">
+                        <button class="btn-small btn-toggle" name="project_toggle_activity_${p.id}" onclick="window._toggleActivity(${p.id})">
                             ${p.project_status === 'active' ? 'Set Inactive' : 'Set Active'}
                         </button>
-                        <button class="btn-small btn-delete" onclick="window._deleteProject(${p.id})">Delete</button>
+                        <button class="btn-small btn-delete" name="project_delete_${p.id}" onclick="window._deleteProject(${p.id})">Delete</button>
                         ${p.status === 'published' ? `<button class="btn-small email-btn" name="send_project_email_${p.id}" onclick="window._sendProjectEmail(${p.id})">${p.email_sent ? 'Resend Email' : 'Send Email'}</button>` : ''}
                     </div>
                 </div>
@@ -1308,8 +1308,8 @@
                     <div class="fs-thumb" draggable="true" data-idx="${i}">
                         <img src="${img.url}" alt="Filmstrip image ${i + 1}">
                         <div class="fs-thumb-actions">
-                            <button type="button" class="fs-crop-btn" data-idx="${i}" title="Crop">&#9986;</button>
-                            <button type="button" class="fs-remove-btn" data-idx="${i}" title="Remove">&times;</button>
+                            <button type="button" class="fs-crop-btn" name="filmstrip_crop_${i}" data-idx="${i}" title="Crop">&#9986;</button>
+                            <button type="button" class="fs-remove-btn" name="filmstrip_remove_${i}" data-idx="${i}" title="Remove">&times;</button>
                         </div>
                         ${img.cropped ? '<span class="fs-crop-badge">Cropped</span>' : ''}
                     </div>

@@ -173,8 +173,8 @@
                 </div>
                 {% endfor %}
             </div>
-            <button class="carousel-arrow carousel-prev" aria-label="Previous">&#8249;</button>
-            <button class="carousel-arrow carousel-next" aria-label="Next">&#8250;</button>
+            <button class="carousel-arrow carousel-prev" name="gallery_prev" aria-label="Previous">&#8249;</button>
+            <button class="carousel-arrow carousel-next" name="gallery_next" aria-label="Next">&#8250;</button>
             <div class="carousel-counter">1 / {{ gallery|length }}</div>
         </div>
         {% elif layout == 'grid' and gallery|length > 1 %}

@@ -17,7 +17,7 @@
             <p class="admin-welcome">Welcome, {{ session.admin_email }}</p>
         </div>
         <div class="admin-actions">
-            <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+            <button name="theme_toggle" class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
             <a href="{{ url_for('admin.dashboard') }}" class="admin-btn admin-btn-secondary">
                 🏠 Main Dashboard
             </a>

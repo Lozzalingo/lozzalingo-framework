@@ -138,6 +138,9 @@ class Lozzalingo:
         # Set up auto-injection for analytics scripts
         self._setup_auto_injection()
 
+        # Set up automatic error logging for all 5xx responses
+        self._setup_error_logging()
+
         # Store reference on app for access in templates/routes
         app.extensions['lozzalingo'] = self
 
@@ -544,6 +547,24 @@ class Lozzalingo:
             self.app.logger.debug("Registered quick_links module")
         except Exception as e:
             self.app.logger.error(f"Failed to register quick_links module: {e}")
+
+    def _setup_error_logging(self):
+        """Auto-log all 5xx responses to the persistent LoggingService."""
+        @self.app.after_request
+        def log_errors(response):
+            if response.status_code >= 500:
+                try:
+                    from lozzalingo.core import logger as fw_logger
+                    from flask import request as req
+                    fw_logger.error('http', f'{response.status_code} {req.method} {req.path}', {
+                        'status_code': response.status_code,
+                        'method': req.method,
+                        'path': req.path,
+                        'query': req.query_string.decode('utf-8', errors='replace')[:500],
+                    })
+                except Exception:
+                    pass  # Don't let logging errors break responses
+            return response
 
     def _setup_auto_injection(self):
         """Set up automatic script injection for analytics."""

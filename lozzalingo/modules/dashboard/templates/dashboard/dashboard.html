@@ -26,7 +26,7 @@
                 <p class="admin-welcome">Welcome, {{ session.admin_email }}</p>
             </div>
             <div class="admin-actions">
-                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+                <button name="theme_toggle" class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 {% if endpoint_exists('admin.change_password') %}
                 <a href="{{ url_for('admin.change_password') }}" class="admin-btn admin-btn-secondary">
                     Change Password
@@ -184,7 +184,7 @@
                         Create Admin
                     </a>
                     {% else %}
-                    <button class="admin-btn admin-btn-secondary" disabled>Create Admin (Not Available)</button>
+                    <button name="create_admin_disabled" class="admin-btn admin-btn-secondary" disabled>Create Admin (Not Available)</button>
                     {% endif %}
                 </div>
             </div>

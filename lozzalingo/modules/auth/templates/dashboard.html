@@ -28,7 +28,7 @@
                 <p class="admin-welcome">Welcome, {{ session.admin_email }}</p>
             </div>
             <div class="admin-actions">
-                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+                <button class="lz-theme-toggle" name="theme_toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="admin-btn admin-btn-secondary">
                     Change Password
                 </a>

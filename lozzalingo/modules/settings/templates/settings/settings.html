@@ -339,7 +339,7 @@
         <div class="settings-header">
             <h1>Site Settings</h1>
             <div style="display: flex; align-items: center; gap: 12px;">
-                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+                <button name="theme_toggle" class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 <a href="{{ url_for('admin.dashboard') }}" class="back-btn">
                     <span>&larr;</span> Back to Dashboard
                 </a>
@@ -404,7 +404,7 @@
                                    value="{{ current_values.get(setting.key, '') }}"
                                    placeholder="{{ setting.description or '' }}"
                                    autocomplete="off">
-                            <button type="button" class="toggle-visibility" onclick="togglePassword('{{ setting.key }}')">👁️</button>
+                            <button name="settings_toggle_visibility" type="button" class="toggle-visibility" onclick="togglePassword('{{ setting.key }}')">👁️</button>
                             {% else %}
                             <input type="{{ setting.type }}"
                                    name="{{ setting.key }}"
@@ -418,17 +418,17 @@
                     {% endfor %}
 
                     {% if category_key == 'stripe' %}
-                    <button type="button" class="test-btn" onclick="testStripe(this)">Test Stripe Connection</button>
+                    <button name="settings_test_stripe" type="button" class="test-btn" onclick="testStripe(this)">Test Stripe Connection</button>
                     {% elif category_key == 'email' %}
-                    <button type="button" class="test-btn" onclick="testResend(this)">Test Resend Connection</button>
+                    <button name="settings_test_resend" type="button" class="test-btn" onclick="testResend(this)">Test Resend Connection</button>
                     {% endif %}
                 </div>
             </div>
             {% endfor %}
 
             <div class="form-actions">
-                <button type="reset" class="reset-btn">Reset Changes</button>
-                <button type="submit" class="save-btn">Save Settings</button>
+                <button name="settings_reset" type="reset" class="reset-btn">Reset Changes</button>
+                <button name="settings_save" type="submit" class="save-btn">Save Settings</button>
             </div>
         </form>
     </div>

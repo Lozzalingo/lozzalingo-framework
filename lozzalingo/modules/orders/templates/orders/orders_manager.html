@@ -662,7 +662,7 @@
                 <h1>📦 Order Management</h1>
             </div>
             <div class="header-actions">
-                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+                <button name="theme_toggle" class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 <button name="create_new_order" class="admin-btn admin-btn-primary" onclick="createNewOrder()" style="margin-right: 10px;">
                     ➕ Create New Order
                 </button>
@@ -697,7 +697,7 @@
                     <option value="{{ shop }}">{{ shop }}</option>
                     {% endfor %}
                 </select>
-                <button onclick="fetchEtsyOrders()" style="padding: 10px 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">
+                <button name="order_fetch_etsy" onclick="fetchEtsyOrders()" style="padding: 10px 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">
                     Fetch Orders
                 </button>
                 <span id="etsy-fetch-status" style="color: var(--lz-text-secondary, #666666);"></span>
@@ -1183,17 +1183,17 @@
                 <div class="order-detail-section">
                     <h3>⚡ Quick Actions</h3>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <button class="admin-btn admin-btn-success" id="edit-order-btn"
+                        <button name="order_edit" class="admin-btn admin-btn-success" id="edit-order-btn"
                                 onclick="toggleEditMode(${order.id})"
                                 style="background: #0066cc;">
                             ✏️ Edit Order
                         </button>
-                        <button class="admin-btn admin-btn-success" id="save-order-btn"
+                        <button name="order_save_changes" class="admin-btn admin-btn-success" id="save-order-btn"
                                 onclick="saveOrderChanges(${order.id}, this)"
                                 style="background: #28a745; display: none;">
                             💾 Save Changes
                         </button>
-                        <button class="admin-btn admin-btn-secondary" id="cancel-edit-btn"
+                        <button name="order_cancel_edit" class="admin-btn admin-btn-secondary" id="cancel-edit-btn"
                                 onclick="cancelEditMode()"
                                 style="display: none;">
                             ❌ Cancel

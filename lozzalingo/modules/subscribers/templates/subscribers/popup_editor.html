@@ -158,7 +158,7 @@
         <header class="editor-header">
             <h1>Subscriber Popup Editor</h1>
             <div class="header-actions">
-                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+                <button class="lz-theme-toggle" name="theme_toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 <a href="{{ url_for('admin.dashboard') }}" class="back-link">&larr; Back to Dashboard</a>
             </div>
         </header>
@@ -253,7 +253,7 @@
 
                     <hr class="section-divider">
 
-                    <button type="button" class="btn-save" id="saveBtn" onclick="saveConfig()">Save Configuration</button>
+                    <button type="button" class="btn-save" name="popup_save_config" id="saveBtn" onclick="saveConfig()">Save Configuration</button>
                     <div class="save-message" id="saveMessage"></div>
                 </form>
             </div>
@@ -264,19 +264,19 @@
                 <div class="preview-frame">
                     <div class="subscription-popup-overlay" style="display:flex; position:relative; opacity:1; background:transparent;">
                         <div class="subscription-popup" style="transform:scale(1);">
-                            <button class="subscription-popup-close" aria-label="Close popup">&times;</button>
+                            <button class="subscription-popup-close" name="popup_preview_close" aria-label="Close popup">&times;</button>
                             <h2 class="subscription-popup-title" id="preview-title">{{ config.title }}</h2>
                             <p class="subscription-popup-subtitle" id="preview-subtitle">{{ config.subtitle }}</p>
                             <form class="subscription-popup-form" onsubmit="return false;">
                                 <div class="subscription-popup-input-group">
                                     <input type="email" class="subscription-popup-input" id="preview-placeholder" placeholder="{{ config.placeholder }}" disabled>
                                 </div>
-                                <button type="button" class="subscription-popup-submit" id="preview-button">
+                                <button type="button" class="subscription-popup-submit" name="popup_preview_submit" id="preview-button">
                                     <span class="popup-btn-text" id="preview-button-text">{{ config.button_text }}</span>
                                 </button>
                                 <div class="subscription-popup-message" style="display:none;"></div>
                             </form>
-                            <button class="subscription-popup-skip" id="preview-skip">{{ config.skip_text }}</button>
+                            <button class="subscription-popup-skip" name="popup_preview_skip" id="preview-skip">{{ config.skip_text }}</button>
                         </div>
                     </div>
                 </div>

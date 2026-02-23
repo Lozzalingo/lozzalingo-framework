@@ -17,7 +17,7 @@
         <header class="editor-header">
             <h1>Quick Links Editor</h1>
             <div class="header-actions">
-                <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+                <button class="lz-theme-toggle" name="theme_toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
                 <a href="{{ url_for('admin.dashboard') }}" class="back-link">Back to Dashboard</a>
             </div>
         </header>
@@ -50,7 +50,7 @@
                         <label for="imageFile">Image (square crop)</label>
                         <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
                             <input type="file" id="imageFile" accept="image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,.heic,.heif" style="flex:1;">
-                            <button type="button" class="btn-secondary" id="browseImagesBtn" style="white-space:nowrap;">Browse Images</button>
+                            <button type="button" class="btn-secondary" id="browseImagesBtn" name="ql_browse_icon" style="white-space:nowrap;">Browse Images</button>
                         </div>
                         <small class="form-hint">Select an image and crop to a square, or browse existing uploads</small>
                     </div>
@@ -58,8 +58,8 @@
                     <!-- Crop Area -->
                     <div id="cropArea" style="display: none;">
                         <div class="mode-toggle">
-                            <button type="button" class="mode-btn active" id="modeCropBtn">Crop</button>
-                            <button type="button" class="mode-btn" id="modePadBtn">Pad</button>
+                            <button type="button" class="mode-btn active" id="modeCropBtn" name="ql_mode_crop">Crop</button>
+                            <button type="button" class="mode-btn" id="modePadBtn" name="ql_mode_pad">Pad</button>
                         </div>
 
                         <div class="crop-container">
@@ -74,29 +74,29 @@
                         <div id="padOptions" style="display: none;">
                             <label class="color-label">Background colour</label>
                             <div class="color-swatches">
-                                <button type="button" class="swatch active" data-color="#000000" style="background:#000000;" title="Black"></button>
-                                <button type="button" class="swatch" data-color="#ffffff" style="background:#ffffff;" title="White"></button>
-                                <button type="button" class="swatch" data-color="#0a0a0a" style="background:#0a0a0a;" title="Near black"></button>
-                                <button type="button" class="swatch" data-color="#1a1a2e" style="background:#1a1a2e;" title="Dark navy"></button>
+                                <button type="button" class="swatch active" data-color="#000000" name="ql_swatch_black" style="background:#000000;" title="Black"></button>
+                                <button type="button" class="swatch" data-color="#ffffff" name="ql_swatch_white" style="background:#ffffff;" title="White"></button>
+                                <button type="button" class="swatch" data-color="#0a0a0a" name="ql_swatch_near_black" style="background:#0a0a0a;" title="Near black"></button>
+                                <button type="button" class="swatch" data-color="#1a1a2e" name="ql_swatch_dark_navy" style="background:#1a1a2e;" title="Dark navy"></button>
                                 <input type="color" id="customColor" value="#000000" title="Custom colour">
                             </div>
                         </div>
 
                         <div class="crop-actions">
-                            <button type="button" class="btn-primary" id="cropConfirmBtn">Crop & Upload</button>
-                            <button type="button" class="btn-secondary" id="cropCancelBtn">Cancel</button>
+                            <button type="button" class="btn-primary" id="cropConfirmBtn" name="ql_crop_confirm">Crop & Upload</button>
+                            <button type="button" class="btn-secondary" id="cropCancelBtn" name="ql_crop_cancel">Cancel</button>
                         </div>
                     </div>
 
                     <!-- Image Preview -->
                     <div id="imagePreview" style="display: none;" class="ql-image-preview">
                         <img id="previewImg" src="" alt="Link image">
-                        <button type="button" class="btn-small btn-delete" id="removeImageBtn">Remove</button>
+                        <button type="button" class="btn-small btn-delete" id="removeImageBtn" name="ql_remove_image">Remove</button>
                     </div>
 
                     <div class="form-actions">
-                        <button type="button" class="btn-primary" id="saveBtn">Add Link</button>
-                        <button type="button" class="btn-secondary" id="cancelBtn" style="display: none;">Cancel</button>
+                        <button type="button" class="btn-primary" id="saveBtn" name="ql_save">Add Link</button>
+                        <button type="button" class="btn-secondary" id="cancelBtn" name="ql_cancel" style="display: none;">Cancel</button>
                     </div>
                 </form>
             </div>
@@ -120,8 +120,8 @@
                         <img id="avatarPreview" src="/static/img/logo.png" alt="Avatar preview" class="profile-avatar-preview">
                         <div class="profile-avatar-actions">
                             <input type="file" id="avatarFile" accept="image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,.heic,.heif">
-                            <button type="button" class="btn-secondary" id="avatarBrowseBtn" style="white-space:nowrap;">Browse Images</button>
-                            <button type="button" class="btn-small btn-delete" id="avatarRemoveBtn" style="display:none;">Remove</button>
+                            <button type="button" class="btn-secondary" id="avatarBrowseBtn" name="ql_avatar_browse" style="white-space:nowrap;">Browse Images</button>
+                            <button type="button" class="btn-small btn-delete" id="avatarRemoveBtn" name="ql_avatar_remove" style="display:none;">Remove</button>
                         </div>
                     </div>
                     <input type="hidden" id="avatarUrl">
@@ -134,8 +134,8 @@
                         <img id="avatarCropImage" src="" alt="Crop preview">
                     </div>
                     <div class="crop-actions">
-                        <button type="button" class="btn-primary" id="avatarCropConfirmBtn">Crop & Upload</button>
-                        <button type="button" class="btn-secondary" id="avatarCropCancelBtn">Cancel</button>
+                        <button type="button" class="btn-primary" id="avatarCropConfirmBtn" name="ql_avatar_crop_confirm">Crop & Upload</button>
+                        <button type="button" class="btn-secondary" id="avatarCropCancelBtn" name="ql_avatar_crop_cancel">Cancel</button>
                     </div>
                 </div>
 
@@ -145,7 +145,7 @@
                 </div>
 
                 <div class="form-actions">
-                    <button type="button" class="btn-primary" id="saveSettingsBtn">Save Settings</button>
+                    <button type="button" class="btn-primary" id="saveSettingsBtn" name="ql_save_settings">Save Settings</button>
                     <span id="settingsStatus" class="settings-status"></span>
                 </div>
             </div>
@@ -157,12 +157,12 @@
         <div class="ib-card">
             <div class="ib-header">
                 <h3>Browse Images</h3>
-                <button type="button" class="ib-close" id="ibCloseBtn">&times;</button>
+                <button type="button" class="ib-close" id="ibCloseBtn" name="ql_modal_close">&times;</button>
             </div>
             <div class="ib-tabs">
-                <button type="button" class="ib-tab active" data-folder="quick-links">Quick Links</button>
-                <button type="button" class="ib-tab" data-folder="blog">Blog</button>
-                <button type="button" class="ib-tab" data-folder="projects">Projects</button>
+                <button type="button" class="ib-tab active" data-folder="quick-links" name="ql_tab_quick_links">Quick Links</button>
+                <button type="button" class="ib-tab" data-folder="blog" name="ql_tab_blog">Blog</button>
+                <button type="button" class="ib-tab" data-folder="projects" name="ql_tab_projects">Projects</button>
             </div>
             <div class="ib-body">
                 <div id="ibGrid" class="ib-grid"></div>
@@ -352,8 +352,8 @@
                         <img src="${img.url}" alt="${img.filename}" loading="lazy">
                         <span class="ib-filename">${img.filename}</span>
                         <div class="ib-actions">
-                            <button type="button" class="ib-select-btn" data-url="${img.url}">Select</button>
-                            <button type="button" class="ib-delete-btn" data-url="${img.url}" title="Delete">&#128465;</button>
+                            <button type="button" class="ib-select-btn" name="ql_select_image_${img.filename}" data-url="${img.url}">Select</button>
+                            <button type="button" class="ib-delete-btn" name="ql_delete_image_${img.filename}" data-url="${img.url}" title="Delete">&#128465;</button>
                         </div>
                     </div>
                 `).join('');
@@ -625,11 +625,11 @@
                         ${link.description ? `<span>${link.description}</span>` : ''}
                     </div>
                     <div class="article-actions">
-                        <button class="btn-small btn-edit" onclick="window._editLink(${link.id})">Edit</button>
-                        <button class="btn-small btn-toggle" onclick="window._toggleLink(${link.id})">
+                        <button class="btn-small btn-edit" name="ql_edit_${link.id}" onclick="window._editLink(${link.id})">Edit</button>
+                        <button class="btn-small btn-toggle" name="ql_toggle_${link.id}" onclick="window._toggleLink(${link.id})">
                             ${link.is_active ? 'Hide' : 'Show'}
                         </button>
-                        <button class="btn-small btn-delete" onclick="window._deleteLink(${link.id})">Delete</button>
+                        <button class="btn-small btn-delete" name="ql_delete_${link.id}" onclick="window._deleteLink(${link.id})">Delete</button>
                     </div>
                 </div>
             `).join('');

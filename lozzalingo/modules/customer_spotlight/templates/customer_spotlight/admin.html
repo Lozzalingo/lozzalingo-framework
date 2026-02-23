@@ -223,7 +223,7 @@
         <div class="header">
             <h1>Customer Spotlight Manager</h1>
             <a href="{{ url_for('admin.dashboard') }}" class="back-link">← Back to Dashboard</a>
-            <button class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
+            <button name="theme_toggle" class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
         </div>
 
         <div id="statusMessage" class="status-message"></div>
@@ -240,7 +240,7 @@
                         <label for="image">Customer Image</label>
                         <input type="file" id="image" name="image" accept="image/*" required>
                     </div>
-                    <button type="submit" class="add-btn">Add Spotlight</button>
+                    <button name="spotlight_add" type="submit" class="add-btn">Add Spotlight</button>
                 </div>
             </form>
         </div>
@@ -275,12 +275,12 @@
                                 ${spotlight.is_active ? 'Active' : 'Hidden'}
                             </div>
                             <div class="spotlight-actions">
-                                <button onclick="toggleActive(${spotlight.id}, ${!spotlight.is_active})">
+                                <button name="spotlight_toggle_active" onclick="toggleActive(${spotlight.id}, ${!spotlight.is_active})">
                                     ${spotlight.is_active ? 'Hide' : 'Show'}
                                 </button>
-                                <button onclick="moveUp(${spotlight.id})">↑ Up</button>
-                                <button onclick="moveDown(${spotlight.id})">↓ Down</button>
-                                <button class="delete" onclick="deleteSpotlight(${spotlight.id})">Delete</button>
+                                <button name="spotlight_move_up" onclick="moveUp(${spotlight.id})">↑ Up</button>
+                                <button name="spotlight_move_down" onclick="moveDown(${spotlight.id})">↓ Down</button>
+                                <button name="spotlight_delete" class="delete" onclick="deleteSpotlight(${spotlight.id})">Delete</button>
                             </div>
                         </div>
                     </div>
