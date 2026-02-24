@@ -628,7 +628,7 @@ function displayArticles(articles, isFiltered) {
                             <button class="crosspost-btn" onclick="this.nextElementSibling.classList.toggle('show')">Cross-Post ▾</button>
                             <div class="crosspost-menu">
                                 <div class="crosspost-item" onclick="crosspostArticle(${article.id},'linkedin')">${article.crossposted_linkedin ? '✓ ' : ''}LinkedIn</div>
-                                <div class="crosspost-item" onclick="crosspostArticle(${article.id},'medium')">${article.crossposted_medium ? '✓ ' : ''}Medium</div>
+                                <div class="crosspost-item" onclick="crosspostArticle(${article.id},'medium')">${article.crossposted_medium ? '✓ ' : '✉ '}Medium (Request API)</div>
                                 <div class="crosspost-item" onclick="crosspostArticle(${article.id},'substack')">${article.crossposted_substack ? '✓ ' : ''}Substack</div>
                                 <div class="crosspost-item" onclick="crosspostArticle(${article.id},'twitter')">${article.crossposted_twitter ? '✓ ' : ''}Twitter/X</div>
                                 <div class="crosspost-item" onclick="crosspostArticle(${article.id},'threads')">${article.crossposted_threads ? '✓ ' : ''}Threads</div>
@@ -925,6 +925,21 @@ async function sendArticleEmail(id) {
 async function crosspostArticle(id, platform) {
     // Close any open dropdown
     document.querySelectorAll('.crosspost-menu.show').forEach(m => m.classList.remove('show'));
+
+    // Medium: no API available — open email to request access
+    if (platform === 'medium') {
+        const subject = encodeURIComponent('API Integration Token Request — Programmatic Publishing');
+        const body = encodeURIComponent(
+            'Hi Medium team,\n\n' +
+            'I run a personal blog at https://laurence.computer and would like to cross-post my articles to Medium programmatically.\n\n' +
+            'I understand that new integration tokens are no longer available through the settings page. ' +
+            'Is there any way to request an API integration token for publishing articles via the Medium API?\n\n' +
+            'I would use it solely for posting my own original content with canonical URLs pointing back to my site.\n\n' +
+            'Thanks for your time.\n\nBest,\nLaurence'
+        );
+        window.open(`mailto:yourfriends@medium.com?subject=${subject}&body=${body}`, '_blank');
+        return;
+    }
 
     const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
     if (!confirm(`Cross-post this article to ${platformName}?`)) return;
