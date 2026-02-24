@@ -10,6 +10,7 @@ from ..content_transform import html_to_markdown
 
 try:
     from substack import Api as SubstackApi
+    from substack.post import Post as SubstackPost
     SUBSTACK_AVAILABLE = True
 except ImportError:
     SUBSTACK_AVAILABLE = False
@@ -55,8 +56,14 @@ def publish_article(cookie, substack_url, title, html_content, canonical_url=Non
         if canonical_url:
             markdown += f"\n\n---\n\n*Originally published at [{canonical_url}]({canonical_url})*"
 
+        # Build draft using the Post class
+        user_id = api.get_user_id()
+        post = SubstackPost(title=title, subtitle="", user_id=user_id)
+        post.from_markdown(markdown)
+        draft_body = post.get_draft()
+
         # Create draft then publish
-        draft = api.post_draft(title=title, body_markdown=markdown)
+        draft = api.post_draft(draft_body)
         draft_id = draft.get('id')
         if not draft_id:
             return {'success': False, 'url': '', 'error': 'Failed to create Substack draft'}
