@@ -56,7 +56,7 @@ class CrossPostService:
             image_url=image_url,
         )
 
-    def post_to_medium(self, title, html_content, canonical_url, tags=None):
+    def post_to_medium(self, title, html_content, canonical_url, tags=None, image_url=None):
         """
         Publish a full article to Medium.
 
@@ -76,9 +76,10 @@ class CrossPostService:
             html_content=processed_html,
             canonical_url=canonical_url,
             tags=tags,
+            image_url=image_url,
         )
 
-    def post_to_substack(self, title, html_content, canonical_url=None):
+    def post_to_substack(self, title, html_content, canonical_url=None, image_url=None):
         """
         Publish a full article to Substack.
 
@@ -99,6 +100,7 @@ class CrossPostService:
             title=title,
             html_content=html_content,
             canonical_url=canonical_url,
+            image_url=image_url,
         )
 
 

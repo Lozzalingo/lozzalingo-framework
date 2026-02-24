@@ -15,7 +15,7 @@ except ImportError:
     SUBSTACK_AVAILABLE = False
 
 
-def publish_article(cookie, substack_url, title, html_content, canonical_url=None):
+def publish_article(cookie, substack_url, title, html_content, canonical_url=None, image_url=None):
     """
     Publish a full article to Substack.
 
@@ -49,6 +49,10 @@ def publish_article(cookie, substack_url, title, html_content, canonical_url=Non
 
         # Convert HTML to Markdown
         markdown = html_to_markdown(html_content)
+
+        # Prepend hero image
+        if image_url:
+            markdown = f"![]({image_url})\n\n{markdown}"
 
         # Append canonical link footer
         if canonical_url:

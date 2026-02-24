@@ -33,7 +33,7 @@ def _get_user_id(token):
     return _cached_user_id
 
 
-def publish_article(token, title, html_content, canonical_url, tags=None):
+def publish_article(token, title, html_content, canonical_url, tags=None, image_url=None):
     """
     Publish a full article to Medium.
 
@@ -66,6 +66,10 @@ def publish_article(token, title, html_content, canonical_url, tags=None):
     # Medium allows max 5 tags
     if tags and len(tags) > 5:
         tags = tags[:5]
+
+    # Prepend hero image if provided
+    if image_url:
+        html_content = f'<figure><img src="{image_url}" alt="{title}"></figure>\n{html_content}'
 
     payload = {
         "title": title,

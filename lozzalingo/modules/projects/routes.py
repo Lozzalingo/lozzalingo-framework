@@ -1079,12 +1079,14 @@ def crosspost_project(project_id, platform):
                 html_content=project.get('content', ''),
                 canonical_url=canonical_url,
                 tags=tags,
+                image_url=image_url or None,
             )
         elif platform == 'substack':
             result = crosspost_svc.post_to_substack(
                 title=project['title'],
                 html_content=project.get('content', ''),
                 canonical_url=canonical_url,
+                image_url=image_url or None,
             )
 
         if result and result.get('success'):
