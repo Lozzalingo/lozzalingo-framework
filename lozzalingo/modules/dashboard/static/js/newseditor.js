@@ -605,6 +605,16 @@ function displayArticles(articles, isFiltered) {
                         <button class="edit-btn" onclick="editArticle(${article.id})">Edit</button>
                         ${toggleBtn}
                         <button class="email-btn" onclick="sendArticleEmail(${article.id})" title="Send/Resend email to subscribers">Send Email</button>
+                        <div class="share-dropdown">
+                            <button class="share-btn" onclick="this.nextElementSibling.classList.toggle('show')">Share ▾</button>
+                            <div class="share-menu">
+                                <div class="share-item" onclick="crosspostArticle(${article.id},'linkedin')">${article.crossposted_linkedin ? '✓ ' : ''}LinkedIn</div>
+                                <div class="share-item" onclick="crosspostArticle(${article.id},'medium')">${article.crossposted_medium ? '✓ ' : '✉ '}Medium (Request API)</div>
+                                <div class="share-item" onclick="crosspostArticle(${article.id},'substack')">${article.crossposted_substack ? '✓ ' : ''}Substack</div>
+                                <div class="share-item" onclick="crosspostArticle(${article.id},'twitter')">${article.crossposted_twitter ? '✓ ' : ''}Twitter/X</div>
+                                <div class="share-item" onclick="crosspostArticle(${article.id},'threads')">${article.crossposted_threads ? '✓ ' : ''}Threads</div>
+                            </div>
+                        </div>
                         <button class="delete-btn" onclick="deleteArticle(${article.id})">Delete</button>
                     </div>
                 </div>
@@ -890,6 +900,58 @@ async function sendArticleEmail(id) {
         emailBtn.textContent = originalText;
     }
 }
+
+// ===== Share (cross-post) article =====
+
+async function crosspostArticle(id, platform) {
+    // Close any open dropdown
+    document.querySelectorAll('.share-menu.show').forEach(m => m.classList.remove('show'));
+
+    // Medium: no API available — open email to request access
+    if (platform === 'medium') {
+        const subject = encodeURIComponent('API Integration Token Request — Programmatic Publishing');
+        const body = encodeURIComponent(
+            'Hi Medium team,\n\n' +
+            'I run a personal blog at https://laurence.computer and would like to cross-post my articles to Medium programmatically.\n\n' +
+            'I understand that new integration tokens are no longer available through the settings page. ' +
+            'Is there any way to request an API integration token for publishing articles via the Medium API?\n\n' +
+            'I would use it solely for posting my own original content with canonical URLs pointing back to my site.\n\n' +
+            'Thanks for your time.\n\nBest,\nLaurence'
+        );
+        window.open(`mailto:yourfriends@medium.com?subject=${subject}&body=${body}`, '_blank');
+        return;
+    }
+
+    const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+    if (!confirm(`Share this article to ${platformName}?`)) return;
+
+    try {
+        const response = await fetch(`/admin/news-editor/api/articles/${id}/crosspost/${platform}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            let msg = `Posted to ${platformName}!`;
+            if (result.url) msg += `\n\nURL: ${result.url}`;
+            showMessage(msg, 'success');
+            loadArticles();
+        } else {
+            showMessage(result.error || `Failed to post to ${platformName}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error sharing article:', error);
+        showMessage('Failed to share: ' + error.message, 'error');
+    }
+}
+
+// Close share dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.share-dropdown')) {
+        document.querySelectorAll('.share-menu.show').forEach(m => m.classList.remove('show'));
+    }
+});
 
 // ===== Delete article =====
 
