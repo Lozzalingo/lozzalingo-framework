@@ -95,6 +95,8 @@ def init_projects_db():
                 ('crossposted_linkedin', 'BOOLEAN DEFAULT 0'),
                 ('crossposted_medium', 'BOOLEAN DEFAULT 0'),
                 ('crossposted_substack', 'BOOLEAN DEFAULT 0'),
+                ('crossposted_twitter', 'BOOLEAN DEFAULT 0'),
+                ('crossposted_threads', 'BOOLEAN DEFAULT 0'),
                 ('upvote_count', 'INTEGER DEFAULT 0'),
             ]
             for col_name, col_type in new_columns:
@@ -176,6 +178,7 @@ _SELECT_COLS = '''id, title, slug, content, image_url, year, status, project_sta
                   gallery_images, gallery_layout, hero_image_align, email_sent,
                   earnings_label, insights,
                   crossposted_linkedin, crossposted_medium, crossposted_substack,
+                  crossposted_twitter, crossposted_threads,
                   upvote_count'''
 
 def _row_to_dict(row):
@@ -199,7 +202,9 @@ def _row_to_dict(row):
     d['crossposted_linkedin'] = bool(row[22]) if len(row) > 22 else False
     d['crossposted_medium'] = bool(row[23]) if len(row) > 23 else False
     d['crossposted_substack'] = bool(row[24]) if len(row) > 24 else False
-    d['upvote_count'] = row[25] if len(row) > 25 else 0
+    d['crossposted_twitter'] = bool(row[25]) if len(row) > 25 else False
+    d['crossposted_threads'] = bool(row[26]) if len(row) > 26 else False
+    d['upvote_count'] = row[27] if len(row) > 27 else 0
     return d
 
 def create_slug(title):
@@ -1019,7 +1024,7 @@ def _mark_project_email_sent(project_id):
 # CROSS-POST PROJECT
 # ================================
 
-VALID_CROSSPOST_PLATFORMS = ('linkedin', 'medium', 'substack')
+VALID_CROSSPOST_PLATFORMS = ('linkedin', 'medium', 'substack', 'twitter', 'threads')
 
 @projects_bp.route('/api/projects/<int:project_id>/crosspost/<platform>', methods=['POST'])
 def crosspost_project(project_id, platform):
@@ -1087,6 +1092,18 @@ def crosspost_project(project_id, platform):
                 html_content=project.get('content', ''),
                 canonical_url=canonical_url,
                 image_url=image_url or None,
+            )
+        elif platform == 'twitter':
+            result = crosspost_svc.post_to_twitter(
+                title=project['title'],
+                excerpt=project.get('excerpt') or project.get('content', '')[:300],
+                canonical_url=canonical_url,
+            )
+        elif platform == 'threads':
+            result = crosspost_svc.post_to_threads(
+                title=project['title'],
+                excerpt=project.get('excerpt') or project.get('content', '')[:300],
+                canonical_url=canonical_url,
             )
 
         if result and result.get('success'):

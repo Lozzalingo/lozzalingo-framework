@@ -95,6 +95,8 @@ def init_news_db():
                 ('crossposted_linkedin', 'BOOLEAN DEFAULT 0'),
                 ('crossposted_medium', 'BOOLEAN DEFAULT 0'),
                 ('crossposted_substack', 'BOOLEAN DEFAULT 0'),
+                ('crossposted_twitter', 'BOOLEAN DEFAULT 0'),
+                ('crossposted_threads', 'BOOLEAN DEFAULT 0'),
             ]
             for col_name, col_type in new_columns:
                 if col_name not in columns:
@@ -170,7 +172,8 @@ def get_all_articles_db(status=None, category_name=None, exclude_categories=None
                 SELECT id, title, slug, content, image_url, status, email_sent, created_at, updated_at,
                        excerpt, meta_title, meta_description, author_name, author_email,
                        category_name, source_id, source_url,
-                       crossposted_linkedin, crossposted_medium, crossposted_substack
+                       crossposted_linkedin, crossposted_medium, crossposted_substack,
+                       crossposted_twitter, crossposted_threads
                 FROM news_articles{where_clause}
                 ORDER BY created_at DESC
             ''', params)
@@ -200,6 +203,8 @@ def get_all_articles_db(status=None, category_name=None, exclude_categories=None
                 d['crossposted_linkedin'] = bool(row[17]) if len(row) > 17 else False
                 d['crossposted_medium'] = bool(row[18]) if len(row) > 18 else False
                 d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
+                d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
+                d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
                 articles.append(d)
             return articles
     except Exception as e:
@@ -315,7 +320,8 @@ def get_article_db(article_id):
                 SELECT id, title, slug, content, image_url, status, email_sent, created_at, updated_at,
                        excerpt, meta_title, meta_description, author_name, author_email,
                        category_name, source_id, source_url,
-                       crossposted_linkedin, crossposted_medium, crossposted_substack
+                       crossposted_linkedin, crossposted_medium, crossposted_substack,
+                       crossposted_twitter, crossposted_threads
                 FROM news_articles WHERE id = ?
             ''', (article_id,))
             row = cursor.fetchone()
@@ -343,6 +349,8 @@ def get_article_db(article_id):
                 d['crossposted_linkedin'] = bool(row[17]) if len(row) > 17 else False
                 d['crossposted_medium'] = bool(row[18]) if len(row) > 18 else False
                 d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
+                d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
+                d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
                 return d
             return None
     except Exception as e:
@@ -361,7 +369,8 @@ def get_article_by_slug_db(slug):
                 SELECT id, title, slug, content, image_url, status, email_sent, created_at, updated_at,
                        excerpt, meta_title, meta_description, author_name, author_email,
                        category_name, source_id, source_url,
-                       crossposted_linkedin, crossposted_medium, crossposted_substack
+                       crossposted_linkedin, crossposted_medium, crossposted_substack,
+                       crossposted_twitter, crossposted_threads
                 FROM news_articles WHERE slug = ?
             ''', (slug,))
             row = cursor.fetchone()
@@ -389,6 +398,8 @@ def get_article_by_slug_db(slug):
                 d['crossposted_linkedin'] = bool(row[17]) if len(row) > 17 else False
                 d['crossposted_medium'] = bool(row[18]) if len(row) > 18 else False
                 d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
+                d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
+                d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
                 return d
             return None
     except Exception as e:
@@ -818,7 +829,7 @@ def send_article_email(article_id):
 # CROSS-POST ARTICLE
 # ================================
 
-VALID_CROSSPOST_PLATFORMS = ('linkedin', 'medium', 'substack')
+VALID_CROSSPOST_PLATFORMS = ('linkedin', 'medium', 'substack', 'twitter', 'threads')
 
 @news_bp.route('/api/articles/<int:article_id>/crosspost/<platform>', methods=['POST'])
 def crosspost_article(article_id, platform):
@@ -890,11 +901,25 @@ def crosspost_article(article_id, platform):
                 html_content=article.get('content', ''),
                 canonical_url=canonical_url,
                 tags=tags,
+                image_url=image_url or None,
             )
         elif platform == 'substack':
             result = crosspost_svc.post_to_substack(
                 title=article['title'],
                 html_content=article.get('content', ''),
+                canonical_url=canonical_url,
+                image_url=image_url or None,
+            )
+        elif platform == 'twitter':
+            result = crosspost_svc.post_to_twitter(
+                title=article['title'],
+                excerpt=article.get('excerpt') or article.get('content', '')[:300],
+                canonical_url=canonical_url,
+            )
+        elif platform == 'threads':
+            result = crosspost_svc.post_to_threads(
+                title=article['title'],
+                excerpt=article.get('excerpt') or article.get('content', '')[:300],
                 canonical_url=canonical_url,
             )
 

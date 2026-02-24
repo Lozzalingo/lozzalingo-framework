@@ -630,6 +630,8 @@ function displayArticles(articles, isFiltered) {
                                 <div class="crosspost-item" onclick="crosspostArticle(${article.id},'linkedin')">${article.crossposted_linkedin ? '✓ ' : ''}LinkedIn</div>
                                 <div class="crosspost-item" onclick="crosspostArticle(${article.id},'medium')">${article.crossposted_medium ? '✓ ' : ''}Medium</div>
                                 <div class="crosspost-item" onclick="crosspostArticle(${article.id},'substack')">${article.crossposted_substack ? '✓ ' : ''}Substack</div>
+                                <div class="crosspost-item" onclick="crosspostArticle(${article.id},'twitter')">${article.crossposted_twitter ? '✓ ' : ''}Twitter/X</div>
+                                <div class="crosspost-item" onclick="crosspostArticle(${article.id},'threads')">${article.crossposted_threads ? '✓ ' : ''}Threads</div>
                             </div>
                         </div>
                         <button class="delete-btn" onclick="deleteArticle(${article.id})">Delete</button>
