@@ -92,6 +92,9 @@ def init_news_db():
                 ('category_name', 'TEXT'),
                 ('source_id', 'TEXT'),
                 ('source_url', 'TEXT'),
+                ('crossposted_linkedin', 'BOOLEAN DEFAULT 0'),
+                ('crossposted_medium', 'BOOLEAN DEFAULT 0'),
+                ('crossposted_substack', 'BOOLEAN DEFAULT 0'),
             ]
             for col_name, col_type in new_columns:
                 if col_name not in columns:
@@ -166,7 +169,8 @@ def get_all_articles_db(status=None, category_name=None, exclude_categories=None
             cursor.execute(f'''
                 SELECT id, title, slug, content, image_url, status, email_sent, created_at, updated_at,
                        excerpt, meta_title, meta_description, author_name, author_email,
-                       category_name, source_id, source_url
+                       category_name, source_id, source_url,
+                       crossposted_linkedin, crossposted_medium, crossposted_substack
                 FROM news_articles{where_clause}
                 ORDER BY created_at DESC
             ''', params)
@@ -174,7 +178,7 @@ def get_all_articles_db(status=None, category_name=None, exclude_categories=None
             rows = cursor.fetchall()
             articles = []
             for row in rows:
-                articles.append({
+                d = {
                     'id': row[0],
                     'title': row[1],
                     'slug': row[2],
@@ -191,8 +195,12 @@ def get_all_articles_db(status=None, category_name=None, exclude_categories=None
                     'author_email': row[13],
                     'category_name': row[14],
                     'source_id': row[15],
-                    'source_url': row[16]
-                })
+                    'source_url': row[16],
+                }
+                d['crossposted_linkedin'] = bool(row[17]) if len(row) > 17 else False
+                d['crossposted_medium'] = bool(row[18]) if len(row) > 18 else False
+                d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
+                articles.append(d)
             return articles
     except Exception as e:
         print(f"Error getting articles: {e}")
@@ -306,13 +314,14 @@ def get_article_db(article_id):
             cursor.execute('''
                 SELECT id, title, slug, content, image_url, status, email_sent, created_at, updated_at,
                        excerpt, meta_title, meta_description, author_name, author_email,
-                       category_name, source_id, source_url
+                       category_name, source_id, source_url,
+                       crossposted_linkedin, crossposted_medium, crossposted_substack
                 FROM news_articles WHERE id = ?
             ''', (article_id,))
             row = cursor.fetchone()
 
             if row:
-                return {
+                d = {
                     'id': row[0],
                     'title': row[1],
                     'slug': row[2],
@@ -329,8 +338,12 @@ def get_article_db(article_id):
                     'author_email': row[13],
                     'category_name': row[14],
                     'source_id': row[15],
-                    'source_url': row[16]
+                    'source_url': row[16],
                 }
+                d['crossposted_linkedin'] = bool(row[17]) if len(row) > 17 else False
+                d['crossposted_medium'] = bool(row[18]) if len(row) > 18 else False
+                d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
+                return d
             return None
     except Exception as e:
         print(f"Error getting article: {e}")
@@ -347,13 +360,14 @@ def get_article_by_slug_db(slug):
             cursor.execute('''
                 SELECT id, title, slug, content, image_url, status, email_sent, created_at, updated_at,
                        excerpt, meta_title, meta_description, author_name, author_email,
-                       category_name, source_id, source_url
+                       category_name, source_id, source_url,
+                       crossposted_linkedin, crossposted_medium, crossposted_substack
                 FROM news_articles WHERE slug = ?
             ''', (slug,))
             row = cursor.fetchone()
 
             if row:
-                return {
+                d = {
                     'id': row[0],
                     'title': row[1],
                     'slug': row[2],
@@ -370,8 +384,12 @@ def get_article_by_slug_db(slug):
                     'author_email': row[13],
                     'category_name': row[14],
                     'source_id': row[15],
-                    'source_url': row[16]
+                    'source_url': row[16],
                 }
+                d['crossposted_linkedin'] = bool(row[17]) if len(row) > 17 else False
+                d['crossposted_medium'] = bool(row[18]) if len(row) > 18 else False
+                d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
+                return d
             return None
     except Exception as e:
         print(f"Error getting article by slug: {e}")
@@ -794,3 +812,122 @@ def send_article_email(article_id):
     except Exception as e:
         print(f"Error sending article email: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+# ================================
+# CROSS-POST ARTICLE
+# ================================
+
+VALID_CROSSPOST_PLATFORMS = ('linkedin', 'medium', 'substack')
+
+@news_bp.route('/api/articles/<int:article_id>/crosspost/<platform>', methods=['POST'])
+def crosspost_article(article_id, platform):
+    """Cross-post an article to an external platform"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Admin access required'}), 401
+
+    if platform not in VALID_CROSSPOST_PLATFORMS:
+        return jsonify({'error': f'Invalid platform. Must be one of: {", ".join(VALID_CROSSPOST_PLATFORMS)}'}), 400
+
+    try:
+        init_news_db()
+        article = get_article_db(article_id)
+        if not article:
+            return jsonify({'error': 'Article not found'}), 404
+
+        if article.get('status') != 'published':
+            return jsonify({'error': 'Only published articles can be cross-posted'}), 400
+
+        # Build canonical URL
+        from flask import current_app
+        site_url = current_app.config.get('EMAIL_WEBSITE_URL', current_app.config.get('SITE_URL', ''))
+        slug = article.get('slug', '')
+
+        # Try category-based URL first
+        canonical_url = None
+        category_name = article.get('category_name', '')
+        if category_name:
+            categories = current_app.config.get('NEWS_CATEGORIES', [])
+            for cat in categories:
+                if cat.get('name') == category_name:
+                    canonical_url = f"{site_url}/{cat['slug']}/{slug}"
+                    break
+        if not canonical_url:
+            canonical_url = f"{site_url}/news/{slug}" if site_url else f"/news/{slug}"
+
+        # Get crosspost service
+        crosspost_svc = None
+        try:
+            from lozzalingo.modules.crosspost import crosspost_service
+            crosspost_svc = crosspost_service
+        except ImportError:
+            pass
+
+        if crosspost_svc is None:
+            return jsonify({'error': 'Cross-post service not available'}), 500
+
+        # Build image URL (absolute)
+        image_url = article.get('image_url', '')
+        if image_url and not image_url.startswith('http') and site_url:
+            image_url = f"{site_url}{image_url}"
+
+        # Dispatch to platform
+        result = None
+        if platform == 'linkedin':
+            result = crosspost_svc.post_to_linkedin(
+                title=article['title'],
+                excerpt=article.get('excerpt') or article.get('content', '')[:300],
+                canonical_url=canonical_url,
+                image_url=image_url or None,
+            )
+        elif platform == 'medium':
+            tags = None
+            category = article.get('category_name')
+            if category:
+                tags = [category]
+            result = crosspost_svc.post_to_medium(
+                title=article['title'],
+                html_content=article.get('content', ''),
+                canonical_url=canonical_url,
+                tags=tags,
+            )
+        elif platform == 'substack':
+            result = crosspost_svc.post_to_substack(
+                title=article['title'],
+                html_content=article.get('content', ''),
+                canonical_url=canonical_url,
+            )
+
+        if result and result.get('success'):
+            _mark_article_crosspost_sent(article_id, platform)
+            return jsonify({
+                'success': True,
+                'platform': platform,
+                'url': result.get('url', ''),
+                'message': f'Successfully posted to {platform.title()}',
+            })
+        else:
+            error_msg = result.get('error', 'Unknown error') if result else 'No result'
+            return jsonify({'success': False, 'error': error_msg}), 500
+
+    except Exception as e:
+        print(f"Error cross-posting article: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+def _mark_article_crosspost_sent(article_id, platform):
+    """Mark an article as having been cross-posted to a platform"""
+    if platform not in VALID_CROSSPOST_PLATFORMS:
+        return
+    col = f'crossposted_{platform}'
+    news_db = get_db_config()
+    db_connect = get_db_connection()
+    try:
+        with db_connect(news_db) as conn:
+            conn.execute(
+                f'UPDATE news_articles SET {col} = 1 WHERE id = ?',
+                (article_id,)
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"Error marking article crosspost ({platform}): {e}")

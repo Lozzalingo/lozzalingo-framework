@@ -624,6 +624,14 @@ function displayArticles(articles, isFiltered) {
                         <button class="edit-btn" onclick="editArticle(${article.id})">Edit</button>
                         ${toggleBtn}
                         <button class="email-btn" onclick="sendArticleEmail(${article.id})" title="Send/Resend email to subscribers">Send Email</button>
+                        <div class="crosspost-dropdown">
+                            <button class="crosspost-btn" onclick="this.nextElementSibling.classList.toggle('show')">Cross-Post ▾</button>
+                            <div class="crosspost-menu">
+                                <div class="crosspost-item" onclick="crosspostArticle(${article.id},'linkedin')">${article.crossposted_linkedin ? '✓ ' : ''}LinkedIn</div>
+                                <div class="crosspost-item" onclick="crosspostArticle(${article.id},'medium')">${article.crossposted_medium ? '✓ ' : ''}Medium</div>
+                                <div class="crosspost-item" onclick="crosspostArticle(${article.id},'substack')">${article.crossposted_substack ? '✓ ' : ''}Substack</div>
+                            </div>
+                        </div>
                         <button class="delete-btn" onclick="deleteArticle(${article.id})">Delete</button>
                     </div>
                 </div>
@@ -909,6 +917,43 @@ async function sendArticleEmail(id) {
         emailBtn.textContent = originalText;
     }
 }
+
+// ===== Cross-post article =====
+
+async function crosspostArticle(id, platform) {
+    // Close any open dropdown
+    document.querySelectorAll('.crosspost-menu.show').forEach(m => m.classList.remove('show'));
+
+    const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+    if (!confirm(`Cross-post this article to ${platformName}?`)) return;
+
+    try {
+        const response = await fetch(`/admin/news-editor/api/articles/${id}/crosspost/${platform}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            let msg = `Posted to ${platformName}!`;
+            if (result.url) msg += `\n\nURL: ${result.url}`;
+            showMessage(msg, 'success');
+            loadArticles();
+        } else {
+            showMessage(result.error || `Failed to post to ${platformName}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error cross-posting article:', error);
+        showMessage('Failed to cross-post: ' + error.message, 'error');
+    }
+}
+
+// Close crosspost dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.crosspost-dropdown')) {
+        document.querySelectorAll('.crosspost-menu.show').forEach(m => m.classList.remove('show'));
+    }
+});
 
 // ===== Delete article =====
 

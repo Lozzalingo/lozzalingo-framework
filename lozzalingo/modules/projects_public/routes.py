@@ -107,3 +107,92 @@ def get_projects():
     init_projects_db()
     projects = get_all_projects_db(status='published')
     return jsonify(projects)
+
+
+@projects_public_bp.route('/api/projects/<int:project_id>/upvote', methods=['POST'])
+def upvote_project(project_id):
+    """Upvote a project (deduplicated by device fingerprint)."""
+    from lozzalingo.modules.projects.routes import get_db_config, get_db_connection, init_projects_db
+
+    data = request.get_json(silent=True) or {}
+    fingerprint = data.get('fingerprint')
+    if not fingerprint:
+        return jsonify({'error': 'fingerprint required'}), 400
+
+    try:
+        from lozzalingo.modules.analytics.analytics import Analytics
+        fingerprint_hash = Analytics.hash_fingerprint(fingerprint)
+    except ImportError:
+        import hashlib
+        if isinstance(fingerprint, dict):
+            fingerprint = json.dumps(fingerprint, sort_keys=True)
+        fingerprint_hash = hashlib.sha256(fingerprint.encode('utf-8')).hexdigest()
+
+    init_projects_db()
+    projects_db = get_db_config()
+    db_connect = get_db_connection()
+
+    try:
+        with db_connect(projects_db) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT OR IGNORE INTO project_upvotes (project_id, fingerprint_hash) VALUES (?, ?)',
+                (project_id, fingerprint_hash)
+            )
+            if cursor.rowcount > 0:
+                cursor.execute(
+                    'UPDATE projects SET upvote_count = upvote_count + 1 WHERE id = ?',
+                    (project_id,)
+                )
+                conn.commit()
+                cursor.execute('SELECT upvote_count FROM projects WHERE id = ?', (project_id,))
+                row = cursor.fetchone()
+                return jsonify({'success': True, 'upvote_count': row[0] if row else 0, 'already_voted': False})
+            else:
+                conn.commit()
+                cursor.execute('SELECT upvote_count FROM projects WHERE id = ?', (project_id,))
+                row = cursor.fetchone()
+                return jsonify({'success': True, 'upvote_count': row[0] if row else 0, 'already_voted': True})
+    except Exception as e:
+        print(f"Error upvoting project: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@projects_public_bp.route('/api/projects/upvote/check-batch', methods=['POST'])
+def check_upvote_batch():
+    """Check which projects a fingerprint already voted on."""
+    from lozzalingo.modules.projects.routes import get_db_config, get_db_connection, init_projects_db
+
+    data = request.get_json(silent=True) or {}
+    fingerprint = data.get('fingerprint')
+    project_ids = data.get('project_ids', [])
+
+    if not fingerprint or not project_ids:
+        return jsonify({'voted': []})
+
+    try:
+        from lozzalingo.modules.analytics.analytics import Analytics
+        fingerprint_hash = Analytics.hash_fingerprint(fingerprint)
+    except ImportError:
+        import hashlib
+        if isinstance(fingerprint, dict):
+            fingerprint = json.dumps(fingerprint, sort_keys=True)
+        fingerprint_hash = hashlib.sha256(fingerprint.encode('utf-8')).hexdigest()
+
+    init_projects_db()
+    projects_db = get_db_config()
+    db_connect = get_db_connection()
+
+    try:
+        with db_connect(projects_db) as conn:
+            cursor = conn.cursor()
+            placeholders = ','.join('?' for _ in project_ids)
+            cursor.execute(
+                f'SELECT project_id FROM project_upvotes WHERE fingerprint_hash = ? AND project_id IN ({placeholders})',
+                [fingerprint_hash] + [int(pid) for pid in project_ids]
+            )
+            voted = [row[0] for row in cursor.fetchall()]
+            return jsonify({'voted': voted})
+    except Exception as e:
+        print(f"Error checking upvote batch: {e}")
+        return jsonify({'voted': []})

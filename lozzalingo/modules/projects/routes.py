@@ -92,6 +92,10 @@ def init_projects_db():
                 ('email_sent', 'BOOLEAN DEFAULT 0'),
                 ('earnings_label', 'TEXT'),
                 ('insights', 'TEXT'),
+                ('crossposted_linkedin', 'BOOLEAN DEFAULT 0'),
+                ('crossposted_medium', 'BOOLEAN DEFAULT 0'),
+                ('crossposted_substack', 'BOOLEAN DEFAULT 0'),
+                ('upvote_count', 'INTEGER DEFAULT 0'),
             ]
             for col_name, col_type in new_columns:
                 if col_name not in columns:
@@ -110,6 +114,9 @@ def init_projects_db():
 
             # Tech registry table
             _init_tech_registry(conn)
+
+            # Upvotes table
+            _init_project_upvotes(conn)
 
     except Exception as e:
         print(f"Error initializing projects database: {e}")
@@ -131,6 +138,24 @@ def _init_tech_registry(conn):
         print(f"Error initializing tech_registry table: {e}")
 
 
+def _init_project_upvotes(conn):
+    """Create project_upvotes table if it doesn't exist."""
+    try:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS project_upvotes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL,
+                fingerprint_hash TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(project_id, fingerprint_hash)
+            )
+        ''')
+        conn.commit()
+    except Exception as e:
+        print(f"Error initializing project_upvotes table: {e}")
+
+
 def get_all_tech_categories():
     """Return {name: category} dict from the tech_registry table."""
     projects_db = get_db_config()
@@ -149,7 +174,9 @@ _SELECT_COLS = '''id, title, slug, content, image_url, year, status, project_sta
                   excerpt, meta_description, technologies, created_at, updated_at,
                   year_end, gross_earnings, earnings_currency,
                   gallery_images, gallery_layout, hero_image_align, email_sent,
-                  earnings_label, insights'''
+                  earnings_label, insights,
+                  crossposted_linkedin, crossposted_medium, crossposted_substack,
+                  upvote_count'''
 
 def _row_to_dict(row):
     """Convert a DB row to a project dict"""
@@ -169,6 +196,10 @@ def _row_to_dict(row):
     d['email_sent'] = bool(row[19]) if len(row) > 19 else False
     d['earnings_label'] = row[20] if len(row) > 20 else None
     d['insights'] = row[21] if len(row) > 21 else None
+    d['crossposted_linkedin'] = bool(row[22]) if len(row) > 22 else False
+    d['crossposted_medium'] = bool(row[23]) if len(row) > 23 else False
+    d['crossposted_substack'] = bool(row[24]) if len(row) > 24 else False
+    d['upvote_count'] = row[25] if len(row) > 25 else 0
     return d
 
 def create_slug(title):
@@ -982,6 +1013,113 @@ def _mark_project_email_sent(project_id):
             conn.commit()
     except Exception as e:
         print(f"Error marking project email sent: {e}")
+
+
+# ================================
+# CROSS-POST PROJECT
+# ================================
+
+VALID_CROSSPOST_PLATFORMS = ('linkedin', 'medium', 'substack')
+
+@projects_bp.route('/api/projects/<int:project_id>/crosspost/<platform>', methods=['POST'])
+def crosspost_project(project_id, platform):
+    """Cross-post a project to an external platform"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Admin access required'}), 401
+
+    if platform not in VALID_CROSSPOST_PLATFORMS:
+        return jsonify({'error': f'Invalid platform. Must be one of: {", ".join(VALID_CROSSPOST_PLATFORMS)}'}), 400
+
+    try:
+        init_projects_db()
+        project = get_project_db(project_id)
+        if not project:
+            return jsonify({'error': 'Project not found'}), 404
+
+        if project.get('status') != 'published':
+            return jsonify({'error': 'Only published projects can be cross-posted'}), 400
+
+        # Build canonical URL
+        from flask import current_app
+        site_url = current_app.config.get('EMAIL_WEBSITE_URL', current_app.config.get('SITE_URL', ''))
+        slug = project.get('slug', '')
+        canonical_url = f"{site_url}/projects/{slug}" if site_url else f"/projects/{slug}"
+
+        # Get crosspost service
+        crosspost_svc = None
+        try:
+            from lozzalingo.modules.crosspost import crosspost_service
+            crosspost_svc = crosspost_service
+        except ImportError:
+            pass
+
+        if crosspost_svc is None:
+            return jsonify({'error': 'Cross-post service not available'}), 500
+
+        # Build image URL (absolute)
+        image_url = project.get('image_url', '')
+        if image_url and not image_url.startswith('http') and site_url:
+            image_url = f"{site_url}{image_url}"
+
+        # Dispatch to platform
+        result = None
+        if platform == 'linkedin':
+            result = crosspost_svc.post_to_linkedin(
+                title=project['title'],
+                excerpt=project.get('excerpt') or project.get('content', '')[:300],
+                canonical_url=canonical_url,
+                image_url=image_url or None,
+            )
+        elif platform == 'medium':
+            # Parse technologies into tags
+            techs = project.get('technologies', '') or ''
+            tags = [t.strip() for t in techs.split(',') if t.strip()][:5] if techs else None
+            result = crosspost_svc.post_to_medium(
+                title=project['title'],
+                html_content=project.get('content', ''),
+                canonical_url=canonical_url,
+                tags=tags,
+            )
+        elif platform == 'substack':
+            result = crosspost_svc.post_to_substack(
+                title=project['title'],
+                html_content=project.get('content', ''),
+                canonical_url=canonical_url,
+            )
+
+        if result and result.get('success'):
+            _mark_crosspost_sent(project_id, platform)
+            return jsonify({
+                'success': True,
+                'platform': platform,
+                'url': result.get('url', ''),
+                'message': f'Successfully posted to {platform.title()}',
+            })
+        else:
+            error_msg = result.get('error', 'Unknown error') if result else 'No result'
+            return jsonify({'success': False, 'error': error_msg}), 500
+
+    except Exception as e:
+        print(f"Error cross-posting project: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+def _mark_crosspost_sent(project_id, platform):
+    """Mark a project as having been cross-posted to a platform"""
+    if platform not in VALID_CROSSPOST_PLATFORMS:
+        return
+    col = f'crossposted_{platform}'
+    projects_db = get_db_config()
+    db_connect = get_db_connection()
+    try:
+        with db_connect(projects_db) as conn:
+            conn.execute(
+                f'UPDATE projects SET {col} = 1 WHERE id = ?',
+                (project_id,)
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"Error marking project crosspost ({platform}): {e}")
 
 
 @projects_bp.route('/api/tech-registry/<name>', methods=['DELETE'])

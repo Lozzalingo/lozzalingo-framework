@@ -1269,6 +1269,14 @@
                         </button>
                         <button class="btn-small btn-delete" name="project_delete_${p.id}" onclick="window._deleteProject(${p.id})">Delete</button>
                         ${p.status === 'published' ? `<button class="btn-small email-btn" name="send_project_email_${p.id}" onclick="window._sendProjectEmail(${p.id})">${p.email_sent ? 'Resend Email' : 'Send Email'}</button>` : ''}
+                        ${p.status === 'published' ? `<div class="crosspost-dropdown" style="display:inline-block;position:relative;">
+                            <button class="btn-small crosspost-btn" onclick="this.nextElementSibling.classList.toggle('show')">Cross-Post ▾</button>
+                            <div class="crosspost-menu">
+                                <div class="crosspost-item" onclick="window._crosspostProject(${p.id},'linkedin')">${p.crossposted_linkedin ? '✓ ' : ''}LinkedIn</div>
+                                <div class="crosspost-item" onclick="window._crosspostProject(${p.id},'medium')">${p.crossposted_medium ? '✓ ' : ''}Medium</div>
+                                <div class="crosspost-item" onclick="window._crosspostProject(${p.id},'substack')">${p.crossposted_substack ? '✓ ' : ''}Substack</div>
+                            </div>
+                        </div>` : ''}
                     </div>
                 </div>
             `).join('');
@@ -1441,6 +1449,36 @@
                 btn.textContent = originalText;
             }
         };
+
+        window._crosspostProject = async function(id, platform) {
+            // Close any open dropdown
+            document.querySelectorAll('.crosspost-menu.show').forEach(m => m.classList.remove('show'));
+            if (!confirm(`Cross-post this project to ${platform.charAt(0).toUpperCase() + platform.slice(1)}?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/${id}/crosspost/${platform}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    let msg = `Posted to ${platform.charAt(0).toUpperCase() + platform.slice(1)}!`;
+                    if (data.url) msg += `\n\nURL: ${data.url}`;
+                    alert(msg);
+                    loadProjects();
+                } else {
+                    alert(data.error || `Failed to post to ${platform}`);
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        };
+
+        // Close crosspost dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.crosspost-dropdown')) {
+                document.querySelectorAll('.crosspost-menu.show').forEach(m => m.classList.remove('show'));
+            }
+        });
 
         // === Filmstrip Modal ===
         (function() {
@@ -1995,6 +2033,25 @@
         color: #00d4ff !important;
     }
     .email-btn:hover { background: rgba(0, 212, 255, 0.2) !important; }
+
+    /* Cross-Post button — purple tint */
+    .crosspost-btn {
+        background: rgba(160, 100, 255, 0.1) !important; border: 1px solid rgba(160, 100, 255, 0.25) !important;
+        color: #a064ff !important; cursor: pointer;
+    }
+    .crosspost-btn:hover { background: rgba(160, 100, 255, 0.2) !important; }
+    .crosspost-menu {
+        display: none; position: absolute; top: 100%; left: 0; z-index: 50;
+        background: #1a1a2e; border: 1px solid rgba(160, 100, 255, 0.3);
+        border-radius: 6px; min-width: 140px; margin-top: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .crosspost-menu.show { display: block; }
+    .crosspost-item {
+        padding: 8px 14px; cursor: pointer; color: #e8e0d4;
+        font-size: 13px; white-space: nowrap;
+    }
+    .crosspost-item:hover { background: rgba(160, 100, 255, 0.15); }
 
     /* Image Browser Modal */
     .ib-overlay {

@@ -462,6 +462,47 @@
     transform: none;
 }
 
+/* Cross-Post button — purple tint */
+.crosspost-btn {
+    background: rgba(160, 100, 255, 0.8);
+    color: white;
+    border: 1px solid rgba(160, 100, 255, 0.3);
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+}
+.crosspost-btn:hover {
+    background: rgba(160, 100, 255, 1);
+    transform: translateY(-1px);
+}
+.crosspost-dropdown {
+    display: inline-block;
+    position: relative;
+}
+.crosspost-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 50;
+    background: #1e1e2e;
+    border: 1px solid rgba(160, 100, 255, 0.3);
+    border-radius: 6px;
+    min-width: 140px;
+    margin-top: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.crosspost-menu.show { display: block; }
+.crosspost-item {
+    padding: 8px 14px;
+    cursor: pointer;
+    color: #e0e0e0;
+    font-size: 13px;
+    white-space: nowrap;
+}
+.crosspost-item:hover { background: rgba(160, 100, 255, 0.15); }
+
 .delete-btn {
     background: rgba(231, 76, 60, 0.8);
     color: white;
