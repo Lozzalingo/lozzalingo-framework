@@ -687,6 +687,14 @@ class Lozzalingo:
 
                 self.app._ops_active_issues = issues
 
+                # Auto Docker cleanup when disk is high
+                if disk.get('percent', 0) >= 85:
+                    try:
+                        from .modules.ops.routes import _auto_docker_cleanup
+                        _auto_docker_cleanup()
+                    except Exception:
+                        pass
+
                 # Send email alert if thresholds crossed
                 if status in ('warning', 'critical'):
                     try:

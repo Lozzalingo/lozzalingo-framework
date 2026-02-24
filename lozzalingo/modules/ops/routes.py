@@ -270,6 +270,47 @@ def _dict_factory(cursor, row):
     return {col[0]: row[i] for i, col in enumerate(cursor.description)}
 
 
+def _auto_docker_cleanup():
+    """Run docker system prune automatically. Rate-limited to once per 6 hours via app_logs."""
+    try:
+        from lozzalingo.core.database import Database
+        from lozzalingo.core.config import Config
+
+        db_path = current_app.config.get('ANALYTICS_DB', None)
+        if not db_path and hasattr(Config, 'ANALYTICS_DB'):
+            db_path = Config.ANALYTICS_DB
+        if not db_path:
+            db_path = os.getenv('ANALYTICS_DB', '')
+
+        # Check rate limit — skip if we ran cleanup in last 6 hours
+        if db_path and os.path.exists(db_path):
+            cutoff = (datetime.now() - timedelta(hours=6)).isoformat()
+            with Database.connect(db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT COUNT(*) FROM app_logs
+                    WHERE source = 'ops_auto_cleanup'
+                    AND timestamp > ?
+                """, (cutoff,))
+                if cursor.fetchone()[0] > 0:
+                    return  # Already ran recently
+
+        result = subprocess.run(
+            ['docker', 'system', 'prune', '-af', '--filter', 'until=72h'],
+            capture_output=True, text=True, timeout=60
+        )
+
+        from lozzalingo.core import db_log
+        db_log('info', 'ops_auto_cleanup', f'Auto Docker cleanup (rc={result.returncode})', {
+            'stdout': result.stdout[:500],
+            'returncode': result.returncode,
+        })
+    except FileNotFoundError:
+        pass  # Docker not available (e.g. running outside container)
+    except Exception as e:
+        current_app.logger.debug(f"ops: auto cleanup failed: {e}")
+
+
 def _build_health_response(include_errors=False):
     """Build the full health check response dict."""
     disk = _get_disk_usage()
