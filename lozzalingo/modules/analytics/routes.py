@@ -66,6 +66,21 @@ def _get_merchandise_db():
         pass
     return os.getenv('MERCHANDISE_DB', 'merchandise.db')
 
+def _owner_fingerprint_filter():
+    """SQL fragment to exclude owner/admin fingerprints from analytics queries."""
+    try:
+        exclude = current_app.config.get('ANALYTICS_EXCLUDE_FINGERPRINTS', [])
+    except RuntimeError:
+        return ''
+    if not exclude:
+        return ''
+    safe = [h for h in exclude if h and all(c in '0123456789abcdef' for c in h)]
+    if not safe:
+        return ''
+    placeholders = ','.join(f"'{h}'" for h in safe)
+    return f"\n                AND (fingerprint_hash IS NULL OR fingerprint_hash NOT IN ({placeholders}))"
+
+
 def check_admin_access():
     """Check if user is logged in and is an admin"""
     if 'admin_id' not in session:
@@ -280,7 +295,7 @@ def get_overview_stats():
                 AND ip NOT LIKE '172.2_.%'
                 AND ip NOT LIKE '172.30.%'
                 AND ip NOT LIKE '172.31.%'
-            """
+            """ + _owner_fingerprint_filter()
 
             # Total page views (only count page_view_client events, exclude localhost)
             cursor.execute(f"SELECT COUNT(*) FROM analytics_log WHERE event_type = 'page_view_client' {local_ip_filter}")
@@ -442,7 +457,7 @@ def get_overview_stats():
                 AND ip NOT LIKE '172.2_.%'
                 AND ip NOT LIKE '172.30.%'
                 AND ip NOT LIKE '172.31.%'
-            """
+            """ + _owner_fingerprint_filter()
 
             # Average pages per session (exclude localhost)
             cursor.execute(f"""
@@ -510,7 +525,7 @@ def get_traffic_timeline():
             AND ip NOT LIKE '172.2_.%'
             AND ip NOT LIKE '172.30.%'
             AND ip NOT LIKE '172.31.%'
-        """
+        """ + _owner_fingerprint_filter()
 
         cursor.execute(f"""
             SELECT DATE(timestamp) as date, COUNT(*) as views,
@@ -561,7 +576,7 @@ def get_recent_activity():
         basic_filter = """
             AND ip IS NOT NULL
             AND ip != ''
-        """
+        """ + _owner_fingerprint_filter()
 
         cursor.execute(f"""
             SELECT timestamp, event_type, country, city, identity,
@@ -762,7 +777,7 @@ def get_geographic_data():
             AND ip NOT LIKE '172.2_.%'
             AND ip NOT LIKE '172.30.%'
             AND ip NOT LIKE '172.31.%'
-        """
+        """ + _owner_fingerprint_filter()
 
         # Country and region data (from page views only, exclude localhost)
         cursor.execute(f"""
@@ -868,7 +883,7 @@ def get_route_analytics():
             AND ip NOT LIKE '172.2_.%'
             AND ip NOT LIKE '172.30.%'
             AND ip NOT LIKE '172.31.%'
-        """
+        """ + _owner_fingerprint_filter()
 
         # Most visited pages/routes (exclude localhost) with URL normalization
         cursor.execute(f"""
@@ -1013,7 +1028,7 @@ def get_referer_data():
             AND ip NOT LIKE '172.2_.%'
             AND ip NOT LIKE '172.30.%'
             AND ip NOT LIKE '172.31.%'
-        """
+        """ + _owner_fingerprint_filter()
 
         # Get the FIRST page view per unique visitor for accurate traffic source attribution.
         # Each visitor (fingerprint_hash) is counted exactly once, attributed to the source
@@ -1655,13 +1670,15 @@ def get_button_clicks():
 
         # Get all button clicks (interaction_type starts with 'button_click_')
         # Filter out unnamed buttons
-        cursor.execute("""
+        owner_filter = _owner_fingerprint_filter()
+        cursor.execute(f"""
             SELECT interaction_type, COUNT(*) as count
             FROM analytics_log
             WHERE interaction_type LIKE 'button_click_%'
             AND interaction_type NOT LIKE '%unnamed%'
             AND datetime(timestamp) >= ?
             AND identity = 'human'
+            {owner_filter}
             GROUP BY interaction_type
             ORDER BY count DESC
             LIMIT 15
