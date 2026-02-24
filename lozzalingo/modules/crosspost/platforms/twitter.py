@@ -2,8 +2,9 @@
 Twitter/X Platform Adapter
 ===========================
 
-Posts tweets via the Twitter API v2 using OAuth 1.0a (tweepy).
+Posts tweets via the Twitter API v2 using OAuth 1.0a.
 Free tier allows 1,500 tweets/month.
+Supports image attachments via v1.1 media upload.
 """
 
 import requests
@@ -11,12 +12,47 @@ from requests_oauthlib import OAuth1
 
 
 API_BASE = "https://api.twitter.com/2"
+UPLOAD_URL = "https://upload.twitter.com/1.1/media/upload.json"
+
+
+def _upload_media(auth, image_url):
+    """Download image and upload to Twitter's media endpoint.
+
+    Returns media_id string or None on failure.
+    """
+    try:
+        img_resp = requests.get(image_url, timeout=30)
+        img_resp.raise_for_status()
+    except requests.RequestException:
+        return None
+
+    content_type = img_resp.headers.get('Content-Type', 'image/jpeg')
+    # Determine file extension for Twitter
+    ext = 'jpg'
+    if 'png' in content_type:
+        ext = 'png'
+    elif 'webp' in content_type:
+        ext = 'webp'
+    elif 'gif' in content_type:
+        ext = 'gif'
+
+    try:
+        resp = requests.post(
+            UPLOAD_URL,
+            auth=auth,
+            files={"media": (f"image.{ext}", img_resp.content, content_type)},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        return resp.json().get("media_id_string")
+    except requests.RequestException:
+        return None
 
 
 def post_tweet(api_key, api_secret, access_token, access_token_secret,
-               text, url=None):
+               text, url=None, image_url=None):
     """
-    Post a tweet with optional link.
+    Post a tweet with optional link and optional image.
 
     Args:
         api_key: Twitter API key (consumer key)
@@ -25,6 +61,7 @@ def post_tweet(api_key, api_secret, access_token, access_token_secret,
         access_token_secret: OAuth access token secret
         text: Tweet text (will be truncated to fit with URL)
         url: Optional URL to append
+        image_url: Optional image URL to attach
 
     Returns:
         dict with {success, url, error}
@@ -46,10 +83,17 @@ def post_tweet(api_key, api_secret, access_token, access_token_secret,
 
     auth = OAuth1(api_key, api_secret, access_token, access_token_secret)
 
+    # Upload image if provided
+    tweet_payload = {"text": tweet_text}
+    if image_url:
+        media_id = _upload_media(auth, image_url)
+        if media_id:
+            tweet_payload["media"] = {"media_ids": [media_id]}
+
     try:
         resp = requests.post(
             f"{API_BASE}/tweets",
-            json={"text": tweet_text},
+            json=tweet_payload,
             auth=auth,
             timeout=30,
         )

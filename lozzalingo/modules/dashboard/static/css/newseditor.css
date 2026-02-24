@@ -429,22 +429,16 @@
 
 /* View — teal */
 .view-btn {
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    cursor: pointer;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    display: inline-block;
-    text-align: center;
     background: rgba(45, 212, 191, 0.1);
     border: 1px solid rgba(45, 212, 191, 0.25);
     color: #2dd4bf;
+    line-height: 1.2;
+    box-sizing: border-box;
 }
 .view-btn:hover {
     background: rgba(45, 212, 191, 0.2);
     transform: translateY(-1px);
+    color: #2dd4bf;
 }
 
 /* Edit — blue */

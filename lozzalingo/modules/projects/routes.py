@@ -1098,12 +1098,14 @@ def crosspost_project(project_id, platform):
                 title=project['title'],
                 excerpt=project.get('excerpt') or project.get('content', '')[:300],
                 canonical_url=canonical_url,
+                image_url=image_url or None,
             )
         elif platform == 'threads':
             result = crosspost_svc.post_to_threads(
                 title=project['title'],
                 excerpt=project.get('excerpt') or project.get('content', '')[:300],
                 canonical_url=canonical_url,
+                image_url=image_url or None,
             )
 
         if result and result.get('success'):

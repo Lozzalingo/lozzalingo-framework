@@ -915,12 +915,14 @@ def crosspost_article(article_id, platform):
                 title=article['title'],
                 excerpt=article.get('excerpt') or article.get('content', '')[:300],
                 canonical_url=canonical_url,
+                image_url=image_url or None,
             )
         elif platform == 'threads':
             result = crosspost_svc.post_to_threads(
                 title=article['title'],
                 excerpt=article.get('excerpt') or article.get('content', '')[:300],
                 canonical_url=canonical_url,
+                image_url=image_url or None,
             )
 
         if result and result.get('success'):

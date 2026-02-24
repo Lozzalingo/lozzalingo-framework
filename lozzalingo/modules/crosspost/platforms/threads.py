@@ -4,6 +4,7 @@ Threads Platform Adapter
 
 Posts to Threads via the official Graph API.
 Uses the same 3-step flow: create container → poll → publish.
+Supports TEXT and IMAGE media types.
 """
 
 import time
@@ -13,15 +14,19 @@ import requests
 BASE_URL = "https://graph.threads.net/v1.0"
 
 
-def post_text(access_token, user_id, text, url=None):
+def post_text(access_token, user_id, text, url=None, image_url=None):
     """
-    Post a text post to Threads with optional link.
+    Post to Threads with optional link and optional image.
+
+    When image_url is provided, creates an IMAGE post (image with caption).
+    Otherwise creates a TEXT post.
 
     Args:
         access_token: Threads API access token
         user_id: Threads user ID
         text: Post text
-        url: Optional URL to append
+        url: Optional URL to append to text
+        image_url: Optional public image URL for image post
 
     Returns:
         dict with {success, url, error}
@@ -30,17 +35,24 @@ def post_text(access_token, user_id, text, url=None):
         return {'success': False, 'url': '', 'error': 'Missing Threads credentials'}
 
     # Append URL to text if provided
-    post_text = f"{text}\n\n{url}" if url else text
+    post_body = f"{text}\n\n{url}" if url else text
 
-    # Step 1: Create text container
+    # Step 1: Create container
+    container_data = {
+        "text": post_body,
+        "access_token": access_token,
+    }
+
+    if image_url:
+        container_data["media_type"] = "IMAGE"
+        container_data["image_url"] = image_url
+    else:
+        container_data["media_type"] = "TEXT"
+
     try:
         resp = requests.post(
             f"{BASE_URL}/{user_id}/threads",
-            data={
-                "media_type": "TEXT",
-                "text": post_text,
-                "access_token": access_token,
-            },
+            data=container_data,
             timeout=30,
         )
         resp.raise_for_status()

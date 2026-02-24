@@ -104,9 +104,9 @@ class CrossPostService:
         )
 
 
-    def post_to_twitter(self, title, excerpt, canonical_url):
+    def post_to_twitter(self, title, excerpt, canonical_url, image_url=None):
         """
-        Post a tweet with article link.
+        Post a tweet with article link and optional image.
 
         Returns:
             dict with {success: bool, url: str, error: str}
@@ -135,11 +135,12 @@ class CrossPostService:
             access_token_secret=access_token_secret,
             text=text,
             url=canonical_url,
+            image_url=image_url,
         )
 
-    def post_to_threads(self, title, excerpt, canonical_url):
+    def post_to_threads(self, title, excerpt, canonical_url, image_url=None):
         """
-        Post to Threads with article link.
+        Post to Threads with article link and optional image.
 
         Returns:
             dict with {success: bool, url: str, error: str}
@@ -175,6 +176,7 @@ class CrossPostService:
             user_id=user_id,
             text=text,
             url=canonical_url,
+            image_url=image_url,
         )
 
 
