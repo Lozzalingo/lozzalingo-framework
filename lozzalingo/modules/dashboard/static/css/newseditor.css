@@ -403,16 +403,20 @@
     font-weight: 300;
 }
 
+/* ===== Unified Editor Action Buttons =====
+   Shared by projects editor and news editor.
+   Tinted/opacity style with colored borders + text. */
+
 .article-actions {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .article-actions button,
 .article-actions a {
     padding: 6px 12px;
-    border: none;
     border-radius: 6px;
     font-size: 0.8rem;
     font-weight: 500;
@@ -421,71 +425,81 @@
     transition: all 0.3s ease;
     display: inline-block;
     text-align: center;
-    min-width: 60px;
 }
 
+/* View — neutral */
 .view-btn {
-    background: var(--noir-light-gray);
-    color: var(--noir-black);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #e8e0d4;
 }
-
 .view-btn:hover {
-    background: var(--noir-white);
+    background: rgba(255, 255, 255, 0.12);
     transform: translateY(-1px);
 }
 
-.edit-btn {
-    background: var(--lz-info, #60a5fa);
-    color: #ffffff;
-    border: 1px solid transparent;
+/* Edit — blue */
+.edit-btn, .btn-edit {
+    background: rgba(96, 165, 250, 0.1);
+    border: 1px solid rgba(96, 165, 250, 0.25);
+    color: #60a5fa;
 }
-
-.edit-btn:hover {
-    opacity: 0.85;
+.edit-btn:hover, .btn-edit:hover {
+    background: rgba(96, 165, 250, 0.2);
     transform: translateY(-1px);
 }
 
+/* Email / Send — green */
 .email-btn {
-    background: var(--lz-success, #4ade80);
-    color: #ffffff;
-    border: 1px solid transparent;
+    background: rgba(74, 222, 128, 0.1);
+    border: 1px solid rgba(74, 222, 128, 0.25);
+    color: #4ade80;
 }
-
 .email-btn:hover {
-    opacity: 0.85;
+    background: rgba(74, 222, 128, 0.2);
     transform: translateY(-1px);
 }
-
 .email-btn:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
     transform: none;
 }
 
-.delete-btn {
-    background: var(--lz-danger, #f87171);
-    color: #ffffff;
-    border: 1px solid transparent;
+/* Delete — red */
+.delete-btn, .btn-delete {
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid rgba(248, 113, 113, 0.25);
+    color: #f87171;
 }
-
-.delete-btn:hover {
-    opacity: 0.85;
+.delete-btn:hover, .btn-delete:hover {
+    background: rgba(248, 113, 113, 0.2);
     transform: translateY(-1px);
 }
 
-/* Share (cross-post) dropdown — purple tint */
+/* Toggle (Publish/Unpublish/Active/Inactive) — amber */
+.publish-btn, .draft-btn-small, .btn-toggle {
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    color: #fbbf24;
+}
+.publish-btn:hover, .draft-btn-small:hover, .btn-toggle:hover {
+    background: rgba(251, 191, 36, 0.2);
+    transform: translateY(-1px);
+}
+
+/* Share dropdown — purple */
 .share-dropdown {
     display: inline-block;
     position: relative;
 }
 .share-btn {
-    background: rgba(160, 100, 255, 0.8);
-    color: #ffffff;
-    border: 1px solid rgba(160, 100, 255, 0.3);
+    background: rgba(160, 100, 255, 0.1);
+    border: 1px solid rgba(160, 100, 255, 0.25);
+    color: #a064ff;
     cursor: pointer;
 }
 .share-btn:hover {
-    background: rgba(160, 100, 255, 1);
+    background: rgba(160, 100, 255, 0.2);
     transform: translateY(-1px);
 }
 .share-menu {
@@ -603,29 +617,6 @@
     background: rgba(251, 191, 36, 0.15);
     color: var(--lz-warning, #fbbf24);
     border: 1px solid var(--lz-warning, #fbbf24);
-}
-
-/* Publish/Unpublish Buttons */
-.publish-btn {
-    background: var(--lz-success, #4ade80);
-    color: #ffffff;
-    border: 1px solid transparent;
-}
-
-.publish-btn:hover {
-    opacity: 0.85;
-    transform: translateY(-1px);
-}
-
-.draft-btn-small {
-    background: var(--lz-warning, #fbbf24);
-    color: #1a1a1a;
-    border: 1px solid transparent;
-}
-
-.draft-btn-small:hover {
-    opacity: 0.85;
-    transform: translateY(-1px);
 }
 
 /* Status Indicator */
