@@ -624,14 +624,14 @@ function displayArticles(articles, isFiltered) {
                         <button class="edit-btn" onclick="editArticle(${article.id})">Edit</button>
                         ${toggleBtn}
                         <button class="email-btn" onclick="sendArticleEmail(${article.id})" title="Send/Resend email to subscribers">Send Email</button>
-                        <div class="crosspost-dropdown">
-                            <button class="crosspost-btn" onclick="this.nextElementSibling.classList.toggle('show')">Cross-Post ▾</button>
-                            <div class="crosspost-menu">
-                                <div class="crosspost-item" onclick="crosspostArticle(${article.id},'linkedin')">${article.crossposted_linkedin ? '✓ ' : ''}LinkedIn</div>
-                                <div class="crosspost-item" onclick="crosspostArticle(${article.id},'medium')">${article.crossposted_medium ? '✓ ' : '✉ '}Medium (Request API)</div>
-                                <div class="crosspost-item" onclick="crosspostArticle(${article.id},'substack')">${article.crossposted_substack ? '✓ ' : ''}Substack</div>
-                                <div class="crosspost-item" onclick="crosspostArticle(${article.id},'twitter')">${article.crossposted_twitter ? '✓ ' : ''}Twitter/X</div>
-                                <div class="crosspost-item" onclick="crosspostArticle(${article.id},'threads')">${article.crossposted_threads ? '✓ ' : ''}Threads</div>
+                        <div class="share-dropdown">
+                            <button class="share-btn" onclick="this.nextElementSibling.classList.toggle('show')">Share ▾</button>
+                            <div class="share-menu">
+                                <div class="share-item" onclick="crosspostArticle(${article.id},'linkedin')">${article.crossposted_linkedin ? '✓ ' : ''}LinkedIn</div>
+                                <div class="share-item" onclick="crosspostArticle(${article.id},'medium')">${article.crossposted_medium ? '✓ ' : '✉ '}Medium (Request API)</div>
+                                <div class="share-item" onclick="crosspostArticle(${article.id},'substack')">${article.crossposted_substack ? '✓ ' : ''}Substack</div>
+                                <div class="share-item" onclick="crosspostArticle(${article.id},'twitter')">${article.crossposted_twitter ? '✓ ' : ''}Twitter/X</div>
+                                <div class="share-item" onclick="crosspostArticle(${article.id},'threads')">${article.crossposted_threads ? '✓ ' : ''}Threads</div>
                             </div>
                         </div>
                         <button class="delete-btn" onclick="deleteArticle(${article.id})">Delete</button>
@@ -924,7 +924,7 @@ async function sendArticleEmail(id) {
 
 async function crosspostArticle(id, platform) {
     // Close any open dropdown
-    document.querySelectorAll('.crosspost-menu.show').forEach(m => m.classList.remove('show'));
+    document.querySelectorAll('.share-menu.show').forEach(m => m.classList.remove('show'));
 
     // Medium: no API available — open email to request access
     if (platform === 'medium') {
@@ -942,7 +942,7 @@ async function crosspostArticle(id, platform) {
     }
 
     const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
-    if (!confirm(`Cross-post this article to ${platformName}?`)) return;
+    if (!confirm(`Share this article to ${platformName}?`)) return;
 
     try {
         const response = await fetch(`/admin/news-editor/api/articles/${id}/crosspost/${platform}`, {
@@ -965,10 +965,10 @@ async function crosspostArticle(id, platform) {
     }
 }
 
-// Close crosspost dropdown when clicking outside
+// Close share dropdown when clicking outside
 document.addEventListener('click', function(e) {
-    if (!e.target.closest('.crosspost-dropdown')) {
-        document.querySelectorAll('.crosspost-menu.show').forEach(m => m.classList.remove('show'));
+    if (!e.target.closest('.share-dropdown')) {
+        document.querySelectorAll('.share-menu.show').forEach(m => m.classList.remove('show'));
     }
 });
 
