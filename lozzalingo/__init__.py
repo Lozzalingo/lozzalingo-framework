@@ -590,6 +590,11 @@ class Lozzalingo:
                 if request.path.startswith('/admin'):
                     return response
 
+            # Don't track logged-in admins (site owner) on any page
+            from flask import session
+            if session.get('admin_id'):
+                return response
+
             # Get the response data
             try:
                 data = response.get_data(as_text=True)
