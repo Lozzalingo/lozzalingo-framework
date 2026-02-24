@@ -29,7 +29,7 @@
     <article class="blog-post">
         <header>
             <nav>
-                <a href="{{ url_for('news.blog') }}">← Back to Blog</a>
+                <a href="{{ url_for('news.blog') }}" name="back_to_blog">← Back to Blog</a>
             </nav>
 
             <h1>{{ article.title }}</h1>
@@ -56,9 +56,9 @@
             <div class="share">
                 <span>Share:</span>
                 <a href="https://twitter.com/intent/tweet?text={{ article.title|urlencode }}&url={{ request.url|urlencode }}"
-                   target="_blank" rel="noopener">Twitter</a>
+                   target="_blank" rel="noopener" name="share_twitter">Twitter</a>
                 <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.url|urlencode }}"
-                   target="_blank" rel="noopener">Facebook</a>
+                   target="_blank" rel="noopener" name="share_facebook">Facebook</a>
             </div>
         </footer>
     </article>

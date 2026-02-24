@@ -737,7 +737,8 @@ class AnalyticsClient {
                 const exitData = {
                     type: 'page_exit',
                     deviceDetails: deviceDetails,
-                    time_spent: Math.round(timeSpent / 1000)
+                    time_spent_seconds: Math.round(timeSpent / 1000),
+                    url: window.location.href
                 };
                 
                 const blob = new Blob([JSON.stringify(exitData)], {
@@ -774,14 +775,16 @@ class AnalyticsClient {
             }
         });
 
-        // Log button clicks
+        // Log button clicks (use closest() to handle clicks on child elements)
         document.addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON' || e.target.type === 'submit') {
-                this.logInteraction(`button_click_${e.target.name || e.target.id || 'unnamed'}`);
+            const button = e.target.closest('button, [type="submit"]');
+            if (button) {
+                this.logInteraction(`button_click_${button.getAttribute('name') || button.id || 'unnamed'}`);
+                return;
             }
-            // Log link clicks (external links, social media, important navigation)
-            else if (e.target.tagName === 'A' && e.target.href) {
-                const linkName = e.target.name || e.target.id || e.target.className || 'unnamed_link';
+            const link = e.target.closest('a[href]');
+            if (link) {
+                const linkName = link.getAttribute('name') || link.id || 'unnamed_link';
                 this.logInteraction(`link_click_${linkName}`);
             }
         });

@@ -15,7 +15,7 @@
                 {% if article.image_url %}
                 <img src="{{ article.image_url }}" alt="{{ article.title }}" loading="lazy">
                 {% endif %}
-                <h2><a href="{{ article_url(article) }}">{{ article.title }}</a></h2>
+                <h2><a href="{{ article_url(article) }}" name="news_{{ article.id }}">{{ article.title }}</a></h2>
                 <time>{{ article.created_at }}</time>
                 <div>{{ article.content[:200]|striptags }}...</div>
             </article>

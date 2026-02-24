@@ -376,7 +376,7 @@ class Analytics:
                 from_route = additional_data.get('from_route')
                 to_route = additional_data.get('to_route')
                 navigation_type = additional_data.get('navigation_type')
-                time_spent_seconds = additional_data.get('time_spent_seconds')
+                time_spent_seconds = additional_data.get('time_spent_seconds') or additional_data.get('time_spent')
                 session_page_count = additional_data.get('session_page_count')
 
             analytics_db = get_analytics_db()
