@@ -427,14 +427,23 @@
     text-align: center;
 }
 
-/* View — neutral */
+/* View — teal */
 .view-btn {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: #e8e0d4;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    display: inline-block;
+    text-align: center;
+    background: rgba(45, 212, 191, 0.1);
+    border: 1px solid rgba(45, 212, 191, 0.25);
+    color: #2dd4bf;
 }
 .view-btn:hover {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(45, 212, 191, 0.2);
     transform: translateY(-1px);
 }
 
@@ -476,14 +485,25 @@
     transform: translateY(-1px);
 }
 
-/* Toggle (Publish/Unpublish/Active/Inactive) — amber */
-.publish-btn, .draft-btn-small, .btn-toggle {
+/* Publish/Unpublish — amber */
+.publish-btn, .draft-btn-small, .btn-toggle-publish {
     background: rgba(251, 191, 36, 0.1);
     border: 1px solid rgba(251, 191, 36, 0.25);
     color: #fbbf24;
 }
-.publish-btn:hover, .draft-btn-small:hover, .btn-toggle:hover {
+.publish-btn:hover, .draft-btn-small:hover, .btn-toggle-publish:hover {
     background: rgba(251, 191, 36, 0.2);
+    transform: translateY(-1px);
+}
+
+/* Activity toggle (Set Active/Inactive) — teal */
+.btn-toggle {
+    background: rgba(45, 212, 191, 0.1);
+    border: 1px solid rgba(45, 212, 191, 0.25);
+    color: #2dd4bf;
+}
+.btn-toggle:hover {
+    background: rgba(45, 212, 191, 0.2);
     transform: translateY(-1px);
 }
 
