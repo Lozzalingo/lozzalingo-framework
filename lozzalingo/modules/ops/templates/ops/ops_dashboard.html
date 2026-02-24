@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Ops Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin.min.css') }}">
+    <style>
+        .ops-status-banner {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+        .ops-status-ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .ops-status-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .ops-status-critical { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        .ops-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .ops-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+        }
+        .ops-card h3 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .ops-card .ops-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .ops-card .ops-detail {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .ops-progress-bar {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        .ops-progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        .ops-progress-ok { background: #28a745; }
+        .ops-progress-warning { background: #ffc107; }
+        .ops-progress-critical { background: #dc3545; }
+
+        .ops-card-warning { border-color: #ffc107; background: #fffbeb; }
+        .ops-card-critical { border-color: #dc3545; background: #fff5f5; }
+
+        .ops-error-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        .ops-error-table th {
+            text-align: left;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .ops-error-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+            color: #333;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .ops-error-table tr:hover td { background: #f8f9fa; }
+
+        .ops-level-error { color: #dc3545; font-weight: 600; }
+        .ops-level-critical { color: #721c24; font-weight: 700; background: #f8d7da; padding: 2px 6px; border-radius: 3px; }
+
+        .ops-actions { margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap; }
+
+        .ops-section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin: 24px 0 16px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .ops-timestamp { font-size: 12px; color: #999; }
+        .ops-auto-refresh { font-size: 12px; color: #999; margin-left: auto; }
+    </style>
+</head>
+<body>
+    {% include 'header.html' %}
+
+    <div class="admin-container">
+        <header class="admin-header">
+            <div class="admin-title">
+                <h1>Server Ops</h1>
+                <p class="admin-welcome">Infrastructure monitoring &amp; health</p>
+            </div>
+            <div class="admin-actions">
+                <span class="ops-auto-refresh" id="autoRefreshLabel">Auto-refresh: 30s</span>
+                <a href="{{ url_for('admin.dashboard') }}" class="admin-btn admin-btn-secondary" name="back_to_dashboard">
+                    Back to Dashboard
+                </a>
+            </div>
+        </header>
+
+        <!-- Status Banner -->
+        <div class="ops-status-banner ops-status-{{ status }}" id="statusBanner">
+            {% if status == 'ok' %}
+                All systems operational
+            {% elif status == 'warning' %}
+                {{ health.issues|length }} issue{{ 's' if health.issues|length != 1 }} detected — review below
+            {% else %}
+                CRITICAL — {{ health.issues|length }} issue{{ 's' if health.issues|length != 1 }} require attention
+            {% endif %}
+        </div>
+
+        <!-- Health Cards -->
+        <div class="ops-grid">
+            <!-- Disk Usage -->
+            {% set disk = health.checks.disk %}
+            {% set disk_class = 'ops-card-critical' if disk.percent >= 90 else ('ops-card-warning' if disk.percent >= 80 else '') %}
+            {% set disk_bar = 'ops-progress-critical' if disk.percent >= 90 else ('ops-progress-warning' if disk.percent >= 80 else 'ops-progress-ok') %}
+            <div class="ops-card {{ disk_class }}">
+                <h3>Disk Usage</h3>
+                <div class="ops-value" id="diskPercent">{{ disk.percent }}%</div>
+                <div class="ops-progress-bar">
+                    <div class="ops-progress-fill {{ disk_bar }}" id="diskBar" style="width: {{ disk.percent }}%"></div>
+                </div>
+                <div class="ops-detail">{{ disk.used_gb }} / {{ disk.total_gb }} GB ({{ disk.free_gb }} GB free)</div>
+            </div>
+
+            <!-- Memory Usage -->
+            {% set mem = health.checks.memory %}
+            {% set mem_class = 'ops-card-critical' if mem.percent >= 95 else ('ops-card-warning' if mem.percent >= 85 else '') %}
+            {% set mem_bar = 'ops-progress-critical' if mem.percent >= 95 else ('ops-progress-warning' if mem.percent >= 85 else 'ops-progress-ok') %}
+            <div class="ops-card {{ mem_class }}">
+                <h3>Memory Usage</h3>
+                <div class="ops-value" id="memPercent">{{ mem.percent }}%</div>
+                <div class="ops-progress-bar">
+                    <div class="ops-progress-fill {{ mem_bar }}" id="memBar" style="width: {{ mem.percent }}%"></div>
+                </div>
+                <div class="ops-detail">{{ mem.used_mb }} / {{ mem.total_mb }} MB ({{ mem.available_mb }} MB available)</div>
+            </div>
+
+            <!-- Swap Status -->
+            {% set swap_class = '' if mem.swap_enabled else 'ops-card-warning' %}
+            <div class="ops-card {{ swap_class }}">
+                <h3>Swap</h3>
+                <div class="ops-value" id="swapStatus">
+                    {% if mem.swap_enabled %}
+                        {{ mem.swap_used_mb }} MB
+                    {% else %}
+                        NONE
+                    {% endif %}
+                </div>
+                <div class="ops-detail">
+                    {% if mem.swap_enabled %}
+                        {{ mem.swap_used_mb }} / {{ mem.swap_total_mb }} MB used
+                    {% else %}
+                        No swap configured — run server-setup.sh
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Uptime -->
+            <div class="ops-card">
+                <h3>Uptime</h3>
+                <div class="ops-value" id="uptimeValue">{{ health.checks.uptime.formatted }}</div>
+                <div class="ops-detail">{{ health.checks.uptime.days }} days</div>
+            </div>
+
+            <!-- Load Average -->
+            <div class="ops-card">
+                <h3>Load Average</h3>
+                <div class="ops-value" id="loadValue">{{ health.load['1min'] }}</div>
+                <div class="ops-detail">1m: {{ health.load['1min'] }} | 5m: {{ health.load['5min'] }} | 15m: {{ health.load['15min'] }}</div>
+            </div>
+
+            <!-- Platform -->
+            <div class="ops-card">
+                <h3>Platform</h3>
+                <div class="ops-value" style="font-size: 18px;">{{ health.platform.system }}</div>
+                <div class="ops-detail">{{ health.platform.release }} | Python {{ health.platform.python }}</div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="ops-actions">
+            <button name="docker_cleanup" class="admin-btn admin-btn-secondary" onclick="runDockerCleanup(this)">
+                Docker Cleanup
+            </button>
+            <button name="refresh_ops" class="admin-btn admin-btn-secondary" onclick="refreshOps(this)">
+                Refresh Now
+            </button>
+        </div>
+
+        <!-- Error Feed -->
+        <h2 class="ops-section-title">Error Feed (last 24h) <span class="ops-timestamp" id="errorCount">{{ errors|length }} entries</span></h2>
+        {% if errors %}
+            <div style="overflow-x: auto;">
+                <table class="ops-error-table" id="errorTable">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Level</th>
+                            <th>Source</th>
+                            <th>Message</th>
+                            <th>Path</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for err in errors %}
+                        <tr>
+                            <td>{{ err.timestamp[:19] }}</td>
+                            <td class="ops-level-{{ err.level|lower }}">{{ err.level }}</td>
+                            <td>{{ err.source }}</td>
+                            <td title="{{ err.message }}">{{ err.message[:80] }}</td>
+                            <td>{{ err.request_path or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p style="color: #28a745; padding: 20px; background: #d4edda; border-radius: 8px;">No errors in the last 24 hours.</p>
+        {% endif %}
+
+        <footer class="admin-footer">
+            <p>Last updated: <span id="lastUpdated">{{ health.timestamp[:19] }}</span></p>
+        </footer>
+    </div>
+
+    <script>
+        function getProgressClass(percent, warnAt, critAt) {
+            if (percent >= critAt) return 'ops-progress-critical';
+            if (percent >= warnAt) return 'ops-progress-warning';
+            return 'ops-progress-ok';
+        }
+
+        function getCardClass(percent, warnAt, critAt) {
+            if (percent >= critAt) return 'ops-card-critical';
+            if (percent >= warnAt) return 'ops-card-warning';
+            return '';
+        }
+
+        async function refreshOps(btn) {
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Refreshing...';
+            }
+            try {
+                const resp = await fetch('/admin/ops/api/health');
+                const data = await resp.json();
+
+                // Update disk
+                const dp = data.checks.disk.percent;
+                document.getElementById('diskPercent').textContent = dp + '%';
+                const diskBar = document.getElementById('diskBar');
+                diskBar.style.width = dp + '%';
+                diskBar.className = 'ops-progress-fill ' + getProgressClass(dp, 80, 90);
+
+                // Update memory
+                const mp = data.checks.memory.percent;
+                document.getElementById('memPercent').textContent = mp + '%';
+                const memBar = document.getElementById('memBar');
+                memBar.style.width = mp + '%';
+                memBar.className = 'ops-progress-fill ' + getProgressClass(mp, 85, 95);
+
+                // Update uptime
+                document.getElementById('uptimeValue').textContent = data.checks.uptime.formatted;
+
+                // Update load
+                document.getElementById('loadValue').textContent = data.load['1min'];
+
+                // Update status banner
+                const banner = document.getElementById('statusBanner');
+                banner.className = 'ops-status-banner ops-status-' + data.status;
+                if (data.status === 'ok') {
+                    banner.textContent = 'All systems operational';
+                } else if (data.status === 'warning') {
+                    banner.textContent = data.issues.length + ' issue' + (data.issues.length !== 1 ? 's' : '') + ' detected \u2014 review below';
+                } else {
+                    banner.textContent = 'CRITICAL \u2014 ' + data.issues.length + ' issue' + (data.issues.length !== 1 ? 's' : '') + ' require attention';
+                }
+
+                // Update errors
+                if (data.recent_errors) {
+                    document.getElementById('errorCount').textContent = data.recent_errors.length + ' entries';
+                    const tbody = document.querySelector('#errorTable tbody');
+                    if (tbody && data.recent_errors.length > 0) {
+                        tbody.innerHTML = data.recent_errors.map(function(err) {
+                            return '<tr>' +
+                                '<td>' + (err.timestamp || '').substring(0, 19) + '</td>' +
+                                '<td class="ops-level-' + (err.level || '').toLowerCase() + '">' + (err.level || '') + '</td>' +
+                                '<td>' + (err.source || '') + '</td>' +
+                                '<td title="' + (err.message || '').replace(/"/g, '&quot;') + '">' + (err.message || '').substring(0, 80) + '</td>' +
+                                '<td>' + (err.request_path || '-') + '</td>' +
+                            '</tr>';
+                        }).join('');
+                    }
+                }
+
+                document.getElementById('lastUpdated').textContent = data.timestamp.substring(0, 19);
+            } catch (e) {
+                console.log('ops refresh failed:', e);
+            }
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Refresh Now';
+            }
+        }
+
+        async function runDockerCleanup(btn) {
+            btn.disabled = true;
+            btn.textContent = 'Running...';
+            try {
+                const resp = await fetch('/admin/ops/api/docker-cleanup', { method: 'POST' });
+                const data = await resp.json();
+                if (data.success) {
+                    alert('Docker cleanup complete:\n' + (data.output || 'Done'));
+                } else {
+                    alert('Docker cleanup failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Docker cleanup request failed: ' + e.message);
+            }
+            btn.disabled = false;
+            btn.textContent = 'Docker Cleanup';
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(function() { refreshOps(null); }, 30000);
+    </script>
+</body>
+</html>

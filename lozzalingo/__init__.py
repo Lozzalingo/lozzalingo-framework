@@ -73,6 +73,7 @@ class Lozzalingo:
             'projects': False,
             'projects_public': False,
             'quick_links': False,
+            'ops': True,
         },
 
         # Analytics settings
@@ -140,6 +141,11 @@ class Lozzalingo:
 
         # Set up automatic error logging for all 5xx responses
         self._setup_error_logging()
+
+        # Set up ops monitoring (health checks + alerts on admin page loads)
+        if self._config.get('features', {}).get('ops', True):
+            self._setup_ops_monitoring()
+            self._setup_ops_banner_injection()
 
         # Store reference on app for access in templates/routes
         app.extensions['lozzalingo'] = self
@@ -384,6 +390,10 @@ class Lozzalingo:
         if features.get('quick_links', False):
             self._register_quick_links()
 
+        # Ops (server health monitoring)
+        if features.get('ops', True):
+            self._register_ops()
+
     def _register_dashboard(self):
         """Register the admin dashboard module."""
         try:
@@ -548,6 +558,17 @@ class Lozzalingo:
         except Exception as e:
             self.app.logger.error(f"Failed to register quick_links module: {e}")
 
+    def _register_ops(self):
+        """Register the ops (server health) module."""
+        try:
+            from .modules.ops import ops_health_bp, ops_admin_bp
+            self.app.register_blueprint(ops_health_bp)
+            self.app.register_blueprint(ops_admin_bp)
+            self._registered_blueprints.append('ops')
+            self.app.logger.debug("Registered ops module")
+        except Exception as e:
+            self.app.logger.error(f"Failed to register ops module: {e}")
+
     def _setup_error_logging(self):
         """Auto-log all 5xx responses to the persistent LoggingService."""
         @self.app.after_request
@@ -617,6 +638,126 @@ class Lozzalingo:
             data = re.sub(
                 r'(</body>)',
                 analytics_scripts + r'\1',
+                data,
+                flags=re.IGNORECASE,
+                count=1
+            )
+
+            response.set_data(data)
+            return response
+
+    def _setup_ops_monitoring(self):
+        """Set up periodic health checks and alerting on admin page loads."""
+        self.app._ops_last_check = 0
+        self.app._ops_active_issues = []
+
+        @self.app.before_request
+        def ops_periodic_check():
+            """Run health checks once per 5 minutes on admin page loads."""
+            from flask import request, session
+            import time as _time
+
+            # Only run on admin pages when admin is logged in
+            if not request.path.startswith('/admin'):
+                return
+            if not session.get('admin_id'):
+                return
+
+            now = _time.time()
+            if now - self.app._ops_last_check < 300:  # 5 minutes
+                return
+
+            self.app._ops_last_check = now
+
+            try:
+                from .modules.ops.routes import _get_disk_usage, _get_memory_info, _compute_status
+                disk = _get_disk_usage()
+                memory = _get_memory_info()
+                status, issues = _compute_status(disk, memory)
+
+                # Check for recent errors too
+                try:
+                    from .modules.ops.routes import _get_recent_errors
+                    errors = _get_recent_errors(limit=1)
+                    if errors:
+                        error_count_str = f"{len(_get_recent_errors(limit=200))} errors in last 24h"
+                        issues.append({'type': 'recent_errors', 'message': error_count_str})
+                except Exception:
+                    pass
+
+                self.app._ops_active_issues = issues
+
+                # Send email alert if thresholds crossed
+                if status in ('warning', 'critical'):
+                    try:
+                        from .modules.ops.alerts import check_and_alert
+                        check_and_alert(self.app)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+    def _setup_ops_banner_injection(self):
+        """Inject warning banner into admin pages when issues are detected."""
+        @self.app.after_request
+        def inject_ops_banner(response):
+            """Inject ops warning banner into admin HTML pages."""
+            # Only inject into HTML responses
+            if response.content_type and 'text/html' not in response.content_type:
+                return response
+
+            # Only inject into admin pages
+            from flask import request, session
+            if not request.path.startswith('/admin'):
+                return response
+
+            # Only inject when admin is logged in
+            if not session.get('admin_id'):
+                return response
+
+            # Skip the ops dashboard itself
+            if request.path.startswith('/admin/ops'):
+                return response
+
+            issues = getattr(self.app, '_ops_active_issues', [])
+            if not issues:
+                return response
+
+            try:
+                data = response.get_data(as_text=True)
+            except Exception:
+                return response
+
+            if '<body' not in data.lower():
+                return response
+
+            # Build banner HTML
+            issue_count = len(issues)
+            is_critical = any(i.get('type', '').endswith('_critical') for i in issues)
+            bg = '#f8d7da' if is_critical else '#fff3cd'
+            color = '#721c24' if is_critical else '#856404'
+            border = '#f5c6cb' if is_critical else '#ffeaa7'
+            label = 'CRITICAL' if is_critical else 'WARNING'
+            summary = issues[0].get('message', 'Issue detected')
+            if issue_count > 1:
+                summary = f'{issue_count} issues detected'
+
+            banner_html = (
+                f'<div id="ops-banner" style="background:{bg};color:{color};border-bottom:2px solid {border};'
+                f'padding:8px 16px;font-size:13px;display:flex;align-items:center;justify-content:space-between;'
+                f'font-family:-apple-system,BlinkMacSystemFont,sans-serif;z-index:9999;position:relative;">'
+                f'<span><strong>{label}:</strong> {summary} &mdash; '
+                f'<a href="/admin/ops" style="color:{color};text-decoration:underline;">View Ops Dashboard</a></span>'
+                f'<button name="dismiss_ops_banner" onclick="this.parentElement.remove()" '
+                f'style="background:none;border:none;color:{color};cursor:pointer;font-size:18px;padding:0 4px;">'
+                f'&times;</button></div>'
+            )
+
+            # Inject after <body> tag
+            import re
+            data = re.sub(
+                r'(<body[^>]*>)',
+                r'\1' + banner_html,
                 data,
                 flags=re.IGNORECASE,
                 count=1

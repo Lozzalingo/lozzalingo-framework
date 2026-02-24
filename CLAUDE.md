@@ -7,8 +7,8 @@ Shared framework rules are auto-loaded from the parent `Lozzalingo-python/CLAUDE
 - Alternative: host apps can manually import individual blueprints (Mario Pinto does this)
 - Version: 0.2.0, defined in `lozzalingo/__init__.py`
 
-## Modules (16 total)
-analytics, auth, customer_spotlight, dashboard, email, external_api, inkthreadable, merchandise, merchandise_public, news, news_public, orders, settings, subscribers
+## Modules (17 total)
+analytics, auth, customer_spotlight, dashboard, email, external_api, inkthreadable, merchandise, merchandise_public, news, news_public, ops, orders, settings, subscribers
 
 All enabled by default via `DEFAULT_CONFIG['features']`. Host apps can disable with:
 ```python
@@ -59,8 +59,19 @@ When creating a new host app:
 ## Key Files
 - Entry point: `lozzalingo/__init__.py` (Lozzalingo class, module registration, config)
 - Modules: `lozzalingo/modules/<name>/` (each has `__init__.py` + `routes.py`)
-- Tests: `tests/test_critical.py` (10 tests, EXPECTED_MODULES list)
+- Tests: `tests/test_critical.py` (13 tests, EXPECTED_MODULES list)
 - Setup: `setup.py` (package metadata, dependencies)
+- Server hardening: `scripts/server-setup.sh` (swap, Docker cleanup, log rotation, unattended-upgrades)
+
+## Ops Module
+- **Public endpoint**: `GET /health` — JSON health check (no auth), returns `{status, checks: {disk, memory, uptime}, issues}`
+- **Admin dashboard**: `/admin/ops` — disk/memory/swap/uptime/load cards, error feed, Docker cleanup
+- **Alerts**: `lozzalingo/modules/ops/alerts.py` — email alerts rate-limited to 1 per issue type per 6h via `app_logs` (source=`ops_alert`)
+- **Banner injection**: `_setup_ops_banner_injection()` in `__init__.py` — injects amber/red warning bar on admin pages when issues are detected
+- **Monitoring**: `_setup_ops_monitoring()` — runs health checks every 5min on admin page loads, triggers alerts if thresholds crossed
+- **Thresholds**: disk 80%=warning/90%=critical, memory 85%/95%, no swap=warning, >10 errors/hour=error_spike
+- **Two-blueprint pattern** (same as `external_api`): `ops_health_bp` (public) + `ops_admin_bp` (admin)
+- **Host apps with manual registration** (Mario Pinto, Crowd Sauced) need: `from lozzalingo.modules.ops import ops_health_bp, ops_admin_bp` + `register_blueprint()` for both
 
 ## After Making Changes
 - Run `pytest tests/test_critical.py -v` (install pytest via `pip install -e ".[dev]"`)

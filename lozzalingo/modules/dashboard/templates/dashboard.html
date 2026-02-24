@@ -276,27 +276,27 @@
                 </div>
             </div>
 
-            <!-- System Status Card -->
-            <div class="dashboard-card">
+            <!-- Server Ops Card -->
+            <div class="dashboard-card" id="opsCard">
                 <div class="card-icon">⚙️</div>
                 <div class="card-content">
-                    <h2>System Status</h2>
-                    <p>Monitor server health, database status, and system performance.</p>
+                    <h2>Server Ops</h2>
+                    <p>Disk, memory, and server health at a glance.</p>
                     <div class="card-stats">
                         <div class="stat">
-                            <span class="stat-number stat-success">✓</span>
-                            <span class="stat-label">Database</span>
+                            <span class="stat-number" id="opsDisk">-</span>
+                            <span class="stat-label">Disk</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-number stat-success">✓</span>
-                            <span class="stat-label">Server</span>
+                            <span class="stat-number" id="opsMemory">-</span>
+                            <span class="stat-label">Memory</span>
                         </div>
                     </div>
                 </div>
                 <div class="card-actions">
-                    <button name="refresh_stats" class="admin-btn admin-btn-secondary" onclick="refreshStats()">
-                        🔄 Refresh Stats
-                    </button>
+                    <a href="/admin/ops" class="admin-btn admin-btn-primary" name="view_ops">
+                        🖥️ Ops Dashboard
+                    </a>
                 </div>
             </div>
 
@@ -335,6 +335,10 @@
                     <a href="{{ url_for('admin.template_previews') }}" class="quick-action">
                         <span class="quick-action-icon">🎨</span>
                         <span>Templates</span>
+                    </a>
+                    <a href="/admin/ops" class="quick-action" name="quick_server_ops">
+                        <span class="quick-action-icon">🖥️</span>
+                        <span>Server Ops</span>
                     </a>
                     <a href="{{ url_for('admin.change_password') }}" class="quick-action">
                         <span class="quick-action-icon">🔐</span>
@@ -391,6 +395,32 @@
                         }
                     })
                     .catch(err => console.log('Stats loading failed:', err));
+
+                // Load server ops health
+                fetch('/health')
+                    .then(response => response.json())
+                    .then(data => {
+                        const diskEl = document.getElementById('opsDisk');
+                        const memEl = document.getElementById('opsMemory');
+                        const card = document.getElementById('opsCard');
+                        if (data.checks && data.checks.disk) {
+                            diskEl.textContent = data.checks.disk.percent + '%';
+                        }
+                        if (data.checks && data.checks.memory) {
+                            memEl.textContent = data.checks.memory.percent + '%';
+                        }
+                        // Color the card based on status
+                        card.style.borderColor = '';
+                        card.style.background = '';
+                        if (data.status === 'critical') {
+                            card.style.borderColor = '#dc3545';
+                            card.style.background = '#fff5f5';
+                        } else if (data.status === 'warning') {
+                            card.style.borderColor = '#ffc107';
+                            card.style.background = '#fffbeb';
+                        }
+                    })
+                    .catch(err => console.log('Health check failed:', err));
 
             } catch (error) {
                 console.log('Error loading dashboard stats:', error);

@@ -161,6 +161,7 @@ EXPECTED_MODULES = [
     "projects",
     "projects_public",
     "quick_links",
+    "ops",
 ]
 
 
@@ -347,3 +348,38 @@ def test_template_filters_registered(app):
         assert callable(registered_filters[name]), (
             f"Template filter '{name}' is registered but not callable."
         )
+
+
+# ---------------------------------------------------------------------------
+# 12. Health endpoint -- GET /health returns 200 with status and checks
+# ---------------------------------------------------------------------------
+
+def test_health_endpoint(client):
+    """GET /health returns JSON with status field and checks dict.
+    HTTP 200 for ok/warning, 503 for critical — both are valid."""
+    response = client.get("/health")
+    assert response.status_code in (200, 503), (
+        f"Expected 200 or 503, got {response.status_code}"
+    )
+    data = response.get_json()
+    assert "status" in data, "Health response missing 'status' field"
+    assert data["status"] in ("ok", "warning", "critical")
+    assert "checks" in data, "Health response missing 'checks' dict"
+    assert "disk" in data["checks"]
+    assert "memory" in data["checks"]
+    assert "uptime" in data["checks"]
+
+
+# ---------------------------------------------------------------------------
+# 13. Ops admin auth guard -- unauthenticated request redirects to login
+# ---------------------------------------------------------------------------
+
+def test_ops_admin_auth_redirect(client):
+    """Unauthenticated GET to /admin/ops/ should redirect to login."""
+    response = client.get("/admin/ops/", follow_redirects=False)
+    assert response.status_code == 302, (
+        f"Expected 302 redirect, got {response.status_code}"
+    )
+    assert "/admin" in response.headers.get("Location", ""), (
+        "Redirect location should point to /admin (login)"
+    )
