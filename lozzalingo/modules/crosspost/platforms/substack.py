@@ -42,7 +42,7 @@ def publish_article(cookie, substack_url, title, html_content, canonical_url=Non
         api = SubstackApi(
             email="",
             password="",
-            substack_url=substack_url,
+            publication_url=substack_url,
         )
         # Override auth with cookie
         api.session.cookies.set("substack.sid", cookie)
