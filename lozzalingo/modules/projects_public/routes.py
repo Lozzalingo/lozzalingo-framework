@@ -108,7 +108,7 @@ def project_embed(slug):
     if not project or not project.get('external_url'):
         abort(404)
 
-    response = make_response(project.get('content', ''))
+    response = make_response(project.get('fetched_content') or project.get('content', ''))
     response.headers['Content-Type'] = 'text/html'
     return response
 

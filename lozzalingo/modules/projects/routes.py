@@ -101,6 +101,7 @@ def init_projects_db():
                 ('crossposted_threads', 'BOOLEAN DEFAULT 0'),
                 ('upvote_count', 'INTEGER DEFAULT 0'),
                 ('external_url', 'TEXT'),
+                ('fetched_content', 'TEXT'),
             ]
             for col_name, col_type in new_columns:
                 if col_name not in columns:
@@ -182,7 +183,7 @@ _SELECT_COLS = '''id, title, slug, content, image_url, year, status, project_sta
                   earnings_label, insights,
                   crossposted_linkedin, crossposted_medium, crossposted_substack,
                   crossposted_twitter, crossposted_threads,
-                  upvote_count, external_url'''
+                  upvote_count, external_url, fetched_content'''
 
 def _row_to_dict(row):
     """Convert a DB row to a project dict"""
@@ -209,6 +210,7 @@ def _row_to_dict(row):
     d['crossposted_threads'] = bool(row[26]) if len(row) > 26 else False
     d['upvote_count'] = row[27] if len(row) > 27 else 0
     d['external_url'] = row[28] if len(row) > 28 else None
+    d['fetched_content'] = row[29] if len(row) > 29 else None
     return d
 
 def create_slug(title):
@@ -274,7 +276,7 @@ def create_project_db(title, content, image_url=None, year=None,
                       year_end=None, gross_earnings=None, earnings_currency=None,
                       gallery_images=None, gallery_layout=None,
                       hero_image_align=None, earnings_label=None, insights=None,
-                      external_url=None):
+                      external_url=None, fetched_content=None):
     """Create new project in database"""
     projects_db = get_db_config()
     db_connect = get_db_connection()
@@ -289,13 +291,13 @@ def create_project_db(title, content, image_url=None, year=None,
                     status, project_status, excerpt, meta_description, technologies,
                     year_end, gross_earnings, earnings_currency,
                     gallery_images, gallery_layout, hero_image_align, earnings_label,
-                    insights, external_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    insights, external_url, fetched_content)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (title, slug, content, image_url, year,
                   status, project_status, excerpt, meta_description, technologies,
                   year_end, gross_earnings, earnings_currency,
                   gallery_images, gallery_layout, hero_image_align, earnings_label,
-                  insights, external_url))
+                  insights, external_url, fetched_content))
             conn.commit()
             return cursor.lastrowid, slug
     except Exception as e:
@@ -308,7 +310,7 @@ def update_project_db(project_id, title, content, image_url=None, year=None,
                       year_end=None, gross_earnings=None, earnings_currency=None,
                       gallery_images=None, gallery_layout=None,
                       hero_image_align=None, earnings_label=None, insights=None,
-                      external_url=None):
+                      external_url=None, fetched_content=None):
     """Update existing project"""
     projects_db = get_db_config()
     db_connect = get_db_connection()
@@ -332,8 +334,8 @@ def update_project_db(project_id, title, content, image_url=None, year=None,
             if project_status is None:
                 project_status = current[3]
 
-            if not title.strip() or not content.strip():
-                raise ValueError("Title and content cannot be empty")
+            if not title.strip():
+                raise ValueError("Title cannot be empty")
 
             if image_url is not None and not image_url.strip():
                 image_url = None
@@ -345,14 +347,14 @@ def update_project_db(project_id, title, content, image_url=None, year=None,
                     technologies = ?, year_end = ?, gross_earnings = ?,
                     earnings_currency = ?, gallery_images = ?, gallery_layout = ?,
                     hero_image_align = ?, earnings_label = ?, insights = ?,
-                    external_url = ?,
+                    external_url = ?, fetched_content = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (title.strip(), slug, content.strip(), image_url, year,
                   status, project_status, excerpt, meta_description,
                   technologies, year_end, gross_earnings, earnings_currency,
                   gallery_images, gallery_layout, hero_image_align, earnings_label,
-                  insights, external_url, project_id))
+                  insights, external_url, fetched_content, project_id))
             conn.commit()
 
             return cursor.rowcount > 0
@@ -572,9 +574,10 @@ def get_projects():
     try:
         init_projects_db()
         projects = get_all_projects_db()
-        # Strip heavy content field from list response (loaded per-project on edit)
+        # Strip heavy content fields from list response (loaded per-project on edit)
         for p in projects:
             p.pop('content', None)
+            p.pop('fetched_content', None)
         return jsonify(projects)
     except Exception as e:
         print(f"Error getting projects: {e}")
@@ -624,9 +627,14 @@ def create_project():
         earnings_label = data.get('earnings_label') or None
         insights = data.get('insights') or None
         external_url = data.get('external_url') or None
+        fetched_content = data.get('fetched_content') or None
 
-        if not title or not content:
-            return jsonify({'error': 'Title and content are required'}), 400
+        if not title:
+            return jsonify({'error': 'Title is required'}), 400
+        if not content and not external_url:
+            return jsonify({'error': 'Content or External URL is required'}), 400
+        if not content:
+            content = ''
 
         if year:
             try:
@@ -656,7 +664,8 @@ def create_project():
             gross_earnings=gross_earnings, earnings_currency=earnings_currency,
             gallery_images=gallery_images, gallery_layout=gallery_layout,
             hero_image_align=hero_image_align, earnings_label=earnings_label,
-            insights=insights, external_url=external_url
+            insights=insights, external_url=external_url,
+            fetched_content=fetched_content
         )
 
         return jsonify({
@@ -699,9 +708,14 @@ def update_project(project_id):
         earnings_label = data.get('earnings_label') or None
         insights = data.get('insights') or None
         external_url = data.get('external_url') or None
+        fetched_content = data.get('fetched_content') or None
 
-        if not title or not content:
-            return jsonify({'error': 'Title and content are required'}), 400
+        if not title:
+            return jsonify({'error': 'Title is required'}), 400
+        if not content and not external_url:
+            return jsonify({'error': 'Content or External URL is required'}), 400
+        if not content:
+            content = ''
 
         if year:
             try:
@@ -731,7 +745,8 @@ def update_project(project_id):
             gross_earnings=gross_earnings, earnings_currency=earnings_currency,
             gallery_images=gallery_images, gallery_layout=gallery_layout,
             hero_image_align=hero_image_align, earnings_label=earnings_label,
-            insights=insights, external_url=external_url
+            insights=insights, external_url=external_url,
+            fetched_content=fetched_content
         )
 
         if success:

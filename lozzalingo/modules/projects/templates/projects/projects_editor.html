@@ -179,7 +179,7 @@
                             <button type="button" class="btn-secondary" id="clearFetchBtn" name="clear_fetch" style="white-space:nowrap; display:none;" onclick="clearFetchedContent()">Clear Fetch</button>
                             <span id="fetchStatus" style="font-size: 0.85em; white-space: nowrap;"></span>
                         </div>
-                        <small class="form-hint">Embeds this page instead of content. Set excerpt &amp; meta description below for SEO.</small>
+                        <small class="form-hint">Embeds this page below the project description. Set excerpt &amp; meta description below for SEO.</small>
                         <textarea id="fetchedExternalContent" style="display:none;"></textarea>
                     </div>
 
@@ -1301,20 +1301,12 @@
         document.getElementById('projectSearch').addEventListener('input', () => renderProjects(cachedProjects));
         document.getElementById('projectFilter').addEventListener('change', () => renderProjects(cachedProjects));
 
-        // Hide/show Quill editor based on external URL
-        function toggleEditorVisibility() {
-            const hasUrl = document.getElementById('externalUrl').value.trim();
-            document.getElementById('editorGroup').style.display = hasUrl ? 'none' : '';
-        }
-        document.getElementById('externalUrl').addEventListener('input', toggleEditorVisibility);
-
         function clearFetchedContent() {
-            if (!confirm('Clear fetched content? The project will use the Quill editor instead.')) return;
+            if (!confirm('Clear fetched content and external URL?')) return;
             document.getElementById('fetchedExternalContent').value = '';
             document.getElementById('externalUrl').value = '';
             document.getElementById('fetchStatus').textContent = '';
             document.getElementById('clearFetchBtn').style.display = 'none';
-            toggleEditorVisibility();
         }
         window.clearFetchedContent = clearFetchedContent;
 
@@ -1357,7 +1349,7 @@
             const quillContent = quill.root.innerHTML;
             const hasExternalUrl = document.getElementById('externalUrl').value.trim();
             const fetchedContent = document.getElementById('fetchedExternalContent').value;
-            const content = (hasExternalUrl && fetchedContent) ? fetchedContent : quillContent;
+            const content = quillContent;
             if (!title) { alert('Title is required'); return; }
             if (!hasExternalUrl && (!quillContent || quillContent === '<p><br></p>')) { alert('Content is required (or set an External URL)'); return; }
 
@@ -1379,7 +1371,8 @@
                 gallery_layout: document.getElementById('galleryLayout').value || 'single',
                 hero_image_align: document.getElementById('heroImageAlign').value || 'center center',
                 insights: document.getElementById('insightsHidden').value || null,
-                external_url: document.getElementById('externalUrl').value.trim() || null
+                external_url: document.getElementById('externalUrl').value.trim() || null,
+                fetched_content: document.getElementById('fetchedExternalContent').value || null
             };
 
             try {
@@ -1459,9 +1452,9 @@
                 document.getElementById('earningsLabel').value = p.earnings_label || '';
                 setInsightsFromJSON(p.insights || '');
                 document.getElementById('externalUrl').value = p.external_url || '';
-                if (p.external_url && p.content) {
-                    document.getElementById('fetchedExternalContent').value = p.content;
-                    const sizeKb = (new Blob([p.content]).size / 1024).toFixed(1);
+                if (p.external_url && p.fetched_content) {
+                    document.getElementById('fetchedExternalContent').value = p.fetched_content;
+                    const sizeKb = (new Blob([p.fetched_content]).size / 1024).toFixed(1);
                     document.getElementById('fetchStatus').textContent = 'Content fetched (' + sizeKb + 'kb)';
                     document.getElementById('fetchStatus').style.color = 'green';
                     document.getElementById('clearFetchBtn').style.display = '';
@@ -1470,13 +1463,7 @@
                     document.getElementById('fetchStatus').textContent = '';
                     document.getElementById('clearFetchBtn').style.display = 'none';
                 }
-                // Hide Quill editor when project uses external URL
-                toggleEditorVisibility();
-                if (!p.external_url) {
-                    quill.root.innerHTML = p.content || '';
-                } else {
-                    quill.root.innerHTML = '';
-                }
+                quill.root.innerHTML = p.content || '';
 
                 document.getElementById('formTitle').textContent = 'Edit Project';
                 document.getElementById('publishBtn').textContent = 'Update & Publish';
@@ -2051,7 +2038,6 @@
             document.getElementById('fetchedExternalContent').value = '';
             document.getElementById('fetchStatus').textContent = '';
             document.getElementById('clearFetchBtn').style.display = 'none';
-            document.getElementById('editorGroup').style.display = '';
             quill.root.innerHTML = '';
             document.getElementById('formTitle').textContent = 'Create New Project';
             document.getElementById('publishBtn').textContent = 'Publish Project';
