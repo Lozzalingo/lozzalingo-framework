@@ -183,7 +183,7 @@ _SELECT_COLS = '''id, title, slug, content, image_url, year, status, project_sta
                   earnings_label, insights,
                   crossposted_linkedin, crossposted_medium, crossposted_substack,
                   crossposted_twitter, crossposted_threads,
-                  upvote_count, external_url, fetched_content'''
+                  upvote_count, external_url'''
 
 def _row_to_dict(row):
     """Convert a DB row to a project dict"""
@@ -210,7 +210,6 @@ def _row_to_dict(row):
     d['crossposted_threads'] = bool(row[26]) if len(row) > 26 else False
     d['upvote_count'] = row[27] if len(row) > 27 else 0
     d['external_url'] = row[28] if len(row) > 28 else None
-    d['fetched_content'] = row[29] if len(row) > 29 else None
     return d
 
 def create_slug(title):
@@ -385,9 +384,13 @@ def get_project_db(project_id):
     try:
         with db_connect(projects_db) as conn:
             cursor = conn.cursor()
-            cursor.execute(f'SELECT {_SELECT_COLS} FROM projects WHERE id = ?', (project_id,))
+            cursor.execute(f'SELECT {_SELECT_COLS}, fetched_content FROM projects WHERE id = ?', (project_id,))
             row = cursor.fetchone()
-            return _row_to_dict(row) if row else None
+            if not row:
+                return None
+            d = _row_to_dict(row)
+            d['fetched_content'] = row[29] if len(row) > 29 else None
+            return d
     except Exception as e:
         print(f"Error getting project: {e}")
         return None

@@ -100,15 +100,25 @@ def project_detail(slug):
 
 @projects_public_bp.route('/<slug>/embed')
 def project_embed(slug):
-    """Serve a project's content as a raw HTML page (for external-URL embeds)."""
-    from lozzalingo.modules.projects.routes import get_project_by_slug_db, init_projects_db
+    """Serve a project's fetched_content as a raw HTML page (for external-URL embeds)."""
+    from lozzalingo.modules.projects.routes import get_db_config, get_db_connection, init_projects_db
     init_projects_db()
-    project = get_project_by_slug_db(slug)
+    projects_db = get_db_config()
+    db_connect = get_db_connection()
 
-    if not project or not project.get('external_url'):
+    try:
+        with db_connect(projects_db) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT fetched_content, content, external_url FROM projects WHERE slug = ?', (slug,))
+            row = cursor.fetchone()
+    except Exception:
+        row = None
+
+    if not row or not row[2]:
         abort(404)
 
-    response = make_response(project.get('fetched_content') or project.get('content', ''))
+    html = row[0] or row[1] or ''
+    response = make_response(html)
     response.headers['Content-Type'] = 'text/html'
     return response
 
