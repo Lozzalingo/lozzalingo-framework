@@ -165,7 +165,7 @@
                         <input type="hidden" id="imageUrl" name="image_url">
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" id="editorGroup">
                         <label for="content">Project Description *</label>
                         <div id="editor"></div>
                         <input type="hidden" id="content" name="content">
@@ -1300,6 +1300,13 @@
         document.getElementById('projectSearch').addEventListener('input', () => renderProjects(cachedProjects));
         document.getElementById('projectFilter').addEventListener('change', () => renderProjects(cachedProjects));
 
+        // Hide/show Quill editor based on external URL
+        function toggleEditorVisibility() {
+            const hasUrl = document.getElementById('externalUrl').value.trim();
+            document.getElementById('editorGroup').style.display = hasUrl ? 'none' : '';
+        }
+        document.getElementById('externalUrl').addEventListener('input', toggleEditorVisibility);
+
         async function fetchExternalContent() {
             const url = document.getElementById('externalUrl').value.trim();
             if (!url) { alert('Enter an External URL first'); return; }
@@ -1449,7 +1456,13 @@
                     document.getElementById('fetchedExternalContent').value = '';
                     document.getElementById('fetchStatus').textContent = '';
                 }
-                quill.root.innerHTML = p.content || '';
+                // Hide Quill editor when project uses external URL
+                toggleEditorVisibility();
+                if (!p.external_url) {
+                    quill.root.innerHTML = p.content || '';
+                } else {
+                    quill.root.innerHTML = '';
+                }
 
                 document.getElementById('formTitle').textContent = 'Edit Project';
                 document.getElementById('publishBtn').textContent = 'Update & Publish';
@@ -2023,6 +2036,7 @@
             document.getElementById('externalUrl').value = '';
             document.getElementById('fetchedExternalContent').value = '';
             document.getElementById('fetchStatus').textContent = '';
+            document.getElementById('editorGroup').style.display = '';
             quill.root.innerHTML = '';
             document.getElementById('formTitle').textContent = 'Create New Project';
             document.getElementById('publishBtn').textContent = 'Publish Project';
