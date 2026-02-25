@@ -433,6 +433,13 @@
     text-align: center;
 }
 
+.article-actions select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    padding-right: 12px;
+}
+
 /* View — teal */
 .view-btn {
     background: rgba(45, 212, 191, 0.1);

@@ -515,7 +515,8 @@ def fetch_external_content(url):
     responsive_style = (
         '<style>'
         'body{overflow-x:hidden;max-width:100%;box-sizing:border-box}'
-        'img,table,pre,code{max-width:100%;overflow-x:auto}'
+        'img,table{max-width:100%}'
+        'pre{max-width:100%;overflow-x:auto;box-sizing:border-box}'
         '</style>'
     )
     html = re.sub(
@@ -569,6 +570,9 @@ def get_projects():
     try:
         init_projects_db()
         projects = get_all_projects_db()
+        # Strip heavy content field from list response (loaded per-project on edit)
+        for p in projects:
+            p.pop('content', None)
         return jsonify(projects)
     except Exception as e:
         print(f"Error getting projects: {e}")
