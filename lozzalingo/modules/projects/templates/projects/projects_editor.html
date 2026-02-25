@@ -51,7 +51,12 @@
                             <label for="projectStatus">Activity</label>
                             <select id="projectStatus" name="project_status">
                                 <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
+                                <option value="paused">Paused</option>
+                                <option value="retired">Retired</option>
+                                <option value="limited-run">Limited Run</option>
+                                <option value="one-off">One-Off</option>
+                                <option value="experiment">Experiment</option>
+                                <option value="academic">Academic</option>
                             </select>
                             <small class="form-hint">Shown as a label on the public page</small>
                         </div>
@@ -1264,9 +1269,11 @@
                         <button class="btn-small btn-toggle-publish" name="project_toggle_publish_${p.id}" onclick="window._togglePublish(${p.id})">
                             ${p.status === 'published' ? 'Unpublish' : 'Publish'}
                         </button>
-                        <button class="btn-small btn-toggle" name="project_toggle_activity_${p.id}" onclick="window._toggleActivity(${p.id})">
-                            ${p.project_status === 'active' ? 'Set Inactive' : 'Set Active'}
-                        </button>
+                        <select class="btn-small btn-toggle" name="project_status_${p.id}" onchange="window._setProjectStatus(${p.id}, this.value)" style="cursor:pointer;">
+                            ${['active','paused','retired','limited-run','one-off','experiment','academic'].map(s =>
+                                `<option value="${s}"${s === (p.project_status || 'active') ? ' selected' : ''}>${s.replace('-',' ').replace(/\\b\\w/g,c=>c.toUpperCase())}</option>`
+                            ).join('')}
+                        </select>
                         <button class="btn-small btn-delete" name="project_delete_${p.id}" onclick="window._deleteProject(${p.id})">Delete</button>
                         ${p.status === 'published' ? `<button class="btn-small email-btn" name="send_project_email_${p.id}" onclick="window._sendProjectEmail(${p.id})">${p.email_sent ? 'Resend Email' : 'Send Email'}</button>` : ''}
                         ${p.status === 'published' ? `<div class="share-dropdown" style="display:inline-block;position:relative;">
@@ -1409,9 +1416,13 @@
             } catch (e) { alert('Error: ' + e.message); }
         };
 
-        window._toggleActivity = async function(id) {
+        window._setProjectStatus = async function(id, status) {
             try {
-                const res = await fetch(`${API_BASE}/${id}/toggle-status`, { method: 'POST' });
+                const res = await fetch(`${API_BASE}/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({project_status: status})
+                });
                 const data = await res.json();
                 if (data.success) loadProjects(); else alert('Error: ' + (data.error || 'Unknown error'));
             } catch (e) { alert('Error: ' + e.message); }
@@ -1975,6 +1986,12 @@
     .status-published { background: #2ecc40; color: #fff; }
     .status-draft { background: #f0ad4e; color: #fff; }
     .ps-active { background: #2ecc40; color: #fff; }
+    .ps-paused { background: #f0b429; color: #fff; }
+    .ps-retired { background: #e74c3c; color: #fff; }
+    .ps-limited-run { background: #b24dff; color: #fff; }
+    .ps-one-off { background: #2dd4bf; color: #fff; }
+    .ps-experiment { background: #00d4ff; color: #fff; }
+    .ps-academic { background: #ff8c42; color: #fff; }
     .ps-inactive { background: #e74c3c; color: #fff; }
 
     /* Save flash */
