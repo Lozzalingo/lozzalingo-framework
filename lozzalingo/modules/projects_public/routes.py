@@ -85,11 +85,11 @@ def project_detail(slug):
     init_projects_db()
     project = get_project_by_slug_db(slug)
 
-    if not project or project.get('status') != 'published':
+    if not project or project.get('status') not in ('published', 'coming-soon'):
         flash('Project not found', 'error')
         return redirect(url_for('projects.projects_list'))
 
-    if project.get('project_status') == 'coming-soon':
+    if project.get('status') == 'coming-soon':
         return redirect('/')
 
     all_projects = get_all_projects_db(status='published')
@@ -163,7 +163,7 @@ def upvote_project(project_id):
     try:
         with db_connect(projects_db) as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT project_status FROM projects WHERE id = ?', (project_id,))
+            cursor.execute('SELECT status FROM projects WHERE id = ?', (project_id,))
             row = cursor.fetchone()
             if row and row[0] == 'coming-soon':
                 return jsonify({'success': False, 'error': 'coming-soon'}), 400

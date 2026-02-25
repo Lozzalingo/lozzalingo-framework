@@ -253,8 +253,11 @@ def get_all_projects_db(status=None, project_status=None):
             conditions = []
             params = []
             if status:
-                conditions.append('status = ?')
-                params.append(status)
+                if status == 'published':
+                    conditions.append("status IN ('published', 'coming-soon')")
+                else:
+                    conditions.append('status = ?')
+                    params.append(status)
             if project_status:
                 conditions.append('project_status = ?')
                 params.append(project_status)

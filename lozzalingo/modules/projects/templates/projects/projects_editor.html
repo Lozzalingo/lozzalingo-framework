@@ -34,6 +34,17 @@
                         <input type="text" id="title" name="title" required placeholder="Enter project title...">
                     </div>
 
+                    <div class="form-actions form-actions-top">
+                        <select id="saveModeTop" class="save-mode-select" name="save_mode_top">
+                            <option value="published">Publish</option>
+                            <option value="draft">Save as Draft</option>
+                            <option value="coming-soon">Coming Soon</option>
+                        </select>
+                        <button type="button" class="btn-primary" id="saveBtnTop" name="project_save_top">Save</button>
+                        <button type="button" class="btn-secondary" id="cancelBtnTop" name="project_cancel_edit_top" style="display: none;">Cancel</button>
+                        <span id="saveFlashTop" class="save-flash" style="display:none;"></span>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
                             <label for="year">Year (Start)</label>
@@ -57,7 +68,6 @@
                                 <option value="one-off">One-Off</option>
                                 <option value="experiment">Experiment</option>
                                 <option value="academic">Academic</option>
-                                <option value="coming-soon">Coming Soon</option>
                             </select>
                             <small class="form-hint">Shown as a label on the public page</small>
                         </div>
@@ -207,9 +217,13 @@
                     </div>
 
                     <div class="form-actions">
-                        <button type="button" class="btn-primary" id="publishBtn" name="project_publish">Publish Project</button>
-                        <button type="button" class="btn-secondary" id="draftBtn" name="project_save_draft">Save as Draft</button>
-                        <button type="button" class="btn-secondary" id="cancelBtn" name="project_cancel_edit" style="display: none;">Cancel Edit</button>
+                        <select id="saveMode" class="save-mode-select" name="save_mode">
+                            <option value="published">Publish</option>
+                            <option value="draft">Save as Draft</option>
+                            <option value="coming-soon">Coming Soon</option>
+                        </select>
+                        <button type="button" class="btn-primary" id="saveBtn" name="project_save">Save</button>
+                        <button type="button" class="btn-secondary" id="cancelBtn" name="project_cancel_edit" style="display: none;">Cancel</button>
                         <span id="saveFlash" class="save-flash" style="display:none;"></span>
                     </div>
                     <div id="statusIndicator" class="status-indicator" style="display: none;">
@@ -227,6 +241,7 @@
                             <option value="all">All</option>
                             <option value="published">Published</option>
                             <option value="draft">Drafts</option>
+                            <option value="coming-soon">Coming Soon</option>
                         </select>
                         <span id="projectCount" class="item-count"></span>
                     </div>
@@ -1257,10 +1272,17 @@
             finally { progress.style.display = 'none'; this.value = ''; }
         });
 
-        // Save buttons
-        document.getElementById('publishBtn').addEventListener('click', () => saveProject('published'));
-        document.getElementById('draftBtn').addEventListener('click', () => saveProject('draft'));
+        // Save buttons — single dropdown + Save at top and bottom, kept in sync
+        function syncSaveMode(source) {
+            const val = source.value;
+            document.querySelectorAll('.save-mode-select').forEach(sel => { sel.value = val; });
+        }
+        document.getElementById('saveMode').addEventListener('change', function() { syncSaveMode(this); });
+        document.getElementById('saveModeTop').addEventListener('change', function() { syncSaveMode(this); });
+        document.getElementById('saveBtn').addEventListener('click', () => saveProject(document.getElementById('saveMode').value));
+        document.getElementById('saveBtnTop').addEventListener('click', () => saveProject(document.getElementById('saveMode').value));
         document.getElementById('cancelBtn').addEventListener('click', resetForm);
+        document.getElementById('cancelBtnTop').addEventListener('click', resetForm);
 
         async function loadProjects() {
             try {
@@ -1411,12 +1433,13 @@
                     loadProjects();
                     if (wasEditing) {
                         // Stay in editor — just flash a confirmation and update status
-                        var flash = document.getElementById('saveFlash');
-                        flash.textContent = 'Saved';
-                        flash.style.display = 'inline';
-                        flash.classList.remove('flash-fade');
-                        void flash.offsetWidth;
-                        flash.classList.add('flash-fade');
+                        document.querySelectorAll('.save-flash').forEach(f => {
+                            f.textContent = 'Saved';
+                            f.style.display = 'inline';
+                            f.classList.remove('flash-fade');
+                            void f.offsetWidth;
+                            f.classList.add('flash-fade');
+                        });
                         document.getElementById('currentStatus').textContent = status;
                     } else {
                         // New project — switch into edit mode for it
@@ -1492,9 +1515,9 @@
                 quill.root.innerHTML = p.content || '';
 
                 document.getElementById('formTitle').textContent = 'Edit Project';
-                document.getElementById('publishBtn').textContent = 'Update & Publish';
-                document.getElementById('draftBtn').textContent = 'Update as Draft';
+                document.querySelectorAll('.save-mode-select').forEach(sel => { sel.value = p.status || 'draft'; });
                 document.getElementById('cancelBtn').style.display = 'inline-block';
+                document.getElementById('cancelBtnTop').style.display = 'inline-block';
                 document.getElementById('statusIndicator').style.display = 'block';
                 document.getElementById('currentStatus').textContent = p.status;
                 document.getElementById('currentProjectStatus').textContent = p.project_status;
@@ -2066,9 +2089,9 @@
             document.getElementById('clearFetchBtn').style.display = 'none';
             quill.root.innerHTML = '';
             document.getElementById('formTitle').textContent = 'Create New Project';
-            document.getElementById('publishBtn').textContent = 'Publish Project';
-            document.getElementById('draftBtn').textContent = 'Save as Draft';
+            document.querySelectorAll('.save-mode-select').forEach(sel => { sel.value = 'published'; });
             document.getElementById('cancelBtn').style.display = 'none';
+            document.getElementById('cancelBtnTop').style.display = 'none';
             document.getElementById('statusIndicator').style.display = 'none';
         }
     })();
@@ -2090,8 +2113,24 @@
     .ps-one-off { background: #2dd4bf; color: #fff; }
     .ps-experiment { background: #00d4ff; color: #fff; }
     .ps-academic { background: #ff8c42; color: #fff; }
-    .ps-coming-soon { background: #00e5ff; color: #111; }
     .ps-inactive { background: #e74c3c; color: #fff; }
+    .status-coming-soon { background: #00e5ff; color: #111; }
+
+    /* Save-mode dropdown */
+    .save-mode-select {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--noir-gray, #444);
+        background: var(--noir-bg, #1a1a1a);
+        color: var(--noir-silver, #ccc);
+        font-size: 0.85rem;
+        cursor: pointer;
+    }
+    .form-actions-top {
+        margin-bottom: 16px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--noir-gray, #444);
+    }
 
     /* Save flash */
     .save-flash {
