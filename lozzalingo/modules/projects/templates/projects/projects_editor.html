@@ -53,7 +53,7 @@
                                 <option value="active">Active</option>
                                 <option value="paused">Paused</option>
                                 <option value="retired">Retired</option>
-                                <option value="limited-run">Limited Run</option>
+                                <option value="limited">Limited</option>
                                 <option value="one-off">One-Off</option>
                                 <option value="experiment">Experiment</option>
                                 <option value="academic">Academic</option>
@@ -169,6 +169,12 @@
                         <label for="content">Project Description *</label>
                         <div id="editor"></div>
                         <input type="hidden" id="content" name="content">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="externalUrl">External URL</label>
+                        <input type="url" id="externalUrl" name="external_url" placeholder="https://example.github.io/project">
+                        <small class="form-hint">If set, embeds this page instead of content on the public project page</small>
                     </div>
 
                     <div class="form-section">
@@ -1270,7 +1276,7 @@
                             ${p.status === 'published' ? 'Unpublish' : 'Publish'}
                         </button>
                         <select class="btn-small btn-toggle" name="project_status_${p.id}" onchange="window._setProjectStatus(${p.id}, this.value)" style="cursor:pointer;">
-                            ${['active','paused','retired','limited-run','one-off','experiment','academic'].map(s =>
+                            ${['active','paused','retired','limited','one-off','experiment','academic'].map(s =>
                                 `<option value="${s}"${s === (p.project_status || 'active') ? ' selected' : ''}>${s.replace('-',' ').replace(/\\b\\w/g,c=>c.toUpperCase())}</option>`
                             ).join('')}
                         </select>
@@ -1316,7 +1322,8 @@
                 gallery_images: document.getElementById('galleryImagesHidden').value || null,
                 gallery_layout: document.getElementById('galleryLayout').value || 'single',
                 hero_image_align: document.getElementById('heroImageAlign').value || 'center center',
-                insights: document.getElementById('insightsHidden').value || null
+                insights: document.getElementById('insightsHidden').value || null,
+                external_url: document.getElementById('externalUrl').value.trim() || null
             };
 
             try {
@@ -1395,6 +1402,7 @@
                 document.getElementById('earningsCurrency').value = p.earnings_currency || '£';
                 document.getElementById('earningsLabel').value = p.earnings_label || '';
                 setInsightsFromJSON(p.insights || '');
+                document.getElementById('externalUrl').value = p.external_url || '';
                 quill.root.innerHTML = p.content || '';
 
                 document.getElementById('formTitle').textContent = 'Edit Project';
@@ -1966,6 +1974,7 @@
             document.getElementById('metaDescription').value = '';
             document.getElementById('grossEarnings').value = '';
             document.getElementById('earningsCurrency').value = '£';
+            document.getElementById('externalUrl').value = '';
             quill.root.innerHTML = '';
             document.getElementById('formTitle').textContent = 'Create New Project';
             document.getElementById('publishBtn').textContent = 'Publish Project';
@@ -1988,7 +1997,7 @@
     .ps-active { background: #2ecc40; color: #fff; }
     .ps-paused { background: #f0b429; color: #fff; }
     .ps-retired { background: #e74c3c; color: #fff; }
-    .ps-limited-run { background: #b24dff; color: #fff; }
+    .ps-limited { background: #b24dff; color: #fff; }
     .ps-one-off { background: #2dd4bf; color: #fff; }
     .ps-experiment { background: #00d4ff; color: #fff; }
     .ps-academic { background: #ff8c42; color: #fff; }
