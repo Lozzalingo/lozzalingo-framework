@@ -236,6 +236,7 @@
             <div class="articles-list">
                 <div class="list-header">
                     <h2>Manage Projects</h2>
+                    <button type="button" class="btn-primary btn-new-project" id="newProjectBtn" name="new_project" onclick="window._resetForm()">+ New</button>
                     <div class="filter-controls">
                         <input type="text" id="projectSearch" class="filter-input" placeholder="Search projects...">
                         <select id="projectFilter" class="filter-select">
@@ -1453,6 +1454,8 @@
             } catch (e) { alert('Error saving project: ' + e.message); }
         }
 
+        window._resetForm = resetForm;
+
         window._editProject = async function(id) {
             try {
                 const res = await fetch(`${API_BASE}/${id}`);
@@ -2060,6 +2063,7 @@
         })();
 
         function resetForm() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             editingId = null;
             document.getElementById('projectId').value = '';
             document.getElementById('title').value = '';
@@ -2099,6 +2103,8 @@
     </script>
 
     <style>
+    .btn-new-project { font-size: 0.8rem; padding: 6px 14px; }
+    .list-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .form-section { margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--noir-gray); }
     .form-section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; color: var(--noir-silver); }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
