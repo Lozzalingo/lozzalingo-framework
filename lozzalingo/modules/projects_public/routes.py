@@ -5,7 +5,7 @@ Projects Public Routes
 Public-facing project portfolio pages and API.
 """
 
-from flask import Blueprint, render_template, jsonify, redirect, url_for, flash, request
+from flask import Blueprint, render_template, jsonify, redirect, url_for, flash, request, make_response, abort
 import json
 import re
 
@@ -96,6 +96,21 @@ def project_detail(slug):
     return render_template('projects_public/project_detail.html',
                          project=project, related_projects=related_projects,
                          tech_categories=tech_categories)
+
+
+@projects_public_bp.route('/<slug>/embed')
+def project_embed(slug):
+    """Serve a project's content as a raw HTML page (for external-URL embeds)."""
+    from lozzalingo.modules.projects.routes import get_project_by_slug_db, init_projects_db
+    init_projects_db()
+    project = get_project_by_slug_db(slug)
+
+    if not project or not project.get('external_url'):
+        abort(404)
+
+    response = make_response(project.get('content', ''))
+    response.headers['Content-Type'] = 'text/html'
+    return response
 
 
 # ===== API Routes =====

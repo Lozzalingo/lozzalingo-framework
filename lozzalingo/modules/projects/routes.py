@@ -13,6 +13,8 @@ import os
 import uuid
 from datetime import datetime
 import re
+import requests
+from urllib.parse import urljoin, urlparse
 
 # ===== Database Helper Functions =====
 
@@ -481,6 +483,70 @@ def _auto_seo(content, excerpt, meta_description):
             meta_description = truncated + '...'
 
     return excerpt, meta_description
+
+
+def fetch_external_content(url):
+    """Fetch a full HTML page from *url* and prepare it for iframe-free embedding.
+
+    Processing steps:
+    1. Inject a viewport meta tag into <head> if one isn't already present.
+    2. Inject a small responsive-fix <style> block into <head>.
+    3. Rewrite relative src= and href= attributes to absolute URLs based on *url*.
+
+    Returns the processed HTML string.
+    """
+    resp = requests.get(url, timeout=15)
+    resp.raise_for_status()
+    html = resp.text
+
+    # --- 1. Inject viewport meta if missing ---
+    viewport_tag = '<meta name="viewport" content="width=device-width, initial-scale=1">'
+    if 'name="viewport"' not in html and "name='viewport'" not in html:
+        # Insert right after <head> (or <head ...>)
+        html = re.sub(
+            r'(<head[^>]*>)',
+            r'\1\n' + viewport_tag,
+            html,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+
+    # --- 2. Inject responsive style block ---
+    responsive_style = (
+        '<style>'
+        'body{overflow-x:hidden;max-width:100%;box-sizing:border-box}'
+        'img,table,pre,code{max-width:100%;overflow-x:auto}'
+        '</style>'
+    )
+    html = re.sub(
+        r'(<head[^>]*>)',
+        r'\1\n' + responsive_style,
+        html,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+
+    # --- 3. Rewrite relative URLs to absolute ---
+    _SKIP_PREFIXES = ('http://', 'https://', '//', 'data:', 'mailto:', '#', 'javascript:')
+
+    def _make_absolute(match):
+        attr = match.group(1)   # src or href
+        quote = match.group(2)  # the quote character (' or ")
+        value = match.group(3)  # the URL value
+        if value.startswith(_SKIP_PREFIXES):
+            return match.group(0)
+        absolute = urljoin(url, value)
+        return f'{attr}={quote}{absolute}{quote}'
+
+    html = re.sub(
+        r'(src|href)=(["\'])(.*?)\2',
+        _make_absolute,
+        html,
+        flags=re.IGNORECASE,
+    )
+
+    return html
+
 
 # ===== Routes =====
 
@@ -1170,4 +1236,30 @@ def delete_tech_registry(name):
             return jsonify({'error': 'Entry not found'}), 404
     except Exception as e:
         print(f"Error deleting tech registry entry: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ================================
+# FETCH EXTERNAL CONTENT
+# ================================
+
+@projects_bp.route('/api/projects/fetch-external', methods=['POST'])
+def fetch_external():
+    """Fetch and process an external HTML page for embedding as project content."""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    try:
+        data = request.get_json(silent=True) or {}
+        url = (data.get('url') or '').strip()
+        if not url:
+            return jsonify({'error': 'URL is required'}), 400
+
+        html = fetch_external_content(url)
+        return jsonify({'success': True, 'html': html})
+    except requests.RequestException as e:
+        print(f"Error fetching external content: {e}")
+        return jsonify({'error': f'Failed to fetch URL: {e}'}), 502
+    except Exception as e:
+        print(f"Error fetching external content: {e}")
         return jsonify({'error': str(e)}), 500

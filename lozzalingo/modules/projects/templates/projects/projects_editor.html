@@ -173,8 +173,13 @@
 
                     <div class="form-group">
                         <label for="externalUrl">External URL</label>
-                        <input type="url" id="externalUrl" name="external_url" placeholder="https://example.github.io/project">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="url" id="externalUrl" name="external_url" placeholder="https://example.github.io/project" style="flex: 1;">
+                            <button type="button" class="btn-secondary" id="fetchExternalBtn" name="fetch_external_content" style="white-space:nowrap;" onclick="fetchExternalContent()">Fetch Content</button>
+                            <span id="fetchStatus" style="font-size: 0.85em; white-space: nowrap;"></span>
+                        </div>
                         <small class="form-hint">Embeds this page instead of content. Set excerpt &amp; meta description below for SEO.</small>
+                        <textarea id="fetchedExternalContent" style="display:none;"></textarea>
                     </div>
 
                     <div class="form-section">
@@ -1300,12 +1305,47 @@
         document.getElementById('projectSearch').addEventListener('input', () => renderProjects(cachedProjects));
         document.getElementById('projectFilter').addEventListener('change', () => renderProjects(cachedProjects));
 
+        async function fetchExternalContent() {
+            const url = document.getElementById('externalUrl').value.trim();
+            if (!url) { alert('Enter an External URL first'); return; }
+            const statusEl = document.getElementById('fetchStatus');
+            const btn = document.getElementById('fetchExternalBtn');
+            statusEl.textContent = 'Fetching...';
+            statusEl.style.color = '';
+            btn.disabled = true;
+            try {
+                const res = await fetch(API_BASE + '/fetch-external', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url: url})
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('fetchedExternalContent').value = data.html;
+                    const sizeKb = (new Blob([data.html]).size / 1024).toFixed(1);
+                    statusEl.textContent = 'Content fetched (' + sizeKb + 'kb)';
+                    statusEl.style.color = 'green';
+                } else {
+                    statusEl.textContent = data.error || 'Fetch failed';
+                    statusEl.style.color = 'red';
+                }
+            } catch (e) {
+                statusEl.textContent = 'Error: ' + e.message;
+                statusEl.style.color = 'red';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+        window.fetchExternalContent = fetchExternalContent;
+
         async function saveProject(status) {
             const title = document.getElementById('title').value.trim();
-            const content = quill.root.innerHTML;
+            const quillContent = quill.root.innerHTML;
             const hasExternalUrl = document.getElementById('externalUrl').value.trim();
+            const fetchedContent = document.getElementById('fetchedExternalContent').value;
+            const content = (hasExternalUrl && fetchedContent) ? fetchedContent : quillContent;
             if (!title) { alert('Title is required'); return; }
-            if (!hasExternalUrl && (!content || content === '<p><br></p>')) { alert('Content is required (or set an External URL)'); return; }
+            if (!hasExternalUrl && (!quillContent || quillContent === '<p><br></p>')) { alert('Content is required (or set an External URL)'); return; }
 
             syncGalleryHidden();
             const body = {
@@ -1405,6 +1445,15 @@
                 document.getElementById('earningsLabel').value = p.earnings_label || '';
                 setInsightsFromJSON(p.insights || '');
                 document.getElementById('externalUrl').value = p.external_url || '';
+                if (p.external_url && p.content) {
+                    document.getElementById('fetchedExternalContent').value = p.content;
+                    const sizeKb = (new Blob([p.content]).size / 1024).toFixed(1);
+                    document.getElementById('fetchStatus').textContent = 'Content fetched (' + sizeKb + 'kb)';
+                    document.getElementById('fetchStatus').style.color = 'green';
+                } else {
+                    document.getElementById('fetchedExternalContent').value = '';
+                    document.getElementById('fetchStatus').textContent = '';
+                }
                 quill.root.innerHTML = p.content || '';
 
                 document.getElementById('formTitle').textContent = 'Edit Project';
@@ -1977,6 +2026,8 @@
             document.getElementById('grossEarnings').value = '';
             document.getElementById('earningsCurrency').value = '£';
             document.getElementById('externalUrl').value = '';
+            document.getElementById('fetchedExternalContent').value = '';
+            document.getElementById('fetchStatus').textContent = '';
             quill.root.innerHTML = '';
             document.getElementById('formTitle').textContent = 'Create New Project';
             document.getElementById('publishBtn').textContent = 'Publish Project';
