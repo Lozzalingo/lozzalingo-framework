@@ -176,6 +176,9 @@ def get_all_tech_categories():
         print(f"Error reading tech_registry: {e}")
         return {}
 
+# NOTE: Do NOT add fetched_content here — it can be several MB and would load
+# on every homepage/list request. It is queried separately only where needed:
+# get_project_db() for the editor, and the /embed endpoint.
 _SELECT_COLS = '''id, title, slug, content, image_url, year, status, project_status,
                   excerpt, meta_description, technologies, created_at, updated_at,
                   year_end, gross_earnings, earnings_currency,
