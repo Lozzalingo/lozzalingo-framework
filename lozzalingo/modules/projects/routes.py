@@ -519,7 +519,7 @@ def fetch_external_content(url):
     # --- 2. Inject responsive style block ---
     responsive_style = (
         '<style>'
-        'body{overflow-x:hidden;max-width:100%;box-sizing:border-box}'
+        'html,body{overflow:hidden;max-width:100%;box-sizing:border-box}'
         'img,table{max-width:100%}'
         'pre{max-width:100%;overflow-x:auto;box-sizing:border-box}'
         '@media(max-width:768px){body{font-size:14px}h1{font-size:1.4em}h2{font-size:1.2em}h3{font-size:1.1em}}'
