@@ -74,8 +74,16 @@
                         </div>
                         <div class="form-group">
                             <label for="earningsLabel">Earnings Label</label>
-                            <input type="text" id="earningsLabel" name="earnings_label" placeholder="e.g. Educational, Experiment, Marketing" maxlength="30">
-                            <small class="form-hint">Shown instead of earnings when no monetary value (e.g. "Educational", "Experiment")</small>
+                            <select id="earningsLabel" name="earnings_label">
+                                <option value="">None</option>
+                                <option value="Educational">Educational</option>
+                                <option value="Experiment">Experiment</option>
+                                <option value="Business">Business</option>
+                                <option value="Freelance">Freelance</option>
+                                <option value="Open Source">Open Source</option>
+                                <option value="Internal Tool">Internal Tool</option>
+                            </select>
+                            <small class="form-hint">Shown instead of earnings when no monetary value</small>
                         </div>
                     </div>
 
