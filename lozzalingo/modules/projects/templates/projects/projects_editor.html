@@ -174,7 +174,7 @@
                     <div class="form-group">
                         <label for="externalUrl">External URL</label>
                         <input type="url" id="externalUrl" name="external_url" placeholder="https://example.github.io/project">
-                        <small class="form-hint">If set, embeds this page instead of content on the public project page</small>
+                        <small class="form-hint">Embeds this page instead of content. Set excerpt &amp; meta description below for SEO.</small>
                     </div>
 
                     <div class="form-section">
@@ -1303,7 +1303,9 @@
         async function saveProject(status) {
             const title = document.getElementById('title').value.trim();
             const content = quill.root.innerHTML;
-            if (!title || !content || content === '<p><br></p>') { alert('Title and content are required'); return; }
+            const hasExternalUrl = document.getElementById('externalUrl').value.trim();
+            if (!title) { alert('Title is required'); return; }
+            if (!hasExternalUrl && (!content || content === '<p><br></p>')) { alert('Content is required (or set an External URL)'); return; }
 
             syncGalleryHidden();
             const body = {
