@@ -750,6 +750,21 @@
                             this.quill.insertText(range.index, '\n', Quill.sources.USER);
                             this.quill.insertEmbed(range.index + 1, 'divider', true, Quill.sources.USER);
                             this.quill.setSelection(range.index + 2, Quill.sources.SILENT);
+                        },
+                        'link': function() {
+                            var range = this.quill.getSelection(true);
+                            var selectedText = this.quill.getText(range.index, range.length);
+                            var url = prompt('URL:');
+                            if (!url) return;
+                            if (range.length > 0) {
+                                // Text was selected — wrap it as a link
+                                this.quill.formatText(range.index, range.length, 'link', url);
+                            } else {
+                                // No selection — ask for label text
+                                var label = prompt('Link text:', url);
+                                if (!label) label = url;
+                                this.quill.insertText(range.index, label, 'link', url, Quill.sources.USER);
+                            }
                         }
                     }
                 }
