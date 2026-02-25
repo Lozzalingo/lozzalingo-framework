@@ -89,6 +89,9 @@ def project_detail(slug):
         flash('Project not found', 'error')
         return redirect(url_for('projects.projects_list'))
 
+    if project.get('project_status') == 'coming-soon':
+        return redirect('/')
+
     all_projects = get_all_projects_db(status='published')
     related_projects = [p for p in all_projects if p['slug'] != slug][:3]
     tech_categories = get_all_tech_categories()
@@ -160,6 +163,10 @@ def upvote_project(project_id):
     try:
         with db_connect(projects_db) as conn:
             cursor = conn.cursor()
+            cursor.execute('SELECT project_status FROM projects WHERE id = ?', (project_id,))
+            row = cursor.fetchone()
+            if row and row[0] == 'coming-soon':
+                return jsonify({'success': False, 'error': 'coming-soon'}), 400
             cursor.execute(
                 'INSERT OR IGNORE INTO project_upvotes (project_id, fingerprint_hash) VALUES (?, ?)',
                 (project_id, fingerprint_hash)
