@@ -943,6 +943,19 @@
             });
         })();
 
+        // === YouTube helpers ===
+        function isYouTube(url) {
+            return /(?:youtube\.com\/watch\?.*v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{11})/.test(url || '');
+        }
+        function getYouTubeId(url) {
+            var m = (url || '').match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{11})/);
+            return m ? m[1] : '';
+        }
+        function youtubeThumb(url) {
+            var id = getYouTubeId(url);
+            return id ? 'https://img.youtube.com/vi/' + id + '/mqdefault.jpg' : url;
+        }
+
         // === Gallery State ===
         let galleryImages = [];
         let galleryLayout = 'single';
@@ -963,13 +976,17 @@
         function renderGalleryThumbs() {
             const container = document.getElementById('galleryThumbs');
             if (!galleryImages.length) { container.innerHTML = '<p class="gallery-empty">No images added yet</p>'; return; }
-            container.innerHTML = galleryImages.map((url, i) => `
+            container.innerHTML = galleryImages.map((url, i) => {
+                const thumbSrc = isYouTube(url) ? youtubeThumb(url) : url;
+                const playOverlay = isYouTube(url) ? '<span class="gallery-thumb-play">&#9654;</span>' : '';
+                return `
                 <div class="gallery-thumb" draggable="true" data-idx="${i}">
                     <span class="gallery-thumb-num">${i + 1}</span>
-                    <img src="${url}" alt="Gallery image ${i + 1}">
+                    <img src="${thumbSrc}" alt="Gallery image ${i + 1}">
+                    ${playOverlay}
                     <button type="button" class="gallery-thumb-remove" name="gallery_remove_${i}" data-idx="${i}">&times;</button>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
 
             // Remove buttons
             container.querySelectorAll('.gallery-thumb-remove').forEach(btn => {
@@ -1025,7 +1042,8 @@
         const focalHint = document.getElementById('focalDraggerHint');
 
         function updateFocalPreview() {
-            const src = galleryImages.length ? galleryImages[0] : '';
+            const raw = galleryImages.length ? galleryImages[0] : '';
+            const src = raw && isYouTube(raw) ? youtubeThumb(raw) : raw;
             if (src) {
                 focalImg.src = src;
                 focalImg.style.display = 'block';
@@ -2464,6 +2482,12 @@
     }
     .gallery-thumb:hover .gallery-thumb-remove { display: flex; }
     .gallery-thumb-remove:hover { background: #e74c3c; }
+    .gallery-thumb-play {
+        position: absolute; bottom: 3px; left: 3px;
+        background: rgba(255,0,0,0.8); color: #fff;
+        font-size: 0.65rem; padding: 1px 5px; border-radius: 3px;
+        line-height: 1.3; pointer-events: none;
+    }
 
     /* Inline image toolbar */
     .img-toolbar {

@@ -66,6 +66,44 @@ def parse_insights_filter(value):
     return []
 
 
+# ===== YouTube helpers =====
+
+_YT_PATTERNS = [
+    re.compile(r'(?:https?://)?(?:www\.)?youtube\.com/watch\?.*v=([A-Za-z0-9_-]{11})'),
+    re.compile(r'(?:https?://)?youtu\.be/([A-Za-z0-9_-]{11})'),
+    re.compile(r'(?:https?://)?(?:www\.)?youtube\.com/embed/([A-Za-z0-9_-]{11})'),
+]
+
+
+def _extract_yt_id(url):
+    """Return the 11-char YouTube video ID, or None."""
+    if not url or not isinstance(url, str):
+        return None
+    for pat in _YT_PATTERNS:
+        m = pat.search(url)
+        if m:
+            return m.group(1)
+    return None
+
+
+@projects_public_bp.app_template_filter('is_youtube')
+def is_youtube_filter(url):
+    return _extract_yt_id(url) is not None
+
+
+@projects_public_bp.app_template_filter('youtube_id')
+def youtube_id_filter(url):
+    return _extract_yt_id(url) or ''
+
+
+@projects_public_bp.app_template_filter('youtube_thumb')
+def youtube_thumb_filter(url):
+    vid = _extract_yt_id(url)
+    if vid:
+        return f'https://img.youtube.com/vi/{vid}/maxresdefault.jpg'
+    return url
+
+
 # ===== Routes =====
 
 @projects_public_bp.route('/')
