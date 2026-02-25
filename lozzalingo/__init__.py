@@ -750,15 +750,17 @@ class Lozzalingo:
             if issue_count > 1:
                 summary = f'{issue_count} issues detected'
 
+            banner_key = f'ops_dismissed_{issue_count}'
             banner_html = (
                 f'<div id="ops-banner" style="background:{bg};color:{color};border-bottom:2px solid {border};'
                 f'padding:8px 16px;font-size:13px;display:flex;align-items:center;justify-content:space-between;'
                 f'font-family:-apple-system,BlinkMacSystemFont,sans-serif;z-index:9999;position:relative;">'
                 f'<span><strong>{label}:</strong> {summary} &mdash; '
                 f'<a href="/admin/ops" style="color:{color};text-decoration:underline;">View Ops Dashboard</a></span>'
-                f'<button name="dismiss_ops_banner" onclick="this.parentElement.remove()" '
+                f'<button name="dismiss_ops_banner" onclick="sessionStorage.setItem(\'{banner_key}\',\'1\');this.parentElement.remove()" '
                 f'style="background:none;border:none;color:{color};cursor:pointer;font-size:18px;padding:0 4px;">'
                 f'&times;</button></div>'
+                f'<script>if(sessionStorage.getItem(\'{banner_key}\'))document.getElementById("ops-banner").remove()</script>'
             )
 
             # Inject after <body> tag
