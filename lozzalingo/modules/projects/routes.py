@@ -267,7 +267,7 @@ def get_all_projects_db(status=None, project_status=None):
             cursor.execute(f'''
                 SELECT {_SELECT_COLS}
                 FROM projects{where}
-                ORDER BY year DESC, created_at DESC
+                ORDER BY CASE WHEN status = 'coming-soon' THEN 1 ELSE 0 END, year DESC, created_at DESC
             ''', params)
 
             return [_row_to_dict(row) for row in cursor.fetchall()]
