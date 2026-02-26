@@ -329,6 +329,26 @@
         </div>
     </div>
 
+    <!-- Update Email Modal -->
+    <div id="updateEmailModal" class="ib-overlay" style="display:none;">
+        <div class="ib-card" style="max-width:500px;">
+            <div class="ib-header">
+                <h3>Send Project Update</h3>
+                <button type="button" class="ib-close" id="updateEmailCloseBtn">&times;</button>
+            </div>
+            <div style="padding:20px;">
+                <p style="margin:0 0 12px;font-size:0.85rem;color:var(--lz-muted);">
+                    Describe what's changed — subscribers will see this in the email.
+                </p>
+                <textarea id="updateEmailDesc" rows="4" style="width:100%;padding:10px;border:1px solid var(--lz-border);border-radius:6px;background:var(--lz-input-bg);color:var(--lz-text);font-family:inherit;font-size:0.9rem;resize:vertical;box-sizing:border-box;"></textarea>
+                <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">
+                    <button type="button" id="updateEmailCancelBtn" class="btn-secondary">Cancel</button>
+                    <button type="button" id="updateEmailSendBtn" class="btn-primary">Send Update</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Floating image toolbar (positioned inside .ql-container) -->
     <div id="imgToolbar" class="img-toolbar" style="display:none;">
         <span class="img-tb-group">
@@ -1351,6 +1371,7 @@
                         </button>
                         <button class="btn-small btn-delete" name="project_delete_${p.id}" onclick="window._deleteProject(${p.id})">Delete</button>
                         ${p.status === 'published' ? `<button class="btn-small email-btn" name="send_project_email_${p.id}" onclick="window._sendProjectEmail(${p.id})">${p.email_sent ? 'Resend Email' : 'Send Email'}</button>` : ''}
+                        ${p.status === 'published' && p.email_sent ? `<button class="btn-small email-btn" name="send_project_update_${p.id}" onclick="window._sendProjectUpdate(${p.id})">Send Update</button>` : ''}
                         ${p.status === 'published' ? `<div class="share-dropdown" style="display:inline-block;position:relative;">
                             <button class="btn-small share-btn" onclick="this.nextElementSibling.classList.toggle('show')">Share ▾</button>
                             <div class="share-menu">
@@ -1599,6 +1620,45 @@
             } finally {
                 btn.disabled = false;
                 btn.textContent = originalText;
+            }
+        };
+
+        // ===== Send Project Update =====
+        window._sendProjectUpdate = function(id) {
+            document.getElementById('updateEmailDesc').value = '';
+            document.getElementById('updateEmailModal').style.display = 'flex';
+            document.getElementById('updateEmailModal').dataset.projectId = id;
+        };
+        document.getElementById('updateEmailCloseBtn').onclick =
+        document.getElementById('updateEmailCancelBtn').onclick = function() {
+            document.getElementById('updateEmailModal').style.display = 'none';
+        };
+        document.getElementById('updateEmailSendBtn').onclick = async function() {
+            const modal = document.getElementById('updateEmailModal');
+            const desc = document.getElementById('updateEmailDesc').value.trim();
+            const id = modal.dataset.projectId;
+            if (!desc) { alert('Please describe what changed.'); return; }
+            const btn = this;
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            try {
+                const res = await fetch(`${API_BASE}/${id}/send-update-email`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ description: desc })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    alert(`Update email sent to ${data.subscriber_count} subscribers!`);
+                    modal.style.display = 'none';
+                } else {
+                    alert(data.message || data.error || 'Failed to send update email');
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Send Update';
             }
         };
 

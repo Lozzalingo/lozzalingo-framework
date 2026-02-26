@@ -551,19 +551,21 @@ The {self.brand_name} Team
             <p style="font-size: 16px; margin: 16px 0; line-height: 1.7;">Your order has been successfully received and will be processed with care.</p>
 
             <div style="background: {s['highlight_bg']}; padding: 24px; margin: 24px 0; border-left: 4px solid {s['highlight_border']};">
-                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid {s['border']}; font-size: 15px;">
-                    <span style="color: {s['text_secondary']};">Order ID:</span>
-                    <span><strong>{order_id}</strong></span>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid {s['border']}; font-size: 15px;">
-                    <span style="color: {s['text_secondary']};">Product:</span>
-                    <span>{product_name}</span>
-                </div>
-                {f'<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid {s["border"]}; font-size: 15px;"><span style="color: {s["text_secondary"]};">Size:</span><span>{size}</span></div>' if size else ''}
-                <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 18px; font-weight: bold; padding-top: 16px; color: {s['accent']};">
-                    <span>Total:</span>
-                    <span>{currency_symbol}{amount:.2f}</span>
-                </div>
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 15px;">
+                    <tr>
+                        <td style="color: {s['text_secondary']}; padding: 8px 0; border-bottom: 1px solid {s['border']}; white-space: nowrap; width: 90px;">Order ID:</td>
+                        <td style="padding: 8px 0; border-bottom: 1px solid {s['border']}; text-align: right;"><strong>{order_id}</strong></td>
+                    </tr>
+                    <tr>
+                        <td style="color: {s['text_secondary']}; padding: 8px 0; border-bottom: 1px solid {s['border']}; vertical-align: top; white-space: nowrap; width: 90px;">Product:</td>
+                        <td style="padding: 8px 0; border-bottom: 1px solid {s['border']}; text-align: right;">{product_name}</td>
+                    </tr>
+                    {f'<tr><td style="color: {s["text_secondary"]}; padding: 8px 0; border-bottom: 1px solid {s["border"]}; white-space: nowrap; width: 90px;">Size:</td><td style="padding: 8px 0; border-bottom: 1px solid {s["border"]}; text-align: right;">{size}</td></tr>' if size else ''}
+                    <tr>
+                        <td style="padding: 16px 0 8px 0; font-size: 18px; font-weight: bold; color: {s['accent']};">Total:</td>
+                        <td style="padding: 16px 0 8px 0; font-size: 18px; font-weight: bold; color: {s['accent']}; text-align: right;">{currency_symbol}{amount:.2f}</td>
+                    </tr>
+                </table>
             </div>
 
             <div style="background: {s['highlight_bg']}; padding: 20px; margin: 24px 0;">
@@ -650,8 +652,11 @@ The {self.brand_name} Team
         .content {{ padding: 30px; }}
         .success-badge {{ background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 16px; margin: 16px 0; border-radius: 4px; text-align: center; font-weight: bold; }}
         .order-details {{ background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 6px; border-left: 4px solid #28a745; }}
-        .order-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e9ecef; }}
+        .order-row {{ padding: 8px 0; border-bottom: 1px solid #e9ecef; }}
         .order-row:last-child {{ border-bottom: none; }}
+        .order-row table {{ width: 100%; }}
+        .order-row td:first-child {{ white-space: nowrap; width: 90px; vertical-align: top; }}
+        .order-row td:last-child {{ text-align: right; }}
         .tracking-box {{ background: #fff3cd; border: 1px solid #ffeaa7; padding: 16px; margin: 20px 0; border-radius: 4px; text-align: center; }}
         .tracking-number {{ font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold; color: #856404; background: white; padding: 12px; border-radius: 4px; margin: 12px 0; letter-spacing: 1px; }}
         .divider {{ border-top: 1px solid #e9ecef; margin: 24px 0; }}
@@ -676,12 +681,10 @@ The {self.brand_name} Team
             <div class="order-details">
                 <h3 style="margin-top: 0;">Order Information</h3>
                 <div class="order-row">
-                    <span>Order ID:</span>
-                    <span><strong>ORD-{str(order_id).zfill(6)}</strong></span>
+                    <table><tr><td>Order ID:</td><td><strong>ORD-{str(order_id).zfill(6)}</strong></td></tr></table>
                 </div>
                 <div class="order-row">
-                    <span>Items:</span>
-                    <span>{items_html}</span>
+                    <table><tr><td>Items:</td><td>{items_html}</td></tr></table>
                 </div>
             </div>
 
@@ -864,6 +867,83 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
             <div style="border-top: 1px solid {s['border']}; margin: 32px 0;"></div>
 
             <p style="font-size: 16px; margin: 16px 0; line-height: 1.7;">Check out the latest from {self.brand_name}.</p>
+        </div>
+
+        <div style="background: {s['footer_bg']}; padding: 24px; text-align: center; font-size: 13px; color: {s['text_secondary']}; border-top: 1px solid {s['border']};">
+            <p style="margin: 4px 0;">{self.brand_name} . {datetime.now().year}</p>
+            <p style="margin: 4px 0;"><a href="{self.website_url}/unsubscribe" style="color: {s['link']};">Unsubscribe</a> | <a href="{self.website_url}" style="color: {s['link']};">Website</a></p>
+        </div>
+    </div>
+</body>
+</html>
+        """
+
+    # ==================== Project Update Notifications ====================
+
+    def send_project_update_notification(self, subscribers: List[str], project: Dict[str, Any]) -> bool:
+        """Send project update notification to all subscribers.
+
+        project dict should include an 'update_description' key with the admin's
+        description of what changed.
+        """
+        subject = f"Project Updated: {project.get('title', f'{self.brand_name} Project')}"
+
+        html_body = self._get_project_update_template(project)
+        text_body = f"""
+Project updated on {self.brand_name}!
+
+{project.get('title', 'Project Update')}
+
+What's changed:
+{project.get('update_description', '')}
+
+Check it out: {self.website_url}{project.get('url', '/projects/' + project.get('slug', ''))}
+
+Best regards,
+The {self.brand_name} Team
+
+To unsubscribe, visit: {self.website_url}/unsubscribe
+        """
+
+        return self.send_email(subscribers, subject, html_body, text_body)
+
+    def _get_project_update_template(self, project: Dict[str, Any]) -> str:
+        """Get project update notification email HTML template"""
+        s = self.style
+        title = project.get('title', 'Project Update')
+        update_description = project.get('update_description', '')
+        project_url = f"{self.website_url}{project.get('url', '/projects/' + project.get('slug', ''))}"
+
+        return f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title} - {self.brand_name}</title>
+</head>
+<body style="font-family: {s['font']}; line-height: 1.6; color: {s['text']}; background: {s['bg']}; max-width: 600px; margin: 0 auto; padding: 24px;">
+    <div style="background: {s['card_bg']}; border: 1px solid {s['border']}; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+        <div style="background: {s['header_bg']}; color: {s['header_text']}; padding: 32px; text-align: center;">
+            <h1 style="font-family: {s['font_heading']}; font-size: 24px; margin: 0 0 8px 0; font-weight: normal; letter-spacing: 2px;">{self.brand_name.upper()}</h1>
+            <p style="font-size: 14px; margin: 0; opacity: 0.8;">Project Updated</p>
+        </div>
+
+        <div style="padding: 40px 32px;">
+            <h2 style="font-family: {s['font_heading']}; font-size: 22px; margin: 0 0 24px 0; font-weight: normal; color: {s['text']}; line-height: 1.3;">{title}</h2>
+
+            <div style="background: {s['highlight_bg']}; padding: 24px; margin: 24px 0; border-left: 4px solid {s['highlight_border']};">
+                <p style="margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: {s['accent']}; font-family: {s['font_heading']};"><strong>What's changed</strong></p>
+                <p style="font-size: 15px; line-height: 1.6; margin: 0; color: {s['text']};">{update_description}</p>
+            </div>
+
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="{project_url}" style="display: inline-block; background: {s['btn_bg']}; color: {s['btn_text']}; padding: 14px 28px; text-decoration: none; font-weight: bold; font-size: 16px; font-family: {s['font_heading']};">View Project</a>
+            </div>
+
+            <div style="border-top: 1px solid {s['border']}; margin: 32px 0;"></div>
+
+            <p style="font-size: 16px; margin: 16px 0; line-height: 1.7;">Check out what's new on {self.brand_name}.</p>
         </div>
 
         <div style="background: {s['footer_bg']}; padding: 24px; text-align: center; font-size: 13px; color: {s['text_secondary']}; border-top: 1px solid {s['border']};">

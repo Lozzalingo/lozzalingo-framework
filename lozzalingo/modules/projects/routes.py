@@ -1108,6 +1108,86 @@ def send_project_email(project_id):
         return jsonify({'error': str(e)}), 500
 
 
+@projects_bp.route('/api/projects/<int:project_id>/send-update-email', methods=['POST'])
+def send_project_update_email(project_id):
+    """Send project update email to subscribers"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Admin access required'}), 401
+
+    try:
+        data = request.get_json(silent=True) or {}
+        description = (data.get('description') or '').strip()
+        if not description:
+            return jsonify({'error': 'Update description is required'}), 400
+
+        init_projects_db()
+        project = get_project_db(project_id)
+        if not project:
+            return jsonify({'error': 'Project not found'}), 404
+
+        # Get subscriber emails
+        get_subscriber_emails = None
+        try:
+            from lozzalingo.modules.subscribers.routes import get_all_subscriber_emails
+            get_subscriber_emails = get_all_subscriber_emails
+        except ImportError:
+            pass
+
+        if get_subscriber_emails is None:
+            return jsonify({'error': 'Subscribers module not available'}), 500
+
+        subscribers = get_subscriber_emails()
+        if not subscribers:
+            return jsonify({
+                'success': False,
+                'message': 'No subscribers found',
+                'subscriber_count': 0
+            }), 200
+
+        # Build project URL
+        slug = project.get('slug', '')
+        project_url = f"/projects/{slug}"
+
+        # Prepare project data with update description
+        project_data = {
+            'id': project['id'],
+            'title': project['title'],
+            'slug': slug,
+            'url': project_url,
+            'update_description': description,
+        }
+
+        # Get email service
+        email_svc = None
+        try:
+            from lozzalingo.modules.email.email_service import email_service
+            email_svc = email_service
+        except ImportError:
+            pass
+
+        if email_svc is None:
+            return jsonify({'error': 'Email service not available'}), 500
+
+        success = email_svc.send_project_update_notification(subscribers, project_data)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Update email sent to {len(subscribers)} subscribers',
+                'subscriber_count': len(subscribers)
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to send update email',
+                'subscriber_count': len(subscribers)
+            }), 500
+
+    except Exception as e:
+        print(f"Error sending project update email: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 def _mark_project_email_sent(project_id):
     """Mark a project as having had its email sent"""
     projects_db = get_db_config()
