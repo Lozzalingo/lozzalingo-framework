@@ -625,7 +625,7 @@ function displayArticles(articles, isFiltered) {
                         ${toggleBtn}
                         <button class="email-btn" onclick="sendArticleEmail(${article.id})" title="Send/Resend email to subscribers">Send Email</button>
                         <div class="share-dropdown">
-                            <button class="share-btn" onclick="this.nextElementSibling.classList.toggle('show')">Share ▾</button>
+                            <button class="share-btn" onclick="toggleShareMenu(this)">Share ▾</button>
                             <div class="share-menu">
                                 <div class="share-item" onclick="crosspostArticle(${article.id},'linkedin')">${article.crossposted_linkedin ? '✓ ' : ''}LinkedIn</div>
                                 <div class="share-item" onclick="crosspostArticle(${article.id},'medium')">${article.crossposted_medium ? '✓ ' : '✉ '}Medium (Request API)</div>
@@ -919,6 +919,23 @@ async function sendArticleEmail(id) {
         emailBtn.textContent = originalText;
     }
 }
+
+// ===== Share menu toggle =====
+
+function toggleShareMenu(btn) {
+    var menu = btn.nextElementSibling;
+    var isOpen = menu.classList.contains('show');
+    // Close all other open menus first
+    document.querySelectorAll('.share-menu.show').forEach(m => m.classList.remove('show'));
+    if (!isOpen) menu.classList.add('show');
+}
+
+// Close share menus when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.share-dropdown')) {
+        document.querySelectorAll('.share-menu.show').forEach(m => m.classList.remove('show'));
+    }
+});
 
 // ===== Cross-post article =====
 

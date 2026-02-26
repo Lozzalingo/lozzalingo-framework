@@ -339,6 +339,8 @@
     background: var(--noir-dark);
     border: 1px solid var(--noir-gray);
     padding: 20px;
+    position: relative;
+    z-index: 1;
     margin-bottom: 20px;
     border-radius: 8px;
     transition: all 0.3s ease;
@@ -536,6 +538,7 @@
     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 .share-menu.show { display: block; }
+.article-item:has(.share-menu.show) { z-index: 100; }
 .share-item {
     padding: 8px 14px; cursor: pointer; color: #e8e0d4;
     font-size: 13px; white-space: nowrap;
