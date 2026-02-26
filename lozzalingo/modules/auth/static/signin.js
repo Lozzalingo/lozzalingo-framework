@@ -32,10 +32,15 @@ document.getElementById('signinForm').addEventListener('submit', function(e) {
             }, 1500);
         } else {
             showMessage(data.message, 'error');
-            
+
             // Show resend verification email option if needed
             if (data.show_resend && data.email) {
                 showResendVerificationOption(data.email);
+            }
+
+            // Show registration prompt on invalid credentials
+            if (data.message === 'Invalid email or password') {
+                showRegistrationPrompt();
             }
         }
     })
@@ -116,6 +121,14 @@ function resendVerificationEmail(email, button) {
         showMessage('Failed to resend verification email. Please try again.', 'error');
         console.error('Error:', error);
     });
+}
+
+function showRegistrationPrompt() {
+    const messageContainer = document.getElementById('messageContainer');
+    const prompt = document.createElement('div');
+    prompt.className = 'form-message info';
+    prompt.innerHTML = 'Don\'t have an account? <a href="/register" style="font-weight:700;text-decoration:underline;">Create one here</a>';
+    messageContainer.appendChild(prompt);
 }
 
 // Auto-focus first input if no OAuth messages
