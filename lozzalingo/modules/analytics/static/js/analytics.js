@@ -20,6 +20,26 @@ class AnalyticsClient {
         this.sessionData = this.collectSessionData();
         this.pageLoadTime = Date.now();
 
+        // Visibility-aware time tracking: only count time when tab is visible
+        this._activeTime = 0;           // accumulated active ms
+        this._lastVisibleAt = Date.now(); // when the tab last became visible
+        this._tabVisible = !document.hidden;
+        this._MAX_TIME_SECONDS = 900;    // 15 min cap per page
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Tab going hidden — bank the active time
+                if (this._tabVisible) {
+                    this._activeTime += Date.now() - this._lastVisibleAt;
+                }
+                this._tabVisible = false;
+            } else {
+                // Tab becoming visible — start a new active interval
+                this._lastVisibleAt = Date.now();
+                this._tabVisible = true;
+            }
+        });
+
         // Initialize device details from session storage if available
         this.loadDeviceDetailsFromSession();
 
@@ -59,6 +79,18 @@ class AnalyticsClient {
         } catch (e) {
             // Session storage not available or invalid data
         }
+    }
+
+    /**
+     * Get active (visible) time in ms since page load, capped at _MAX_TIME_SECONDS.
+     */
+    getActiveTimeMs() {
+        let total = this._activeTime;
+        if (this._tabVisible) {
+            total += Date.now() - this._lastVisibleAt;
+        }
+        const capMs = this._MAX_TIME_SECONDS * 1000;
+        return Math.min(total, capMs);
     }
 
     getCurrentRoute() {
@@ -154,10 +186,15 @@ class AnalyticsClient {
     handleRouteChange(navigationType, state = null) {
         const previousRoute = { ...this.currentRoute };
         const newRoute = this.getCurrentRoute();
-        
-        // Calculate time spent on previous route
-        const timeSpent = new Date(newRoute.timestamp) - new Date(previousRoute.timestamp);
-        
+
+        // Use visibility-aware active time (capped at 15 min)
+        const timeSpent = this.getActiveTimeMs();
+
+        // Reset active time tracking for the new route
+        this._activeTime = 0;
+        this._lastVisibleAt = Date.now();
+        this._tabVisible = !document.hidden;
+
         // Update current route
         this.currentRoute = newRoute;
         
@@ -733,11 +770,11 @@ class AnalyticsClient {
         window.addEventListener('beforeunload', async () => {
             try {
                 const deviceDetails = await this.rateLimiterByDevice;
-                const timeSpent = Date.now() - this.pageLoadTime;
+                const activeTimeMs = this.getActiveTimeMs();
                 const exitData = {
                     type: 'page_exit',
                     deviceDetails: deviceDetails,
-                    time_spent_seconds: Math.round(timeSpent / 1000),
+                    time_spent_seconds: Math.round(activeTimeMs / 1000),
                     url: window.location.href
                 };
                 

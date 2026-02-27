@@ -377,6 +377,12 @@ class Analytics:
                 to_route = additional_data.get('to_route')
                 navigation_type = additional_data.get('navigation_type')
                 time_spent_seconds = additional_data.get('time_spent_seconds') or additional_data.get('time_spent')
+                # Cap time_spent at 15 minutes (900s) to filter out idle tabs
+                if time_spent_seconds is not None:
+                    try:
+                        time_spent_seconds = min(float(time_spent_seconds), 900)
+                    except (ValueError, TypeError):
+                        pass
                 session_page_count = additional_data.get('session_page_count')
 
             analytics_db = get_analytics_db()
