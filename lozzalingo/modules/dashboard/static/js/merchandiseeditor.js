@@ -719,8 +719,9 @@
                     ${product.image_urls.length > 3 ? `<span>+${product.image_urls.length - 3}</span>` : ''}
                 </div>
                 <div class="product-actions">
-                    <button class="btn btn-warning btn-small" onclick="editProduct(${product.id})">Edit</button>
-                    <button class="btn btn-danger btn-small" onclick="deleteProduct(${product.id}, '${escapeHtml(product.name)}')">Delete</button>
+                    <button name="edit_product" class="btn btn-warning btn-small" onclick="editProduct(${product.id})">Edit</button>
+                    <button name="duplicate_product" class="btn btn-secondary btn-small" onclick="duplicateProduct(${product.id})">Duplicate</button>
+                    <button name="delete_product" class="btn btn-danger btn-small" onclick="deleteProduct(${product.id}, '${escapeHtml(product.name)}')">Delete</button>
                 </div>
             </div>
         `).join('');
@@ -795,6 +796,25 @@
         }
     };
 
+    window.duplicateProduct = async function(productId) {
+        try {
+            console.log('DUPLICATE_PRODUCT: Duplicating product', productId);
+            const response = await fetch(`/admin/merchandise-editor/duplicate/${productId}`, {
+                method: 'POST'
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                showSuccessMessage('Product duplicated');
+                loadProducts();
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            showMessage('Error duplicating product: ' + error.message, 'error');
+        }
+    };
+
     window.deleteProduct = async function(productId, productName) {
         if (!confirm(`Are you sure you want to delete "${productName}"?`)) return;
 
@@ -843,11 +863,13 @@
         const stockInput = document.getElementById('productStock');
         stockInput.disabled = product.is_preorder || product.print_on_demand;
 
-        // Toggle fulfilment section and populate previews
+        // Toggle fulfilment section — show if POD is checked OR if any design URLs exist
         const fulfilmentSection = document.getElementById('fulfilmentSection');
+        const hasDesignUrls = product.front_design_url || product.back_design_url ||
+                              product.front_mockup_url || product.back_mockup_url;
         if (fulfilmentSection) {
-            fulfilmentSection.style.display = product.print_on_demand ? 'block' : 'none';
-            if (product.print_on_demand) {
+            fulfilmentSection.style.display = (product.print_on_demand || hasDesignUrls) ? 'block' : 'none';
+            if (product.print_on_demand || hasDesignUrls) {
                 populateFulfilmentPreviews(product);
             }
         }

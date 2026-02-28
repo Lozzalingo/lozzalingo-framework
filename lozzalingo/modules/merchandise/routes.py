@@ -239,6 +239,53 @@ def reorder_products():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@merchandise_bp.route('/duplicate/<int:product_id>', methods=['POST'])
+def duplicate_product(product_id):
+    """Duplicate a product with all its fields (except images)"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from app.models.merchandise import Product
+
+        source = Product.get_by_id(product_id)
+        if not source:
+            return jsonify({'success': False, 'error': 'Product not found'}), 404
+
+        # Create a copy with "(Copy)" suffix
+        new_product = Product(
+            name=f"{source.name} (Copy)",
+            description=source.description,
+            price=source.price,
+            stripe_price_id=None,
+            stripe_product_id=None,
+            stock_quantity=source.stock_quantity,
+            is_preorder=getattr(source, 'is_preorder', False),
+            is_active=True,
+            image_urls=list(source.image_urls) if source.image_urls else [],
+            limited_edition=getattr(source, 'limited_edition', False),
+        )
+
+        # Copy design/mockup URLs if they exist
+        for field in ['front_design_url', 'back_design_url', 'front_mockup_url', 'back_mockup_url']:
+            setattr(new_product, field, getattr(source, field, None))
+
+        # Copy print_on_demand if it exists
+        if hasattr(source, 'print_on_demand'):
+            new_product.print_on_demand = source.print_on_demand
+
+        new_product.save()
+
+        print(f"DUPLICATE_PRODUCT: Duplicated product {product_id} -> {new_product.id}")
+        return jsonify({'success': True, 'product_id': new_product.id})
+
+    except ImportError:
+        return jsonify({'success': False, 'error': 'Merchandise models not available'}), 500
+    except Exception as e:
+        print(f"Error duplicating product: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @merchandise_bp.route('/upload-design', methods=['POST'])
 def upload_design():
     """Upload a fulfilment design or mockup file (uncompressed)"""
