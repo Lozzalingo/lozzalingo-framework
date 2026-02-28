@@ -393,11 +393,14 @@
         if (browseStorageForImages) {
             browseStorageForImages.addEventListener('click', () => {
                 openStorageBrowser('Select Image for Product Listing', 'merchandise', (url) => {
+                    // Strip /static/ prefix — merchandise stores relative paths
+                    const storagePath = url.startsWith('/static/') ? url.slice(8) : url;
+                    const displayUrl = url.startsWith('http') ? url : (url.startsWith('/static/') ? url : `/static/${url}`);
                     // Add as a product listing image
                     const imageObj = {
                         existing: true,
-                        url: url,
-                        originalPath: url,
+                        url: displayUrl,
+                        originalPath: storagePath,
                         name: url.split('/').pop(),
                         type: url.includes('.mp4') ? 'video/mp4' : 'image/jpeg'
                     };

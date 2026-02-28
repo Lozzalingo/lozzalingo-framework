@@ -135,6 +135,9 @@ def create_product():
                     timestamp = int(time.time())
                     safe_name = f"{timestamp}_{file.filename}"
                     url = upload_file(file_bytes, safe_name, 'merchandise')
+                    # Strip /static/ prefix — merchandise stores relative paths
+                    if url.startswith('/static/'):
+                        url = url[8:]
                     image_urls.append(url)
 
         # Create product
@@ -217,8 +220,11 @@ def update_product():
                 pass
 
         # Build new image list: existing (in new order) + newly uploaded
-        new_image_urls = list(existing_image_order)
-        print(f"MERCH_UPDATE: Product {product_id} - existing order: {existing_image_order}")
+        # Normalize existing paths — strip /static/ prefix if present
+        new_image_urls = []
+        for url in existing_image_order:
+            new_image_urls.append(url[8:] if url.startswith('/static/') else url)
+        print(f"MERCH_UPDATE: Product {product_id} - existing order: {new_image_urls}")
         print(f"MERCH_UPDATE: Product {product_id} - images to delete: {images_to_delete}")
 
         uploaded_files = request.files.getlist('images')
@@ -231,6 +237,9 @@ def update_product():
                     timestamp = int(time.time())
                     safe_name = f"{timestamp}_{file.filename}"
                     url = upload_file(file_bytes, safe_name, 'merchandise')
+                    # Strip /static/ prefix — merchandise stores relative paths
+                    if url.startswith('/static/'):
+                        url = url[8:]
                     new_image_urls.append(url)
                     print(f"MERCH_UPDATE: Uploaded new image: {url}")
 
