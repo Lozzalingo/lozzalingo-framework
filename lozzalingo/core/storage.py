@@ -241,6 +241,8 @@ def list_files(subfolder):
 
     if is_cloud_storage():
         return _list_cloud_files(subfolder, allowed)
+    if _is_s3_storage():
+        return _list_s3_files(subfolder, allowed)
     return _list_local_files(subfolder, allowed)
 
 
@@ -280,6 +282,46 @@ def _list_cloud_files(subfolder, allowed):
     # Sort newest first
     images.sort(key=lambda x: x.get('last_modified') or '', reverse=True)
     # Strip internal field before returning
+    for img in images:
+        img.pop('last_modified', None)
+    return images
+
+
+def _list_s3_files(subfolder, allowed):
+    """List files from AWS S3 bucket."""
+    import boto3
+
+    bucket = current_app.config['S3_BUCKET']
+    access_key = current_app.config.get('S3_ACCESS_KEY')
+    secret_key = current_app.config.get('S3_SECRET_KEY')
+    region = current_app.config.get('S3_REGION', 'eu-north-1')
+    app_prefix = current_app.config.get('S3_FOLDER', 'uploads')
+    prefix = f"{app_prefix}/{subfolder}/"
+
+    client = boto3.client(
+        's3',
+        region_name=region,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+    )
+
+    images = []
+    paginator = client.get_paginator('list_objects_v2')
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for obj in page.get('Contents', []):
+            key = obj['Key']
+            filename = key.rsplit('/', 1)[-1]
+            ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+            if ext in allowed:
+                url = f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
+                images.append({
+                    'url': url,
+                    'filename': filename,
+                    'last_modified': obj.get('LastModified'),
+                })
+
+    # Sort newest first
+    images.sort(key=lambda x: x.get('last_modified') or '', reverse=True)
     for img in images:
         img.pop('last_modified', None)
     return images

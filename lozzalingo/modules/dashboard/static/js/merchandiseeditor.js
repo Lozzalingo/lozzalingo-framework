@@ -7,6 +7,7 @@
     let imagesToDelete = [];
     let draggedElement = null;
     let allProducts = [];  // Store all products for filtering
+    let storageBrowserCallback = null;  // Called when user picks a file from storage browser
 
     // Initialize when DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
@@ -38,6 +39,7 @@
 
         initializeProductForm();
         initializeFulfilmentSection();
+        initializeStorageBrowser();
         initializeFilters();
         loadProducts();
     }
@@ -229,10 +231,18 @@
             if (fulfilmentSection) {
                 fulfilmentSection.style.display = printOnDemandCheckbox.checked ? 'block' : 'none';
             }
+            // Toggle sold out checkbox visibility (show when limited edition is checked)
+            const soldOutGroup = document.getElementById('soldOutGroup');
+            const limitedEditionCheckbox = document.getElementById('productLimitedEdition');
+            if (soldOutGroup) {
+                soldOutGroup.style.display = limitedEditionCheckbox.checked ? 'block' : 'none';
+            }
         }
 
+        const limitedEditionCheckbox = document.getElementById('productLimitedEdition');
         preorderCheckbox.addEventListener('change', updateStockInputState);
         printOnDemandCheckbox.addEventListener('change', updateStockInputState);
+        limitedEditionCheckbox.addEventListener('change', updateStockInputState);
     }
 
     function initializeFulfilmentSection() {
@@ -358,6 +368,147 @@
         slots.forEach(slot => clearDesignPreview(slot));
     }
 
+    function initializeStorageBrowser() {
+        console.log('STORAGE_BROWSER: Initializing storage browser');
+
+        const modal = document.getElementById('storageBrowserModal');
+        const closeBtn = modal.querySelector('.modal-close');
+        const refreshBtn = document.getElementById('storageBrowserRefresh');
+        const subfolderSelect = document.getElementById('storageBrowserSubfolder');
+
+        // Close modal
+        closeBtn.addEventListener('click', () => { modal.style.display = 'none'; });
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.style.display = 'none';
+        });
+
+        // Refresh button
+        refreshBtn.addEventListener('click', () => loadStorageBrowserFiles());
+
+        // Subfolder change
+        subfolderSelect.addEventListener('change', () => loadStorageBrowserFiles());
+
+        // Browse Storage for product images button
+        const browseStorageForImages = document.getElementById('browseStorageForImages');
+        if (browseStorageForImages) {
+            browseStorageForImages.addEventListener('click', () => {
+                openStorageBrowser('Select Image for Product Listing', (url) => {
+                    // Add as a product listing image
+                    const imageObj = {
+                        existing: true,
+                        url: url,
+                        originalPath: url,
+                        name: url.split('/').pop(),
+                        type: url.includes('.mp4') ? 'video/mp4' : 'image/jpeg'
+                    };
+                    selectedImages.push(imageObj);
+                    renderExistingImagePreview(imageObj);
+                    updateDropZoneVisibility();
+                    showSuccessMessage('Image added to product listing');
+                });
+            });
+        }
+
+        // Browse Storage buttons on design slots
+        const designBrowseBtns = document.querySelectorAll('.design-browse-btn');
+        designBrowseBtns.forEach(btn => {
+            const slot = btn.closest('.design-slot');
+            const field = slot.dataset.field;
+
+            btn.addEventListener('click', () => {
+                if (!currentEditingProduct) {
+                    showMessage('Save the product first, then edit it to set fulfilment files.', 'info');
+                    return;
+                }
+
+                openStorageBrowser(`Select file for ${field.replace(/_/g, ' ')}`, async (url) => {
+                    // Set the design URL via API
+                    const formData = new FormData();
+                    formData.append('product_id', currentEditingProduct.id);
+                    formData.append('field', field);
+                    formData.append('url', url);
+
+                    try {
+                        const response = await fetch('/admin/merchandise-editor/set-design-url', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const result = await response.json();
+
+                        if (result.success) {
+                            setDesignPreview(slot, result.url);
+                            showSuccessMessage('Fulfilment file set from storage');
+                        } else {
+                            throw new Error(result.error || 'Failed to set URL');
+                        }
+                    } catch (error) {
+                        console.error('STORAGE_BROWSER: Error setting design URL:', error);
+                        showMessage('Error: ' + error.message, 'error');
+                    }
+                });
+            });
+        });
+    }
+
+    function openStorageBrowser(title, callback) {
+        const modal = document.getElementById('storageBrowserModal');
+        const titleEl = document.getElementById('storageBrowserTitle');
+
+        titleEl.textContent = title;
+        storageBrowserCallback = callback;
+        modal.style.display = 'flex';
+
+        loadStorageBrowserFiles();
+    }
+
+    async function loadStorageBrowserFiles() {
+        const grid = document.getElementById('storageBrowserGrid');
+        const loading = document.getElementById('storageBrowserLoading');
+        const subfolder = document.getElementById('storageBrowserSubfolder').value;
+
+        grid.innerHTML = '';
+        loading.style.display = 'block';
+
+        try {
+            const response = await fetch(`/admin/merchandise-editor/browse-storage?subfolder=${encodeURIComponent(subfolder)}`);
+            const data = await response.json();
+
+            loading.style.display = 'none';
+
+            if (!data.success || !data.files || data.files.length === 0) {
+                grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-secondary, #666);">No files found in this folder.</p>';
+                return;
+            }
+
+            data.files.forEach(file => {
+                const item = document.createElement('div');
+                item.style.cssText = 'border: 2px solid var(--border-color, #ccc); border-radius: 8px; overflow: hidden; cursor: pointer; transition: border-color 0.2s;';
+                item.innerHTML = `
+                    <img src="${file.url}" alt="${file.filename}" style="width: 100%; height: 100px; object-fit: cover;">
+                    <div style="padding: 4px 6px; font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${file.filename}">${file.filename}</div>
+                `;
+
+                item.addEventListener('mouseenter', () => { item.style.borderColor = 'var(--accent-color, #007bff)'; });
+                item.addEventListener('mouseleave', () => { item.style.borderColor = 'var(--border-color, #ccc)'; });
+
+                item.addEventListener('click', () => {
+                    if (storageBrowserCallback) {
+                        storageBrowserCallback(file.url);
+                        storageBrowserCallback = null;
+                    }
+                    document.getElementById('storageBrowserModal').style.display = 'none';
+                });
+
+                grid.appendChild(item);
+            });
+
+        } catch (error) {
+            loading.style.display = 'none';
+            grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: red;">Error loading files: ${error.message}</p>`;
+            console.error('STORAGE_BROWSER: Error loading files:', error);
+        }
+    }
+
     function initializeNewsForm() {
         // Reuse existing news editor functionality
         const form = document.getElementById('articleForm');
@@ -474,6 +625,8 @@
         const dropZone = document.getElementById('imageDropZone');
         const placeholder = dropZone.querySelector('.upload-placeholder');
 
+        // Hide the drop zone placeholder when images exist, but the action buttons
+        // (Browse Files / Browse Storage) are outside the placeholder, so they stay visible
         if (selectedImages.length === 0) {
             placeholder.style.display = 'block';
         } else {
@@ -522,6 +675,7 @@
             formData.append('is_preorder', form.productPreorder.checked);
             formData.append('limited_edition', form.productLimitedEdition.checked);
             formData.append('print_on_demand', form.productPrintOnDemand.checked);
+            formData.append('sold_out', document.getElementById('productSoldOut').checked);
 
             // Add product ID if editing
             if (currentEditingProduct) {
@@ -650,6 +804,8 @@
         document.getElementById('productPreorder').checked = false;
         document.getElementById('productLimitedEdition').checked = false;
         document.getElementById('productPrintOnDemand').checked = false;
+        document.getElementById('productSoldOut').checked = false;
+        document.getElementById('soldOutGroup').style.display = 'none';
 
         // Hide fulfilment section and clear previews
         const fulfilmentSection = document.getElementById('fulfilmentSection');
@@ -705,6 +861,7 @@
                     <br>
                     ${product.print_on_demand ? 'Print on Demand' : `Stock: ${product.stock_quantity}`} ${product.is_preorder ? '(Preorder)' : ''}
                     ${product.limited_edition ? '<br><span class="limited-edition-badge">Limited Edition</span>' : ''}
+                    ${product.sold_out ? '<span class="limited-edition-badge" style="background: #dc3545;">Sold Out</span>' : ''}
                 </div>
                 <div class="product-images">
                     ${product.image_urls.slice(0, 3).map(url => {
@@ -858,6 +1015,13 @@
         document.getElementById('productPreorder').checked = product.is_preorder;
         document.getElementById('productLimitedEdition').checked = product.limited_edition;
         document.getElementById('productPrintOnDemand').checked = product.print_on_demand;
+        document.getElementById('productSoldOut').checked = product.sold_out || false;
+
+        // Show sold_out group if limited edition
+        const soldOutGroup = document.getElementById('soldOutGroup');
+        if (soldOutGroup) {
+            soldOutGroup.style.display = product.limited_edition ? 'block' : 'none';
+        }
 
         // Handle preorder or print_on_demand state - disable stock if either is checked
         const stockInput = document.getElementById('productStock');
@@ -889,6 +1053,21 @@
                     originalPath: url,  // Keep original path for server updates
                     name: url.split('/').pop(),
                     type: url.includes('.mp4') ? 'video/mp4' : 'image/jpeg'
+                };
+                selectedImages.push(imageObj);
+                renderExistingImagePreview(imageObj);
+            });
+        } else if (product.front_mockup_url || product.back_mockup_url) {
+            // Default: populate listing images from mockup URLs if no images set
+            console.log('MERCH_EDITOR: Auto-populating listing images from mockups');
+            const mockupUrls = [product.front_mockup_url, product.back_mockup_url].filter(Boolean);
+            mockupUrls.forEach(url => {
+                const imageObj = {
+                    existing: true,
+                    url: url,
+                    originalPath: url,
+                    name: url.split('/').pop(),
+                    type: 'image/jpeg'
                 };
                 selectedImages.push(imageObj);
                 renderExistingImagePreview(imageObj);

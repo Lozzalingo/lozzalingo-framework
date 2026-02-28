@@ -6,7 +6,7 @@ Complete product/merchandise management for admin.
 Framework-ready with optional imports.
 """
 
-from flask import render_template, request, redirect, url_for, session, jsonify
+from flask import render_template, request, redirect, url_for, session, jsonify, current_app
 from . import merchandise_bp
 
 @merchandise_bp.route('/')
@@ -40,6 +40,7 @@ def get_products():
                 'is_active': p.is_active,
                 'limited_edition': p.limited_edition,
                 'print_on_demand': getattr(p, 'print_on_demand', False),
+                'sold_out': getattr(p, 'sold_out', False),
                 'image_urls': p.image_urls or [],
                 'front_design_url': getattr(p, 'front_design_url', None),
                 'back_design_url': getattr(p, 'back_design_url', None),
@@ -82,6 +83,7 @@ def get_product(product_id):
                 'is_active': product.is_active,
                 'limited_edition': product.limited_edition,
                 'print_on_demand': getattr(product, 'print_on_demand', False),
+                'sold_out': getattr(product, 'sold_out', False),
                 'image_urls': product.image_urls or [],
                 'front_design_url': getattr(product, 'front_design_url', None),
                 'back_design_url': getattr(product, 'back_design_url', None),
@@ -113,6 +115,7 @@ def create_product():
         is_preorder = request.form.get('is_preorder') == 'true'
         limited_edition = request.form.get('limited_edition') == 'true'
         print_on_demand = request.form.get('print_on_demand') == 'true'
+        sold_out = request.form.get('sold_out') == 'true'
 
         if not all([name, description, price_str]):
             return jsonify({'success': False, 'error': 'Name, description, and price are required'}), 400
@@ -129,6 +132,7 @@ def create_product():
             is_preorder=is_preorder,
             limited_edition=limited_edition,
             print_on_demand=print_on_demand,
+            sold_out=sold_out,
             is_active=True,
             image_urls=[]
         )
@@ -177,6 +181,7 @@ def update_product():
         product.is_preorder = is_preorder
         product.limited_edition = limited_edition
         product.print_on_demand = print_on_demand
+        product.sold_out = request.form.get('sold_out') == 'true'
 
         product.save()
         return jsonify({'success': True})
@@ -270,9 +275,11 @@ def duplicate_product(product_id):
         for field in ['front_design_url', 'back_design_url', 'front_mockup_url', 'back_mockup_url']:
             setattr(new_product, field, getattr(source, field, None))
 
-        # Copy print_on_demand if it exists
+        # Copy print_on_demand and sold_out if they exist
         if hasattr(source, 'print_on_demand'):
             new_product.print_on_demand = source.print_on_demand
+        if hasattr(source, 'sold_out'):
+            new_product.sold_out = source.sold_out
 
         new_product.save()
 
@@ -378,4 +385,60 @@ def remove_design():
         return jsonify({'success': False, 'error': 'Merchandise models not available'}), 500
     except Exception as e:
         print(f"Error removing design: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@merchandise_bp.route('/browse-storage')
+def browse_storage():
+    """List files in a storage subfolder for the storage browser modal"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from lozzalingo.core.storage import list_files
+
+        subfolder = request.args.get('subfolder', 'merchandise')
+        files = list_files(subfolder)
+
+        return jsonify({'success': True, 'files': files})
+
+    except Exception as e:
+        print(f"Error browsing storage: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@merchandise_bp.route('/set-design-url', methods=['POST'])
+def set_design_url():
+    """Set a design/mockup field to an existing URL (from storage browser)"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from app.models.merchandise import Product, get_merchandise_db
+
+        product_id = request.form.get('product_id')
+        field = request.form.get('field')
+        url = request.form.get('url')
+
+        valid_fields = ['front_design_url', 'back_design_url', 'front_mockup_url', 'back_mockup_url']
+        if not product_id or field not in valid_fields or not url:
+            return jsonify({'success': False, 'error': 'Missing product_id, field, or url'}), 400
+
+        product = Product.get_by_id(int(product_id))
+        if not product:
+            return jsonify({'success': False, 'error': 'Product not found'}), 404
+
+        conn = get_merchandise_db()
+        cursor = conn.cursor()
+        cursor.execute(f'UPDATE products SET {field} = ? WHERE id = ?', (url, int(product_id)))
+        conn.commit()
+        conn.close()
+
+        print(f"DESIGN_SET_URL: Set {field} for product {product_id}: {url}")
+        return jsonify({'success': True, 'url': url})
+
+    except ImportError:
+        return jsonify({'success': False, 'error': 'Merchandise models not available'}), 500
+    except Exception as e:
+        print(f"Error setting design URL: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
