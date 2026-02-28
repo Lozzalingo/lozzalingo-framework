@@ -442,3 +442,83 @@ def set_design_url():
     except Exception as e:
         print(f"Error setting design URL: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@merchandise_bp.route('/check-file-usage', methods=['POST'])
+def check_file_usage():
+    """Check if a file URL is used by any products (images, designs, mockups)"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from app.models.merchandise import Product
+
+        url = request.form.get('url', '')
+        if not url:
+            return jsonify({'success': False, 'error': 'No URL provided'}), 400
+
+        # Check all products for usage
+        products = Product.get_all_active()
+        usage = []
+
+        # Also extract the filename to check against relative image_urls
+        filename = url.rsplit('/', 1)[-1] if '/' in url else url
+
+        for p in products:
+            reasons = []
+            # Check image_urls (may be relative paths like "merchandise/file.png")
+            for img_url in (p.image_urls or []):
+                if url in img_url or img_url.endswith(filename):
+                    reasons.append('listing image')
+                    break
+
+            # Check design/mockup URL columns
+            for field, label in [
+                ('front_design_url', 'front design'),
+                ('back_design_url', 'back design'),
+                ('front_mockup_url', 'front mockup'),
+                ('back_mockup_url', 'back mockup'),
+            ]:
+                val = getattr(p, field, None)
+                if val and (url in val or val.endswith(filename)):
+                    reasons.append(label)
+
+            if reasons:
+                usage.append({'product': p.name, 'reasons': reasons})
+
+        # Also check framework-level references (news, projects, quick-links)
+        try:
+            from lozzalingo.core.storage import check_image_in_use
+            framework_refs = check_image_in_use(url)
+            for ref in framework_refs:
+                usage.append({'product': f"{ref['type']}: {ref['title']}", 'reasons': ['referenced']})
+        except Exception:
+            pass
+
+        return jsonify({'success': True, 'usage': usage, 'in_use': len(usage) > 0})
+
+    except Exception as e:
+        print(f"Error checking file usage: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@merchandise_bp.route('/delete-storage-file', methods=['POST'])
+def delete_storage_file():
+    """Delete a file from storage"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from lozzalingo.core.storage import delete_file
+
+        url = request.form.get('url', '')
+        if not url:
+            return jsonify({'success': False, 'error': 'No URL provided'}), 400
+
+        delete_file(url)
+        print(f"STORAGE_DELETE: Deleted file {url}")
+        return jsonify({'success': True})
+
+    except Exception as e:
+        print(f"Error deleting storage file: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500

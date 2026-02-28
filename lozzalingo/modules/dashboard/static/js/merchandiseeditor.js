@@ -482,21 +482,33 @@
 
             data.files.forEach(file => {
                 const item = document.createElement('div');
-                item.style.cssText = 'border: 2px solid var(--border-color, #ccc); border-radius: 8px; overflow: hidden; cursor: pointer; transition: border-color 0.2s;';
+                item.style.cssText = 'border: 2px solid var(--border-color, #ccc); border-radius: 8px; overflow: hidden; transition: border-color 0.2s; position: relative;';
                 item.innerHTML = `
-                    <img src="${file.url}" alt="${file.filename}" style="width: 100%; height: 100px; object-fit: cover;">
-                    <div style="padding: 4px 6px; font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${file.filename}">${file.filename}</div>
+                    <div class="storage-item-select" style="cursor: pointer;">
+                        <img src="${file.url}" alt="${file.filename}" style="width: 100%; height: 100px; object-fit: cover;">
+                        <div style="padding: 4px 6px; font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${file.filename}">${file.filename}</div>
+                    </div>
+                    <button name="delete_storage_file" type="button" style="width: 100%; padding: 4px; font-size: 0.7rem; background: #dc3545; color: white; border: none; cursor: pointer; border-radius: 0 0 6px 6px;">Delete</button>
                 `;
 
-                item.addEventListener('mouseenter', () => { item.style.borderColor = 'var(--accent-color, #007bff)'; });
-                item.addEventListener('mouseleave', () => { item.style.borderColor = 'var(--border-color, #ccc)'; });
+                const selectArea = item.querySelector('.storage-item-select');
+                selectArea.addEventListener('mouseenter', () => { item.style.borderColor = 'var(--accent-color, #007bff)'; });
+                selectArea.addEventListener('mouseleave', () => { item.style.borderColor = 'var(--border-color, #ccc)'; });
 
-                item.addEventListener('click', () => {
+                // Click image/name to select file
+                selectArea.addEventListener('click', () => {
                     if (storageBrowserCallback) {
                         storageBrowserCallback(file.url);
                         storageBrowserCallback = null;
                     }
                     document.getElementById('storageBrowserModal').style.display = 'none';
+                });
+
+                // Delete button
+                const deleteBtn = item.querySelector('button');
+                deleteBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await handleStorageFileDelete(file.url, file.filename, item);
                 });
 
                 grid.appendChild(item);
@@ -506,6 +518,60 @@
             loading.style.display = 'none';
             grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: red;">Error loading files: ${error.message}</p>`;
             console.error('STORAGE_BROWSER: Error loading files:', error);
+        }
+    }
+
+    async function handleStorageFileDelete(url, filename, itemElement) {
+        // First check if the file is in use
+        try {
+            const checkForm = new FormData();
+            checkForm.append('url', url);
+
+            const checkResponse = await fetch('/admin/merchandise-editor/check-file-usage', {
+                method: 'POST',
+                body: checkForm
+            });
+            const checkResult = await checkResponse.json();
+
+            if (checkResult.success && checkResult.in_use) {
+                const usageList = checkResult.usage.map(u =>
+                    `• ${u.product} (${u.reasons.join(', ')})`
+                ).join('\n');
+
+                if (!confirm(`⚠️ "${filename}" is in use:\n\n${usageList}\n\nDelete anyway? References will break.`)) {
+                    return;
+                }
+            } else {
+                if (!confirm(`Delete "${filename}"? This cannot be undone.`)) {
+                    return;
+                }
+            }
+
+            // Proceed with deletion
+            const deleteForm = new FormData();
+            deleteForm.append('url', url);
+
+            const deleteResponse = await fetch('/admin/merchandise-editor/delete-storage-file', {
+                method: 'POST',
+                body: deleteForm
+            });
+            const deleteResult = await deleteResponse.json();
+
+            if (deleteResult.success) {
+                itemElement.remove();
+                showSuccessMessage('File deleted');
+
+                // Check if grid is now empty
+                const grid = document.getElementById('storageBrowserGrid');
+                if (grid.children.length === 0) {
+                    grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-secondary, #666);">No files found in this folder.</p>';
+                }
+            } else {
+                throw new Error(deleteResult.error || 'Delete failed');
+            }
+        } catch (error) {
+            console.error('STORAGE_DELETE: Error:', error);
+            showMessage('Error deleting file: ' + error.message, 'error');
         }
     }
 
