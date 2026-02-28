@@ -211,8 +211,13 @@ def products_embed():
                         for img in images:
                             if img and str(img).strip():
                                 image_url = str(img).strip()
-                                # Make relative paths absolute
-                                if not image_url.startswith(('http://', 'https://')):
+                                # Make paths absolute for cross-site embedding
+                                if image_url.startswith(('http://', 'https://')):
+                                    pass  # Already absolute
+                                elif image_url.startswith('/static/'):
+                                    image_url = f"{base_url}{image_url}"
+                                else:
+                                    # Legacy fallback for bare filenames
                                     image_url = f"{base_url}/static/{image_url}"
                                 break
                 except (json.JSONDecodeError, TypeError):

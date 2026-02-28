@@ -73,6 +73,14 @@ def _compress_image(file_bytes, filename, max_width=1920, quality=82):
         return file_bytes, filename
 
 
+def _sanitize_filename(filename):
+    """Replace spaces, commas, and other URL-unsafe characters in filenames."""
+    import re
+    name, ext = os.path.splitext(filename)
+    name = re.sub(r'[,\s]+', '_', name)
+    return name + ext
+
+
 def upload_file(file_bytes, filename, subfolder):
     """Upload file to cloud storage or local filesystem.
 
@@ -86,6 +94,7 @@ def upload_file(file_bytes, filename, subfolder):
     Returns:
         Public URL (cloud) or local path like "/static/blog/abc.jpg" (local).
     """
+    filename = _sanitize_filename(filename)
     file_bytes, filename = _compress_image(file_bytes, filename)
 
     if is_cloud_storage():

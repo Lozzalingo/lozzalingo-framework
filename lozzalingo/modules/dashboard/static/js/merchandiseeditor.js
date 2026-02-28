@@ -393,14 +393,11 @@
         if (browseStorageForImages) {
             browseStorageForImages.addEventListener('click', () => {
                 openStorageBrowser('Select Image for Product Listing', 'merchandise', (url) => {
-                    // Strip /static/ prefix — merchandise stores relative paths
-                    const storagePath = url.startsWith('/static/') ? url.slice(8) : url;
-                    const displayUrl = url.startsWith('http') ? url : (url.startsWith('/static/') ? url : `/static/${url}`);
-                    // Add as a product listing image
+                    // Add as a product listing image — URL already has /static/ or https://
                     const imageObj = {
                         existing: true,
-                        url: displayUrl,
-                        originalPath: storagePath,
+                        url: url,
+                        originalPath: url,
                         name: url.split('/').pop(),
                         type: url.includes('.mp4') ? 'video/mp4' : 'image/jpeg'
                     };
@@ -772,10 +769,9 @@
                 formData.append('images_to_delete', JSON.stringify(imagesToDelete));
 
                 // Send the complete ordered list of existing images (for reordering)
-                // Use originalPath if available (for full URLs), otherwise strip /static/
                 const existingImageOrder = selectedImages
                     .filter(img => img.existing)
-                    .map(img => img.originalPath || img.url.replace('/static/', ''));
+                    .map(img => img.originalPath || img.url);
                 formData.append('existing_image_order', JSON.stringify(existingImageOrder));
                 console.log('MERCH_EDITOR: Saving existing image order:', existingImageOrder);
                 console.log('MERCH_EDITOR: Images to delete:', imagesToDelete);
@@ -960,12 +956,10 @@
                 </div>
                 <div class="product-images">
                     ${product.image_urls.slice(0, 3).map(url => {
-                        // Use URL as-is if it's already a full URL, otherwise prepend /static/
-                        const imgSrc = url.startsWith('http') ? url : `/static/${url}`;
                         if (url.includes('.mp4')) {
-                            return `<video src="${imgSrc}" muted></video>`;
+                            return `<video src="${url}" muted></video>`;
                         } else {
-                            return `<img src="${imgSrc}" alt="${product.name}">`;
+                            return `<img src="${url}" alt="${product.name}">`;
                         }
                     }).join('')}
                     ${product.image_urls.length > 3 ? `<span>+${product.image_urls.length - 3}</span>` : ''}
@@ -1140,12 +1134,10 @@
 
         if (product.image_urls && product.image_urls.length > 0) {
             product.image_urls.forEach(url => {
-                // Use URL as-is if it's already a full URL, otherwise prepend /static/
-                const fullUrl = url.startsWith('http') ? url : `/static/${url}`;
                 const imageObj = {
                     existing: true,
-                    url: fullUrl,
-                    originalPath: url,  // Keep original path for server updates
+                    url: url,
+                    originalPath: url,
                     name: url.split('/').pop(),
                     type: url.includes('.mp4') ? 'video/mp4' : 'image/jpeg'
                 };
