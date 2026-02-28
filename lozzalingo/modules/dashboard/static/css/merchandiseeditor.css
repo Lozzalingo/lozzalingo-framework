@@ -563,6 +563,11 @@
     font-size: 12px;
 }
 
+/* Fulfilment file inputs — ensure hidden even when parent becomes visible */
+.fulfilment-section input[type="file"] {
+    display: none !important;
+}
+
 /* Form Actions */
 .form-actions {
     display: flex;
@@ -570,6 +575,8 @@
     padding-top: 20px;
     border-top: 1px solid #e0e0e0;
     margin-top: 30px;
+    position: relative;
+    z-index: 2;
 }
 
 /* Loading States */

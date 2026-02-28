@@ -211,8 +211,12 @@
         // Form submission
         form.addEventListener('submit', handleProductSubmit);
 
-        // Cancel button
-        cancelBtn.addEventListener('click', resetProductForm);
+        // Cancel button — use explicit event prevention to avoid form interference
+        cancelBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            resetProductForm();
+        });
 
         // Preorder and Print on Demand checkbox logic
         const preorderCheckbox = document.getElementById('productPreorder');
