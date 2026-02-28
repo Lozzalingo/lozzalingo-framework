@@ -37,9 +37,9 @@ class Config:
     # Resend API settings (free tier: 3,000 emails/month)
     RESEND_API_KEY = os.getenv('RESEND_API_KEY') or os.getenv('RESEND')
     
-    # Stripe settings
-    STRIPE_PUBLIC_KEY_PK = os.getenv("STRIPE_PUBLIC_KEY_PK")
-    STRIPE_PUBLIC_KEY_SK = os.getenv("STRIPE_PUBLIC_KEY_SK")
+    # Stripe settings (standard naming)
+    STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
+    STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
     STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
     
     # Database paths -- env var > DB_DIR-relative default. All modules import these constants.

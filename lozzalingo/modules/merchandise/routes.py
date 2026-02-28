@@ -46,6 +46,7 @@ def get_products():
                 'back_design_url': getattr(p, 'back_design_url', None),
                 'front_mockup_url': getattr(p, 'front_mockup_url', None),
                 'back_mockup_url': getattr(p, 'back_mockup_url', None),
+                'sku': getattr(p, 'sku', None),
             } for p in products]
         }
 
@@ -89,6 +90,7 @@ def get_product(product_id):
                 'back_design_url': getattr(product, 'back_design_url', None),
                 'front_mockup_url': getattr(product, 'front_mockup_url', None),
                 'back_mockup_url': getattr(product, 'back_mockup_url', None),
+                'sku': getattr(product, 'sku', None),
             }
         })
 
@@ -138,6 +140,7 @@ def create_product():
                     image_urls.append(url)
 
         # Create product
+        sku = request.form.get('sku', '').strip() or None
         product = Product(
             name=name,
             description=description,
@@ -148,7 +151,8 @@ def create_product():
             print_on_demand=print_on_demand,
             sold_out=sold_out,
             is_active=True,
-            image_urls=image_urls
+            image_urls=image_urls,
+            sku=sku
         )
         product.save()
 
@@ -196,6 +200,7 @@ def update_product():
         product.limited_edition = limited_edition
         product.print_on_demand = print_on_demand
         product.sold_out = request.form.get('sold_out') == 'true'
+        product.sku = request.form.get('sku', '').strip() or None
 
         # Handle image updates: reordering + deletions + new uploads
         existing_image_order_raw = request.form.get('existing_image_order', '[]')

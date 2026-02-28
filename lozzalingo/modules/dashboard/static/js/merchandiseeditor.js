@@ -230,10 +230,14 @@
             } else {
                 stockInput.disabled = false;
             }
-            // Toggle fulfilment section visibility
+            // Toggle fulfilment section and SKU field visibility
             const fulfilmentSection = document.getElementById('fulfilmentSection');
             if (fulfilmentSection) {
                 fulfilmentSection.style.display = printOnDemandCheckbox.checked ? 'block' : 'none';
+            }
+            const skuGroup = document.getElementById('skuGroup');
+            if (skuGroup) {
+                skuGroup.style.display = printOnDemandCheckbox.checked ? 'block' : 'none';
             }
             // Toggle sold out checkbox visibility (show when limited edition is checked)
             const soldOutGroup = document.getElementById('soldOutGroup');
@@ -766,6 +770,7 @@
             formData.append('limited_edition', form.productLimitedEdition.checked);
             formData.append('print_on_demand', form.productPrintOnDemand.checked);
             formData.append('sold_out', document.getElementById('productSoldOut').checked);
+            formData.append('sku', (document.getElementById('productSku').value || '').trim());
 
             // Add product ID if editing
             if (currentEditingProduct) {
@@ -901,6 +906,12 @@
         document.getElementById('productPrintOnDemand').checked = false;
         document.getElementById('productSoldOut').checked = false;
         document.getElementById('soldOutGroup').style.display = 'none';
+
+        // Clear and hide SKU field
+        const skuInput = document.getElementById('productSku');
+        if (skuInput) skuInput.value = '';
+        const skuGroup = document.getElementById('skuGroup');
+        if (skuGroup) skuGroup.style.display = 'none';
 
         // Hide fulfilment section and clear previews
         const fulfilmentSection = document.getElementById('fulfilmentSection');
@@ -1109,6 +1120,12 @@
         document.getElementById('productLimitedEdition').checked = product.limited_edition;
         document.getElementById('productPrintOnDemand').checked = product.print_on_demand;
         document.getElementById('productSoldOut').checked = product.sold_out || false;
+
+        // Populate SKU field and show if print on demand
+        const skuInput = document.getElementById('productSku');
+        const skuGroup = document.getElementById('skuGroup');
+        if (skuInput) skuInput.value = product.sku || '';
+        if (skuGroup) skuGroup.style.display = product.print_on_demand ? 'block' : 'none';
 
         // Show sold_out group if limited edition
         const soldOutGroup = document.getElementById('soldOutGroup');

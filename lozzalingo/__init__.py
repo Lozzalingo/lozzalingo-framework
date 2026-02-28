@@ -316,6 +316,16 @@ class Lozzalingo:
         self.app.config.setdefault('GITHUB_CLIENT_SECRET',
             auth_config.get('github_client_secret') or os.environ.get('GITHUB_CLIENT_SECRET'))
 
+        # Load settings DB values into app.config (if settings module is available)
+        try:
+            from lozzalingo.modules.settings.database import get_all_settings
+            db_settings = get_all_settings(mask_secrets=False)
+            for setting in db_settings:
+                if setting['value'] and setting['key'] not in self.app.config:
+                    self.app.config[setting['key']] = setting['value']
+        except Exception:
+            pass  # Safe to ignore — settings module may not be initialized yet
+
     def _setup_database_dir(self):
         """Ensure database directory exists."""
         # INTEGRATION: DB_DIR defaults to app.root_path-relative. Inside Docker, CWD and

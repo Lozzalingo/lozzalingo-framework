@@ -18,8 +18,14 @@ features:
   email: true
   customer_spotlight: true
   merchandise: true
+  merchandise_public: true
   orders: true
   external_api: true
+  settings: true
+  projects: false
+  projects_public: false
+  quick_links: false
+  ops: true
 
 # Analytics settings
 analytics:

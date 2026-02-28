@@ -254,6 +254,46 @@ def get_all_settings(category=None, mask_secrets=True):
         return []
 
 
+def resolve_config(key, default=None):
+    """
+    4-tier config resolution:
+    1. Flask app.config (highest priority)
+    2. Settings DB
+    3. Config class attribute
+    4. Environment variable (lowest priority)
+    """
+    # Tier 1: Flask app.config
+    try:
+        from flask import current_app
+        val = current_app.config.get(key)
+        if val is not None:
+            return val
+    except RuntimeError:
+        pass
+
+    # Tier 2: Settings DB
+    val = get_setting(key, default=None, decrypt=True)
+    if val is not None:
+        return val
+
+    # Tier 3: Config class
+    try:
+        from lozzalingo.core import Config
+        if hasattr(Config, key):
+            val = getattr(Config, key)
+            if val is not None:
+                return val
+    except ImportError:
+        pass
+
+    # Tier 4: Environment variable
+    val = os.environ.get(key)
+    if val is not None:
+        return val
+
+    return default
+
+
 def get_categories():
     """Get list of all setting categories"""
     try:
@@ -325,5 +365,45 @@ SETTINGS_SCHEMA = {
             {'key': 'BASE_URL', 'label': 'Base URL', 'type': 'url', 'is_secret': False, 'description': 'https://yourdomain.com'},
             {'key': 'ENVIRONMENT', 'label': 'Environment', 'type': 'select', 'options': ['development', 'staging', 'production'], 'default': 'development', 'is_secret': False, 'description': 'Current environment'},
         ]
-    }
+    },
+    'stripe_secondary': {
+        'label': 'Secondary Stripe Account',
+        'icon': '💳',
+        'settings': [
+            {'key': 'STRIPE_SECONDARY_NAME', 'label': 'Account Label', 'type': 'text', 'is_secret': False, 'description': 'e.g., "Aight Clothing"'},
+            {'key': 'STRIPE_SECONDARY_PK', 'label': 'Publishable Key', 'type': 'text', 'is_secret': False, 'description': 'pk_live_... or pk_test_...'},
+            {'key': 'STRIPE_SECONDARY_SK', 'label': 'Secret Key', 'type': 'password', 'is_secret': True, 'description': 'sk_live_... or sk_test_...'},
+            {'key': 'STRIPE_SECONDARY_WEBHOOK_SECRET', 'label': 'Webhook Secret', 'type': 'password', 'is_secret': True, 'description': 'whsec_...'},
+        ]
+    },
+    'webhooks': {
+        'label': 'Webhooks',
+        'icon': '🔗',
+        'settings': [
+            {'key': 'STRIPE_WEBHOOK_PATH', 'label': 'Stripe Webhook Path', 'type': 'text', 'default': '/stripe/webhook', 'is_secret': False, 'description': 'Default: /stripe/webhook'},
+            {'key': 'STRIPE_WEBHOOK_EVENTS', 'label': 'Webhook Events', 'type': 'text', 'default': 'checkout.session.completed', 'is_secret': False, 'description': 'Comma-separated Stripe events'},
+            {'key': 'MAKE_WEBHOOK_URL', 'label': 'Make.com Webhook URL', 'type': 'text', 'is_secret': False, 'description': 'Make.com integration URL'},
+            {'key': 'MAKE_ORDER_WEBHOOK_URL', 'label': 'Make.com Order Webhook', 'type': 'text', 'is_secret': False, 'description': 'Make.com order webhook URL'},
+        ]
+    },
+    'session': {
+        'label': 'Session Security',
+        'icon': '🔒',
+        'settings': [
+            {'key': 'SESSION_COOKIE_SECURE', 'label': 'Secure Cookies', 'type': 'select', 'options': ['true', 'false'], 'default': 'true', 'is_secret': False, 'description': 'Require HTTPS for cookies'},
+            {'key': 'SESSION_COOKIE_HTTPONLY', 'label': 'HTTP-Only Cookies', 'type': 'select', 'options': ['true', 'false'], 'default': 'true', 'is_secret': False, 'description': 'Prevent XSS access to cookies'},
+            {'key': 'SESSION_COOKIE_SAMESITE', 'label': 'SameSite Policy', 'type': 'select', 'options': ['Lax', 'Strict', 'None'], 'default': 'Lax', 'is_secret': False, 'description': 'CSRF protection level'},
+            {'key': 'SESSION_LIFETIME_DAYS', 'label': 'Session Lifetime (days)', 'type': 'text', 'default': '30', 'is_secret': False, 'description': 'How long sessions last'},
+        ]
+    },
+    'deployment': {
+        'label': 'Deployment',
+        'icon': '🚀',
+        'settings': [
+            {'key': 'SERVER_IP', 'label': 'Server IP', 'type': 'text', 'is_secret': False, 'description': 'e.g., 143.110.152.203'},
+            {'key': 'DOMAIN', 'label': 'Domain', 'type': 'text', 'is_secret': False, 'description': 'e.g., mysite.laurence.computer'},
+            {'key': 'DOCKER_PORT', 'label': 'Docker Port', 'type': 'text', 'is_secret': False, 'description': 'e.g., 5003'},
+            {'key': 'SSH_KEY_PATH', 'label': 'SSH Key Path', 'type': 'text', 'default': '~/.ssh/id_ed25519_droplet', 'is_secret': False, 'description': 'Path to SSH key for deployment'},
+        ]
+    },
 }

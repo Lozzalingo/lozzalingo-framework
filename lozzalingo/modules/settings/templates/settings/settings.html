@@ -78,6 +78,56 @@
             border: 1px solid var(--lz-danger-border, #fecaca);
         }
 
+        .setup-checklist {
+            background: var(--lz-bg-card, #ffffff);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 25px;
+            border: 1px solid var(--lz-border, #e2e0de);
+        }
+
+        .setup-checklist h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--lz-text, #1a1a2e);
+        }
+
+        .setup-checklist .checklist-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .setup-checklist .check-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .check-item.ok {
+            background: var(--lz-success-bg, #f0fdf4);
+            color: var(--lz-success, #16a34a);
+            border: 1px solid var(--lz-success-border, #bbf7d0);
+        }
+
+        .check-item.missing {
+            background: var(--lz-danger-bg, #fef2f2);
+            color: var(--lz-danger, #dc2626);
+            border: 1px solid var(--lz-danger-border, #fecaca);
+        }
+
+        .check-item:hover {
+            transform: translateY(-1px);
+        }
+
         .encryption-notice {
             background: linear-gradient(135deg, var(--lz-accent-subtle, #dbeafe) 0%, var(--lz-accent-subtle, #e0e7ff) 100%);
             border: 1px solid var(--lz-accent, #93c5fd);
@@ -367,6 +417,33 @@
             <p><strong>Encryption disabled.</strong> Install the <code>cryptography</code> package for encrypted storage: <code>pip install cryptography</code></p>
         </div>
         {% endif %}
+
+        <div class="setup-checklist">
+            <h3>Setup Status</h3>
+            <div class="checklist-items">
+                {% set secret_key = config.get('SECRET_KEY', '') if config is defined else '' %}
+                <a class="check-item {{ 'ok' if secret_key and secret_key != 'dev-secret-key-change-in-production' and secret_key != 'your-secret-key-here' else 'missing' }}"
+                   onclick="document.querySelector('[id=BRAND_NAME]')?.closest('.category-section')?.querySelector('.category-header')?.click()">
+                    {{ '✓' if secret_key and secret_key != 'dev-secret-key-change-in-production' and secret_key != 'your-secret-key-here' else '✗' }} Secret Key
+                </a>
+                <a class="check-item {{ 'ok' if current_values.get('RESEND_API_KEY') or current_values.get('EMAIL_FROM') else 'missing' }}"
+                   onclick="document.querySelector('[id=RESEND_API_KEY]')?.closest('.category-section')?.querySelector('.category-header')?.click()">
+                    {{ '✓' if current_values.get('RESEND_API_KEY') or current_values.get('EMAIL_FROM') else '✗' }} Email
+                </a>
+                <a class="check-item {{ 'ok' if current_values.get('STRIPE_TEST_SK') or current_values.get('STRIPE_LIVE_SK') else 'missing' }}"
+                   onclick="document.querySelector('[id=STRIPE_MODE]')?.closest('.category-section')?.querySelector('.category-header')?.click()">
+                    {{ '✓' if current_values.get('STRIPE_TEST_SK') or current_values.get('STRIPE_LIVE_SK') else '✗' }} Stripe
+                </a>
+                <a class="check-item {{ 'ok' if current_values.get('SESSION_COOKIE_SECURE') == 'true' else 'missing' }}"
+                   onclick="document.querySelector('[id=SESSION_COOKIE_SECURE]')?.closest('.category-section')?.querySelector('.category-header')?.click()">
+                    {{ '✓' if current_values.get('SESSION_COOKIE_SECURE') == 'true' else '✗' }} Secure Cookies
+                </a>
+                <a class="check-item {{ 'ok' if current_values.get('DOMAIN') or current_values.get('BASE_URL') else 'missing' }}"
+                   onclick="document.querySelector('[id=DOMAIN]')?.closest('.category-section')?.querySelector('.category-header')?.click()">
+                    {{ '✓' if current_values.get('DOMAIN') or current_values.get('BASE_URL') else '✗' }} Domain
+                </a>
+            </div>
+        </div>
 
         <form method="POST" action="{{ url_for('settings.save_settings') }}" class="settings-form">
             {% for category_key, category in schema.items() %}

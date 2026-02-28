@@ -31,12 +31,6 @@ source venv/bin/activate
 echo -e "${YELLOW}Installing dependencies...${NC}"
 pip install -q -r requirements.txt
 
-# Install lozzalingo framework (from parent directory)
-if [ -d "../lozzalingo" ]; then
-    echo -e "${YELLOW}Installing lozzalingo framework...${NC}"
-    pip install -q -e ..
-fi
-
 # Create .env if it doesn't exist
 if [ ! -f ".env" ]; then
     echo -e "${YELLOW}Creating .env file from template...${NC}"
@@ -60,4 +54,4 @@ echo -e "${YELLOW}  First time? Visit /admin/create-admin to set up your admin a
 echo ""
 
 # Run the app
-python app.py
+python main.py
