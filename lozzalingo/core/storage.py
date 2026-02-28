@@ -90,6 +90,29 @@ def upload_file(file_bytes, filename, subfolder):
 
     if is_cloud_storage():
         return _upload_to_spaces(file_bytes, filename, subfolder)
+    if _is_s3_storage():
+        return _upload_to_s3(file_bytes, filename, subfolder)
+    return _save_locally(file_bytes, filename, subfolder)
+
+
+def upload_file_raw(file_bytes, filename, subfolder):
+    """Upload file without compression (for print-ready designs).
+
+    Same as upload_file() but skips image compression. Used for high-res
+    print files and reference mockups that must stay at full resolution.
+
+    Args:
+        file_bytes: Raw bytes of the file.
+        filename: Target filename.
+        subfolder: Subfolder name (e.g. "designs").
+
+    Returns:
+        Public URL (cloud/S3) or local path.
+    """
+    if is_cloud_storage():
+        return _upload_to_spaces(file_bytes, filename, subfolder)
+    if _is_s3_storage():
+        return _upload_to_s3(file_bytes, filename, subfolder)
     return _save_locally(file_bytes, filename, subfolder)
 
 
@@ -130,6 +153,73 @@ def _upload_to_spaces(file_bytes, filename, subfolder):
     )
 
     return f"https://{space_name}.{region}.digitaloceanspaces.com/{object_key}"
+
+
+def _is_s3_storage():
+    """Check if AWS S3 storage is configured."""
+    return bool(current_app.config.get('S3_BUCKET'))
+
+
+def _upload_to_s3(file_bytes, filename, subfolder):
+    """Upload to AWS S3 via boto3."""
+    import boto3
+
+    bucket = current_app.config['S3_BUCKET']
+    access_key = current_app.config.get('S3_ACCESS_KEY')
+    secret_key = current_app.config.get('S3_SECRET_KEY')
+    region = current_app.config.get('S3_REGION', 'eu-north-1')
+
+    app_prefix = current_app.config.get('S3_FOLDER', 'uploads')
+    object_key = f"{app_prefix}/{subfolder}/{filename}"
+
+    # Guess content type from extension
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    content_types = {
+        'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+        'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp',
+    }
+    content_type = content_types.get(ext, 'application/octet-stream')
+
+    client = boto3.client(
+        's3',
+        region_name=region,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+    )
+
+    client.put_object(
+        Bucket=bucket,
+        Key=object_key,
+        Body=file_bytes,
+        ACL='public-read',
+        ContentType=content_type,
+    )
+
+    return f"https://{bucket}.s3.{region}.amazonaws.com/{object_key}"
+
+
+def _delete_s3_file(file_url):
+    """Delete a file from AWS S3."""
+    import boto3
+    from urllib.parse import urlparse
+
+    bucket = current_app.config['S3_BUCKET']
+    access_key = current_app.config.get('S3_ACCESS_KEY')
+    secret_key = current_app.config.get('S3_SECRET_KEY')
+    region = current_app.config.get('S3_REGION', 'eu-north-1')
+
+    parsed = urlparse(file_url)
+    object_key = parsed.path.lstrip('/')
+
+    client = boto3.client(
+        's3',
+        region_name=region,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+    )
+
+    client.delete_object(Bucket=bucket, Key=object_key)
+    return True
 
 
 def _save_locally(file_bytes, filename, subfolder):
@@ -228,6 +318,8 @@ def delete_file(file_url):
 
     if 'digitaloceanspaces.com' in file_url:
         return _delete_cloud_file(file_url)
+    if '.s3.' in file_url and 'amazonaws.com' in file_url:
+        return _delete_s3_file(file_url)
     return _delete_local_file(file_url)
 
 

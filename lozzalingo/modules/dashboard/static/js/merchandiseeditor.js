@@ -37,6 +37,7 @@
         console.log('Initializing Merchandise Editor...');
 
         initializeProductForm();
+        initializeFulfilmentSection();
         initializeFilters();
         loadProducts();
     }
@@ -223,10 +224,138 @@
             } else {
                 stockInput.disabled = false;
             }
+            // Toggle fulfilment section visibility
+            const fulfilmentSection = document.getElementById('fulfilmentSection');
+            if (fulfilmentSection) {
+                fulfilmentSection.style.display = printOnDemandCheckbox.checked ? 'block' : 'none';
+            }
         }
 
         preorderCheckbox.addEventListener('change', updateStockInputState);
         printOnDemandCheckbox.addEventListener('change', updateStockInputState);
+    }
+
+    function initializeFulfilmentSection() {
+        console.log('FULFILMENT_INIT: Setting up fulfilment file slots');
+        const designSlots = document.querySelectorAll('.design-slot');
+
+        designSlots.forEach(slot => {
+            const field = slot.dataset.field;
+            const preview = slot.querySelector('.design-preview');
+            const fileInput = slot.querySelector('input[type="file"]');
+            const removeBtn = slot.querySelector('.design-remove-btn');
+
+            // Click preview to trigger file input
+            preview.addEventListener('click', () => {
+                if (!currentEditingProduct) {
+                    showMessage('Save the product first, then edit it to upload fulfilment files.', 'info');
+                    return;
+                }
+                fileInput.click();
+            });
+
+            // File selected — upload immediately
+            fileInput.addEventListener('change', async () => {
+                if (!fileInput.files[0] || !currentEditingProduct) return;
+
+                const file = fileInput.files[0];
+                console.log(`FULFILMENT_UPLOAD: Uploading ${field} for product ${currentEditingProduct.id}`);
+
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('product_id', currentEditingProduct.id);
+                formData.append('field', field);
+
+                try {
+                    const response = await fetch('/admin/merchandise-editor/upload-design', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        console.log(`FULFILMENT_UPLOAD: Success — ${field}: ${result.url}`);
+                        setDesignPreview(slot, result.url);
+                        showSuccessMessage('Fulfilment file uploaded');
+                    } else {
+                        throw new Error(result.error || 'Upload failed');
+                    }
+                } catch (error) {
+                    console.error('FULFILMENT_UPLOAD: Error:', error);
+                    showMessage('Error uploading fulfilment file: ' + error.message, 'error');
+                }
+
+                // Reset file input
+                fileInput.value = '';
+            });
+
+            // Remove button
+            removeBtn.addEventListener('click', async () => {
+                if (!currentEditingProduct) return;
+
+                console.log(`FULFILMENT_REMOVE: Removing ${field} for product ${currentEditingProduct.id}`);
+
+                const formData = new FormData();
+                formData.append('product_id', currentEditingProduct.id);
+                formData.append('field', field);
+
+                try {
+                    const response = await fetch('/admin/merchandise-editor/remove-design', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        console.log(`FULFILMENT_REMOVE: Success — cleared ${field}`);
+                        clearDesignPreview(slot);
+                        showSuccessMessage('Fulfilment file removed');
+                    } else {
+                        throw new Error(result.error || 'Remove failed');
+                    }
+                } catch (error) {
+                    console.error('FULFILMENT_REMOVE: Error:', error);
+                    showMessage('Error removing fulfilment file: ' + error.message, 'error');
+                }
+            });
+        });
+    }
+
+    function setDesignPreview(slot, url) {
+        const preview = slot.querySelector('.design-preview');
+        const removeBtn = slot.querySelector('.design-remove-btn');
+
+        preview.innerHTML = `<img src="${url}" alt="Design" style="width: 100%; height: 100%; object-fit: cover;">`;
+        removeBtn.style.display = 'inline-block';
+    }
+
+    function clearDesignPreview(slot) {
+        const preview = slot.querySelector('.design-preview');
+        const removeBtn = slot.querySelector('.design-remove-btn');
+
+        preview.innerHTML = '<span class="design-placeholder">Click to upload</span>';
+        removeBtn.style.display = 'none';
+    }
+
+    function populateFulfilmentPreviews(product) {
+        const fields = ['front_design_url', 'back_design_url', 'front_mockup_url', 'back_mockup_url'];
+
+        fields.forEach(field => {
+            const slot = document.querySelector(`.design-slot[data-field="${field}"]`);
+            if (!slot) return;
+
+            const url = product[field];
+            if (url) {
+                setDesignPreview(slot, url);
+            } else {
+                clearDesignPreview(slot);
+            }
+        });
+    }
+
+    function clearAllFulfilmentPreviews() {
+        const slots = document.querySelectorAll('.design-slot');
+        slots.forEach(slot => clearDesignPreview(slot));
     }
 
     function initializeNewsForm() {
@@ -521,6 +650,13 @@
         document.getElementById('productPreorder').checked = false;
         document.getElementById('productLimitedEdition').checked = false;
         document.getElementById('productPrintOnDemand').checked = false;
+
+        // Hide fulfilment section and clear previews
+        const fulfilmentSection = document.getElementById('fulfilmentSection');
+        if (fulfilmentSection) {
+            fulfilmentSection.style.display = 'none';
+            clearAllFulfilmentPreviews();
+        }
     }
 
     function resetArticleForm() {
@@ -706,6 +842,15 @@
         // Handle preorder or print_on_demand state - disable stock if either is checked
         const stockInput = document.getElementById('productStock');
         stockInput.disabled = product.is_preorder || product.print_on_demand;
+
+        // Toggle fulfilment section and populate previews
+        const fulfilmentSection = document.getElementById('fulfilmentSection');
+        if (fulfilmentSection) {
+            fulfilmentSection.style.display = product.print_on_demand ? 'block' : 'none';
+            if (product.print_on_demand) {
+                populateFulfilmentPreviews(product);
+            }
+        }
 
         // Clear and load existing images
         selectedImages = [];

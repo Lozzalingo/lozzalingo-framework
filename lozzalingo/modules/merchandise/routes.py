@@ -40,7 +40,11 @@ def get_products():
                 'is_active': p.is_active,
                 'limited_edition': p.limited_edition,
                 'print_on_demand': getattr(p, 'print_on_demand', False),
-                'image_urls': p.image_urls or []
+                'image_urls': p.image_urls or [],
+                'front_design_url': getattr(p, 'front_design_url', None),
+                'back_design_url': getattr(p, 'back_design_url', None),
+                'front_mockup_url': getattr(p, 'front_mockup_url', None),
+                'back_mockup_url': getattr(p, 'back_mockup_url', None),
             } for p in products]
         }
 
@@ -78,7 +82,11 @@ def get_product(product_id):
                 'is_active': product.is_active,
                 'limited_edition': product.limited_edition,
                 'print_on_demand': getattr(product, 'print_on_demand', False),
-                'image_urls': product.image_urls or []
+                'image_urls': product.image_urls or [],
+                'front_design_url': getattr(product, 'front_design_url', None),
+                'back_design_url': getattr(product, 'back_design_url', None),
+                'front_mockup_url': getattr(product, 'front_mockup_url', None),
+                'back_mockup_url': getattr(product, 'back_mockup_url', None),
             }
         })
 
@@ -228,4 +236,99 @@ def reorder_products():
         return jsonify({'success': False, 'error': 'Merchandise models not available'}), 500
     except Exception as e:
         print(f"Error reordering products: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@merchandise_bp.route('/upload-design', methods=['POST'])
+def upload_design():
+    """Upload a fulfilment design or mockup file (uncompressed)"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from app.models.merchandise import Product, get_merchandise_db
+
+        file = request.files.get('file')
+        product_id = request.form.get('product_id')
+        field = request.form.get('field')
+
+        valid_fields = ['front_design_url', 'back_design_url', 'front_mockup_url', 'back_mockup_url']
+        if not file or not product_id or field not in valid_fields:
+            return jsonify({'success': False, 'error': 'Missing file, product_id, or invalid field'}), 400
+
+        product = Product.get_by_id(int(product_id))
+        if not product:
+            return jsonify({'success': False, 'error': 'Product not found'}), 404
+
+        # Generate unique filename
+        import time
+        ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'png'
+        filename = f"{int(time.time())}_{field}_{product_id}.{ext}"
+
+        # Upload without compression (print-ready files)
+        from lozzalingo.core.storage import upload_file_raw
+        file_bytes = file.read()
+        url = upload_file_raw(file_bytes, filename, 'designs')
+
+        # Update the product's column directly
+        conn = get_merchandise_db()
+        cursor = conn.cursor()
+        cursor.execute(f'UPDATE products SET {field} = ? WHERE id = ?', (url, int(product_id)))
+        conn.commit()
+        conn.close()
+
+        print(f"DESIGN_UPLOAD: Uploaded {field} for product {product_id}: {url}")
+        return jsonify({'success': True, 'url': url})
+
+    except ImportError as e:
+        print(f"Error uploading design (import): {e}")
+        return jsonify({'success': False, 'error': 'Merchandise models not available'}), 500
+    except Exception as e:
+        print(f"Error uploading design: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@merchandise_bp.route('/remove-design', methods=['POST'])
+def remove_design():
+    """Remove a fulfilment design or mockup file"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        from app.models.merchandise import Product, get_merchandise_db
+
+        product_id = request.form.get('product_id')
+        field = request.form.get('field')
+
+        valid_fields = ['front_design_url', 'back_design_url', 'front_mockup_url', 'back_mockup_url']
+        if not product_id or field not in valid_fields:
+            return jsonify({'success': False, 'error': 'Missing product_id or invalid field'}), 400
+
+        product = Product.get_by_id(int(product_id))
+        if not product:
+            return jsonify({'success': False, 'error': 'Product not found'}), 404
+
+        # Optionally delete the file from storage
+        current_url = getattr(product, field, None)
+        if current_url:
+            try:
+                from lozzalingo.core.storage import delete_file
+                delete_file(current_url)
+            except Exception as e:
+                print(f"Warning: Could not delete design file {current_url}: {e}")
+
+        # Clear the column
+        conn = get_merchandise_db()
+        cursor = conn.cursor()
+        cursor.execute(f'UPDATE products SET {field} = NULL WHERE id = ?', (int(product_id),))
+        conn.commit()
+        conn.close()
+
+        print(f"DESIGN_REMOVE: Cleared {field} for product {product_id}")
+        return jsonify({'success': True})
+
+    except ImportError:
+        return jsonify({'success': False, 'error': 'Merchandise models not available'}), 500
+    except Exception as e:
+        print(f"Error removing design: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500

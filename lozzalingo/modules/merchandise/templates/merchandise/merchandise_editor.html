@@ -103,6 +103,54 @@
                             <div class="image-previews" id="imagePreviews"></div>
                         </div>
 
+                        <!-- Fulfilment Files Section (visible only when Print on Demand is checked) -->
+                        <div class="form-group fulfilment-section" id="fulfilmentSection" style="display: none;">
+                            <h3>Fulfilment Files (InkThreadable)</h3>
+                            <p class="upload-hint">High-res print files and reference mockups. Not shown to customers.</p>
+
+                            <div class="design-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
+                                <!-- Front Design -->
+                                <div class="design-slot" data-field="front_design_url">
+                                    <label>Front Design</label>
+                                    <div class="design-preview" id="frontDesignPreview" style="min-height: 120px; border: 2px dashed var(--border-color, #ccc); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden;">
+                                        <span class="design-placeholder">Click to upload</span>
+                                    </div>
+                                    <input type="file" name="front_design_file" accept="image/*" hidden>
+                                    <button name="remove_front_design" type="button" class="btn btn-danger btn-small design-remove-btn" style="display: none; margin-top: 6px;">Remove</button>
+                                </div>
+
+                                <!-- Back Design -->
+                                <div class="design-slot" data-field="back_design_url">
+                                    <label>Back Design</label>
+                                    <div class="design-preview" id="backDesignPreview" style="min-height: 120px; border: 2px dashed var(--border-color, #ccc); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden;">
+                                        <span class="design-placeholder">Click to upload</span>
+                                    </div>
+                                    <input type="file" name="back_design_file" accept="image/*" hidden>
+                                    <button name="remove_back_design" type="button" class="btn btn-danger btn-small design-remove-btn" style="display: none; margin-top: 6px;">Remove</button>
+                                </div>
+
+                                <!-- Front Mockup -->
+                                <div class="design-slot" data-field="front_mockup_url">
+                                    <label>Front Mockup</label>
+                                    <div class="design-preview" id="frontMockupPreview" style="min-height: 120px; border: 2px dashed var(--border-color, #ccc); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden;">
+                                        <span class="design-placeholder">Click to upload</span>
+                                    </div>
+                                    <input type="file" name="front_mockup_file" accept="image/*" hidden>
+                                    <button name="remove_front_mockup" type="button" class="btn btn-danger btn-small design-remove-btn" style="display: none; margin-top: 6px;">Remove</button>
+                                </div>
+
+                                <!-- Back Mockup -->
+                                <div class="design-slot" data-field="back_mockup_url">
+                                    <label>Back Mockup</label>
+                                    <div class="design-preview" id="backMockupPreview" style="min-height: 120px; border: 2px dashed var(--border-color, #ccc); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden;">
+                                        <span class="design-placeholder">Click to upload</span>
+                                    </div>
+                                    <input type="file" name="back_mockup_file" accept="image/*" hidden>
+                                    <button name="remove_back_mockup" type="button" class="btn btn-danger btn-small design-remove-btn" style="display: none; margin-top: 6px;">Remove</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="form-actions">
                             <button name="merch_save" type="submit" class="btn btn-primary" id="saveProductBtn">
                                 <span class="btn-text">Create Product</span>
