@@ -218,6 +218,8 @@ def update_product():
 
         # Build new image list: existing (in new order) + newly uploaded
         new_image_urls = list(existing_image_order)
+        print(f"MERCH_UPDATE: Product {product_id} - existing order: {existing_image_order}")
+        print(f"MERCH_UPDATE: Product {product_id} - images to delete: {images_to_delete}")
 
         uploaded_files = request.files.getlist('images')
         if uploaded_files:
@@ -230,8 +232,10 @@ def update_product():
                     safe_name = f"{timestamp}_{file.filename}"
                     url = upload_file(file_bytes, safe_name, 'merchandise')
                     new_image_urls.append(url)
+                    print(f"MERCH_UPDATE: Uploaded new image: {url}")
 
         product.image_urls = new_image_urls
+        print(f"MERCH_UPDATE: Product {product_id} - final image_urls: {new_image_urls}")
         product.save()
         return jsonify({'success': True})
 

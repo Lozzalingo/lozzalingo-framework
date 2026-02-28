@@ -392,7 +392,7 @@
         const browseStorageForImages = document.getElementById('browseStorageForImages');
         if (browseStorageForImages) {
             browseStorageForImages.addEventListener('click', () => {
-                openStorageBrowser('Select Image for Product Listing', (url) => {
+                openStorageBrowser('Select Image for Product Listing', 'merchandise', (url) => {
                     // Add as a product listing image
                     const imageObj = {
                         existing: true,
@@ -421,7 +421,9 @@
                     return;
                 }
 
-                openStorageBrowser(`Select file for ${field.replace(/_/g, ' ')}`, async (url) => {
+                // Designs browse "designs" folder, mockups browse "merchandise" folder
+                const subfolder = field.includes('mockup') ? 'merchandise' : 'designs';
+                openStorageBrowser(`Select file for ${field.replace(/_/g, ' ')}`, subfolder, async (url) => {
                     // Set the design URL via API
                     const formData = new FormData();
                     formData.append('product_id', currentEditingProduct.id);
@@ -450,14 +452,20 @@
         });
     }
 
-    function openStorageBrowser(title, callback) {
+    function openStorageBrowser(title, defaultSubfolder, callback) {
         const modal = document.getElementById('storageBrowserModal');
         const titleEl = document.getElementById('storageBrowserTitle');
+        const subfolderSelect = document.getElementById('storageBrowserSubfolder');
 
         titleEl.textContent = title;
         storageBrowserCallback = callback;
-        modal.style.display = 'flex';
 
+        // Pre-select the appropriate folder
+        if (defaultSubfolder && subfolderSelect) {
+            subfolderSelect.value = defaultSubfolder;
+        }
+
+        modal.style.display = 'flex';
         loadStorageBrowserFiles();
     }
 
@@ -766,14 +774,19 @@
                     .filter(img => img.existing)
                     .map(img => img.originalPath || img.url.replace('/static/', ''));
                 formData.append('existing_image_order', JSON.stringify(existingImageOrder));
+                console.log('MERCH_EDITOR: Saving existing image order:', existingImageOrder);
+                console.log('MERCH_EDITOR: Images to delete:', imagesToDelete);
             }
 
             // Add new images
+            let newImageCount = 0;
             selectedImages.forEach((img, index) => {
                 if (img.file) {
                     formData.append('images', img.file);
+                    newImageCount++;
                 }
             });
+            console.log('MERCH_EDITOR: New images to upload:', newImageCount);
 
             const url = currentEditingProduct ? '/admin/merchandise-editor/update' : '/admin/merchandise-editor/create';
             const response = await fetch(url, {
@@ -782,6 +795,7 @@
             });
 
             const result = await response.json();
+            console.log('MERCH_EDITOR: Save response:', result);
 
             if (result.success) {
                 showMessage(currentEditingProduct ? 'Product updated successfully!' : 'Product created successfully!', 'success');
@@ -792,7 +806,7 @@
             }
 
         } catch (error) {
-            console.error('Error saving product:', error);
+            console.error('MERCH_EDITOR: Error saving product:', error);
             showMessage('Error saving product: ' + error.message, 'error');
         } finally {
             // Hide loading state
