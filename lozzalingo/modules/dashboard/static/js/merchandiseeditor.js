@@ -689,12 +689,26 @@
 
     function updateDropZoneVisibility() {
         const dropZone = document.getElementById('imageDropZone');
+        const placeholder = dropZone.querySelector('.upload-placeholder');
 
-        // Hide entire drop zone when images exist (buttons are outside it now)
         if (selectedImages.length === 0) {
+            // Full size drop zone with icon and hints
             dropZone.style.display = 'block';
+            dropZone.style.minHeight = '';
+            dropZone.style.padding = '';
+            if (placeholder) {
+                placeholder.style.display = '';
+                placeholder.innerHTML = '<div class="upload-icon">📷</div><p>Drag & drop images here</p><p class="upload-hint">Supports: JPG, PNG, WebP, MP4 (max 50MB total)</p>';
+            }
         } else {
-            dropZone.style.display = 'none';
+            // Compact drop zone for adding more
+            dropZone.style.display = 'block';
+            dropZone.style.minHeight = '48px';
+            dropZone.style.padding = '8px';
+            if (placeholder) {
+                placeholder.style.display = '';
+                placeholder.innerHTML = '<p style="margin:0; font-size: 0.85em; opacity: 0.7;">📷 Drag & drop more images here</p>';
+            }
         }
     }
 
