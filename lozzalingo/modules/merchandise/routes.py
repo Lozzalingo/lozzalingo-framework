@@ -123,6 +123,20 @@ def create_product():
         # Convert price to pence
         price = int(float(price_str) * 100)
 
+        # Upload new images
+        image_urls = []
+        uploaded_files = request.files.getlist('images')
+        if uploaded_files:
+            from lozzalingo.core.storage import upload_file
+            import time
+            for file in uploaded_files:
+                if file and file.filename:
+                    file_bytes = file.read()
+                    timestamp = int(time.time())
+                    safe_name = f"{timestamp}_{file.filename}"
+                    url = upload_file(file_bytes, safe_name, 'merchandise')
+                    image_urls.append(url)
+
         # Create product
         product = Product(
             name=name,
@@ -134,7 +148,7 @@ def create_product():
             print_on_demand=print_on_demand,
             sold_out=sold_out,
             is_active=True,
-            image_urls=[]
+            image_urls=image_urls
         )
         product.save()
 
@@ -183,6 +197,41 @@ def update_product():
         product.print_on_demand = print_on_demand
         product.sold_out = request.form.get('sold_out') == 'true'
 
+        # Handle image updates: reordering + deletions + new uploads
+        existing_image_order_raw = request.form.get('existing_image_order', '[]')
+        images_to_delete_raw = request.form.get('images_to_delete', '[]')
+
+        existing_image_order = json.loads(existing_image_order_raw)
+        images_to_delete = json.loads(images_to_delete_raw)
+
+        # Delete removed images from storage
+        if images_to_delete:
+            try:
+                from lozzalingo.core.storage import delete_file
+                for url in images_to_delete:
+                    try:
+                        delete_file(url)
+                    except Exception as e:
+                        print(f"Warning: could not delete image {url}: {e}")
+            except ImportError:
+                pass
+
+        # Build new image list: existing (in new order) + newly uploaded
+        new_image_urls = list(existing_image_order)
+
+        uploaded_files = request.files.getlist('images')
+        if uploaded_files:
+            from lozzalingo.core.storage import upload_file
+            import time
+            for file in uploaded_files:
+                if file and file.filename:
+                    file_bytes = file.read()
+                    timestamp = int(time.time())
+                    safe_name = f"{timestamp}_{file.filename}"
+                    url = upload_file(file_bytes, safe_name, 'merchandise')
+                    new_image_urls.append(url)
+
+        product.image_urls = new_image_urls
         product.save()
         return jsonify({'success': True})
 
