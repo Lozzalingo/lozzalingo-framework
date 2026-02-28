@@ -939,7 +939,7 @@
                     <br>
                     ${product.print_on_demand ? 'Print on Demand' : `Stock: ${product.stock_quantity}`} ${product.is_preorder ? '(Preorder)' : ''}
                     ${product.limited_edition ? '<br><span class="limited-edition-badge">Limited Edition</span>' : ''}
-                    ${product.sold_out ? '<span class="limited-edition-badge" style="background: #dc3545;">Sold Out</span>' : ''}
+                    ${product.sold_out ? '<span class="limited-edition-badge" style="background: #ff002b;">Sold Out</span>' : ''}
                 </div>
                 <div class="product-images">
                     ${product.image_urls.slice(0, 3).map(url => {
