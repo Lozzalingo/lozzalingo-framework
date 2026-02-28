@@ -689,14 +689,12 @@
 
     function updateDropZoneVisibility() {
         const dropZone = document.getElementById('imageDropZone');
-        const placeholder = dropZone.querySelector('.upload-placeholder');
 
-        // Hide the drop zone placeholder when images exist, but the action buttons
-        // (Browse Files / Browse Storage) are outside the placeholder, so they stay visible
+        // Hide entire drop zone when images exist (buttons are outside it now)
         if (selectedImages.length === 0) {
-            placeholder.style.display = 'block';
+            dropZone.style.display = 'block';
         } else {
-            placeholder.style.display = 'none';
+            dropZone.style.display = 'none';
         }
     }
 
