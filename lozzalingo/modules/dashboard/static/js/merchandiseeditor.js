@@ -239,6 +239,10 @@
             if (skuGroup) {
                 skuGroup.style.display = printOnDemandCheckbox.checked ? 'block' : 'none';
             }
+            const fulfilmentMetaGroup = document.getElementById('fulfilmentMetaGroup');
+            if (fulfilmentMetaGroup) {
+                fulfilmentMetaGroup.style.display = printOnDemandCheckbox.checked ? 'block' : 'none';
+            }
             // Toggle sold out checkbox visibility (show when limited edition is checked)
             const soldOutGroup = document.getElementById('soldOutGroup');
             const limitedEditionCheckbox = document.getElementById('productLimitedEdition');
@@ -771,6 +775,7 @@
             formData.append('print_on_demand', form.productPrintOnDemand.checked);
             formData.append('sold_out', document.getElementById('productSoldOut').checked);
             formData.append('sku', (document.getElementById('productSku').value || '').trim());
+            formData.append('fulfilment_meta', (document.getElementById('productFulfilmentMeta').value || '').trim());
 
             // Add product ID if editing
             if (currentEditingProduct) {
@@ -912,6 +917,12 @@
         if (skuInput) skuInput.value = '';
         const skuGroup = document.getElementById('skuGroup');
         if (skuGroup) skuGroup.style.display = 'none';
+
+        // Clear and hide fulfilment meta field
+        const fulfilmentMetaInput = document.getElementById('productFulfilmentMeta');
+        if (fulfilmentMetaInput) fulfilmentMetaInput.value = '';
+        const fulfilmentMetaGroup = document.getElementById('fulfilmentMetaGroup');
+        if (fulfilmentMetaGroup) fulfilmentMetaGroup.style.display = 'none';
 
         // Hide fulfilment section and clear previews
         const fulfilmentSection = document.getElementById('fulfilmentSection');
@@ -1126,6 +1137,14 @@
         const skuGroup = document.getElementById('skuGroup');
         if (skuInput) skuInput.value = product.sku || '';
         if (skuGroup) skuGroup.style.display = product.print_on_demand ? 'block' : 'none';
+
+        // Populate fulfilment meta and show if print on demand
+        const fulfilmentMetaInput = document.getElementById('productFulfilmentMeta');
+        const fulfilmentMetaGroup = document.getElementById('fulfilmentMetaGroup');
+        if (fulfilmentMetaInput) {
+            fulfilmentMetaInput.value = product.fulfilment_meta ? JSON.stringify(product.fulfilment_meta, null, 2) : '';
+        }
+        if (fulfilmentMetaGroup) fulfilmentMetaGroup.style.display = product.print_on_demand ? 'block' : 'none';
 
         // Show sold_out group if limited edition
         const soldOutGroup = document.getElementById('soldOutGroup');

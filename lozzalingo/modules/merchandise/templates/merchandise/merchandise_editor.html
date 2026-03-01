@@ -95,6 +95,14 @@
                             <span class="form-hint">Base SKU without size suffix — size is appended automatically (e.g. GD05-BLK-L)</span>
                         </div>
 
+                        <div class="form-group" id="fulfilmentMetaGroup" style="display: none;">
+                            <label for="productFulfilmentMeta">Fulfilment Properties (JSON)</label>
+                            <textarea id="productFulfilmentMeta" name="fulfilment_meta" rows="6"
+                                    placeholder='{"description": "Please embroider using mockup image as reference", "label_type": "embroidered", "properties": {"Embroidered with 3D foam?": "Yes"}}'
+                                    style="font-family: monospace; font-size: 0.85rem;"></textarea>
+                            <span class="form-hint">Custom InkThreadable properties. Keys: description, label_type, label_name, properties (dict of extra fields)</span>
+                        </div>
+
                         <div class="form-group" id="soldOutGroup" style="display: none;">
                             <label class="checkbox-label">
                                 <input type="checkbox" id="productSoldOut" name="sold_out">

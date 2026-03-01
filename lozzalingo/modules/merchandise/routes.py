@@ -47,6 +47,7 @@ def get_products():
                 'front_mockup_url': getattr(p, 'front_mockup_url', None),
                 'back_mockup_url': getattr(p, 'back_mockup_url', None),
                 'sku': getattr(p, 'sku', None),
+                'fulfilment_meta': getattr(p, 'fulfilment_meta', None),
             } for p in products]
         }
 
@@ -91,6 +92,7 @@ def get_product(product_id):
                 'front_mockup_url': getattr(product, 'front_mockup_url', None),
                 'back_mockup_url': getattr(product, 'back_mockup_url', None),
                 'sku': getattr(product, 'sku', None),
+                'fulfilment_meta': getattr(product, 'fulfilment_meta', None),
             }
         })
 
@@ -141,6 +143,13 @@ def create_product():
 
         # Create product
         sku = request.form.get('sku', '').strip() or None
+        fulfilment_meta_raw = request.form.get('fulfilment_meta', '').strip()
+        fulfilment_meta = None
+        if fulfilment_meta_raw:
+            try:
+                fulfilment_meta = json.loads(fulfilment_meta_raw)
+            except json.JSONDecodeError:
+                return jsonify({'success': False, 'error': 'Invalid JSON in fulfilment meta'}), 400
         product = Product(
             name=name,
             description=description,
@@ -152,7 +161,8 @@ def create_product():
             sold_out=sold_out,
             is_active=True,
             image_urls=image_urls,
-            sku=sku
+            sku=sku,
+            fulfilment_meta=fulfilment_meta
         )
         product.save()
 
@@ -201,6 +211,14 @@ def update_product():
         product.print_on_demand = print_on_demand
         product.sold_out = request.form.get('sold_out') == 'true'
         product.sku = request.form.get('sku', '').strip() or None
+        fulfilment_meta_raw = request.form.get('fulfilment_meta', '').strip()
+        if fulfilment_meta_raw:
+            try:
+                product.fulfilment_meta = json.loads(fulfilment_meta_raw)
+            except json.JSONDecodeError:
+                return jsonify({'success': False, 'error': 'Invalid JSON in fulfilment meta'}), 400
+        else:
+            product.fulfilment_meta = None
 
         # Handle image updates: reordering + deletions + new uploads
         existing_image_order_raw = request.form.get('existing_image_order', '[]')
