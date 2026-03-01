@@ -276,7 +276,8 @@
 
     function initializeFulfilmentSection() {
         console.log('FULFILMENT_INIT: Setting up fulfilment file slots');
-        const designSlots = document.querySelectorAll('.design-slot');
+        // Only select non-campaign design slots (campaign slots use storage browser, not file upload)
+        const designSlots = document.querySelectorAll('.design-slot:not(.campaign-design-slot)');
 
         designSlots.forEach(slot => {
             const field = slot.dataset.field;
