@@ -377,8 +377,5 @@ def send_triggered_campaigns(email, trigger_type):
 
 def _redirect_to_login():
     """Redirect to admin login page"""
-    from flask import redirect, url_for
-    try:
-        return redirect(url_for('dashboard.admin_page'))
-    except Exception:
-        return redirect('/admin')
+    from flask import redirect
+    return redirect('/admin')
