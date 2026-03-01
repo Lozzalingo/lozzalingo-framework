@@ -208,7 +208,7 @@ def send_campaign(campaign_id):
             continue
         try:
             variables = resolve_variables(email_addr)
-            html = render_campaign(campaign['blocks'], variables)
+            html = render_campaign(campaign['blocks'], variables, campaign_name=campaign['name'])
             success = svc.send_email([email_addr], campaign['subject'], html)
 
             if success:
@@ -267,7 +267,7 @@ def send_test(campaign_id):
         for key, var_config in custom_vars.items():
             preview_vars[key] = var_config.get('preview_value', f'{{{{{key}}}}}')
 
-        html = render_campaign(campaign['blocks'], preview_vars)
+        html = render_campaign(campaign['blocks'], preview_vars, campaign_name=campaign['name'])
         subject = f"[TEST] {campaign['subject']}"
         success = svc.send_email([recipient], subject, html)
 
@@ -355,7 +355,7 @@ def send_triggered_campaigns(email, trigger_type):
         for campaign in campaigns:
             try:
                 variables = resolve_variables(email)
-                html = render_campaign(campaign['blocks'], variables)
+                html = render_campaign(campaign['blocks'], variables, campaign_name=campaign['name'])
                 success = svc.send_email([email], campaign['subject'], html)
 
                 if success:

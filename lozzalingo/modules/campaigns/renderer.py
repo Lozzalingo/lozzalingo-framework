@@ -167,12 +167,31 @@ def render_block(block, style, variables=None):
     return ''
 
 
-def render_campaign(blocks, variables=None):
+def _add_utm_params(html, campaign_name):
+    """Auto-tag href URLs with UTM parameters for campaign tracking"""
+    if not campaign_name:
+        return html
+    # Slugify campaign name for utm_campaign
+    slug = re.sub(r'[^a-z0-9]+', '-', campaign_name.lower()).strip('-')
+
+    def _tag_url(match):
+        url = match.group(1)
+        # Skip mailto:, tel:, and anchor-only links
+        if url.startswith(('mailto:', 'tel:', '#')):
+            return match.group(0)
+        separator = '&' if '?' in url else '?'
+        return f'href="{url}{separator}utm_source=campaign&utm_medium=email&utm_campaign={slug}"'
+
+    return re.sub(r'href="([^"]+)"', _tag_url, html)
+
+
+def render_campaign(blocks, variables=None, campaign_name=None):
     """Render a full campaign (list of blocks) into a complete HTML email.
 
     Args:
         blocks: list of block dicts
         variables: dict of variable substitutions (e.g. {'CODE': 'GOLD-1-AB12'})
+        campaign_name: campaign name for UTM tagging (optional)
 
     Returns:
         Complete HTML email string with all inline CSS
@@ -194,7 +213,7 @@ def render_campaign(blocks, variables=None):
 
     unsubscribe_url = variables.get('UNSUBSCRIBE_URL', brand['unsubscribe_url'])
 
-    return f'''<!DOCTYPE html>
+    html = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -218,3 +237,8 @@ def render_campaign(blocks, variables=None):
     </div>
 </body>
 </html>'''
+
+    if campaign_name:
+        html = _add_utm_params(html, campaign_name)
+
+    return html
