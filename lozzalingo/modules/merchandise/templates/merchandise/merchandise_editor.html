@@ -95,12 +95,66 @@
                             <span class="form-hint">Base SKU without size suffix — size is appended automatically (e.g. GD05-BLK-L)</span>
                         </div>
 
+                        <!-- Campaign Section -->
+                        <div class="form-group" id="campaignSection" style="display: none;">
+                            <h3>Campaign</h3>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="campaignEnabled" name="campaign_enabled">
+                                <span class="checkbox-custom"></span>
+                                This product is part of a subscriber campaign
+                            </label>
+
+                            <div id="campaignFields" style="display: none;">
+                                <div class="design-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
+                                    <!-- Campaign Back Design -->
+                                    <div class="design-slot campaign-design-slot" data-field="campaign_back_design_url">
+                                        <label>Campaign Back Design</label>
+                                        <span class="form-hint">Sent to InkThreadable when subscriber code is activated</span>
+                                        <div class="design-preview" id="campaignBackDesignPreview" style="min-height: 120px; border: 2px dashed var(--border-color, #ccc); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden;">
+                                            <span class="design-placeholder">Click to browse</span>
+                                        </div>
+                                        <div style="display: flex; gap: 6px; margin-top: 6px;">
+                                            <button name="browse_storage_campaign_back_design" type="button" class="btn btn-secondary btn-small campaign-browse-btn">Browse Storage</button>
+                                            <button name="remove_campaign_back_design" type="button" class="btn btn-danger btn-small campaign-remove-btn" style="display: none;">Remove</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Campaign Back Mockup -->
+                                    <div class="design-slot campaign-design-slot" data-field="campaign_back_mockup_url">
+                                        <label>Campaign Back Mockup</label>
+                                        <span class="form-hint">Preview image for the campaign design</span>
+                                        <div class="design-preview" id="campaignBackMockupPreview" style="min-height: 120px; border: 2px dashed var(--border-color, #ccc); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden;">
+                                            <span class="design-placeholder">Click to browse</span>
+                                        </div>
+                                        <div style="display: flex; gap: 6px; margin-top: 6px;">
+                                            <button name="browse_storage_campaign_back_mockup" type="button" class="btn btn-secondary btn-small campaign-browse-btn">Browse Storage</button>
+                                            <button name="remove_campaign_back_mockup" type="button" class="btn btn-danger btn-small campaign-remove-btn" style="display: none;">Remove</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-row" style="margin-top: 12px;">
+                                    <div class="form-group">
+                                        <label for="campaignTag">Campaign Tag</label>
+                                        <input type="text" id="campaignTag" name="campaign_tag" placeholder="e.g. london_2026">
+                                        <span class="form-hint">Identifier used by checkout to find eligible products</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="campaignExpiry">Expiry Date</label>
+                                        <input type="date" id="campaignExpiry" name="campaign_expiry">
+                                        <span class="form-hint">Campaign ends after this date</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Custom Fulfilment Properties (JSON) -->
                         <div class="form-group" id="fulfilmentMetaGroup" style="display: none;">
-                            <label for="productFulfilmentMeta">Fulfilment Properties (JSON)</label>
-                            <textarea id="productFulfilmentMeta" name="fulfilment_meta" rows="6"
-                                    placeholder='{"description": "Please embroider using mockup image as reference", "label_type": "embroidered", "properties": {"Embroidered with 3D foam?": "Yes"}}'
+                            <label for="productFulfilmentMeta">Custom Fulfilment Properties (JSON)</label>
+                            <textarea id="productFulfilmentMeta" name="fulfilment_meta" rows="3"
+                                    placeholder='{"description": "Please embroider...", "label_type": "embroidered"}'
                                     style="font-family: monospace; font-size: 0.85rem;"></textarea>
-                            <span class="form-hint">Custom InkThreadable properties. Keys: description, label_type, label_name, properties (dict of extra fields)</span>
+                            <span class="form-hint">Optional InkThreadable properties: description, label_type, label_name, properties</span>
                         </div>
 
                         <div class="form-group" id="soldOutGroup" style="display: none;">

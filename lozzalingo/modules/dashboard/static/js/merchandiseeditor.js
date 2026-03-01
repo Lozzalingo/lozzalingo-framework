@@ -9,6 +9,10 @@
     let allProducts = [];  // Store all products for filtering
     let storageBrowserCallback = null;  // Called when user picks a file from storage browser
 
+    // Campaign design URLs (stored in fulfilment_meta JSON, not as DB columns)
+    let campaignBackDesignUrl = '';
+    let campaignBackMockupUrl = '';
+
     // Initialize when DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
         checkAuthAndInitialize();
@@ -39,6 +43,7 @@
 
         initializeProductForm();
         initializeFulfilmentSection();
+        initializeCampaignSection();
         initializeStorageBrowser();
         initializeFilters();
         loadProducts();
@@ -243,6 +248,10 @@
             if (fulfilmentMetaGroup) {
                 fulfilmentMetaGroup.style.display = printOnDemandCheckbox.checked ? 'block' : 'none';
             }
+            const campaignSection = document.getElementById('campaignSection');
+            if (campaignSection) {
+                campaignSection.style.display = printOnDemandCheckbox.checked ? 'block' : 'none';
+            }
             // Toggle sold out checkbox visibility (show when limited edition is checked)
             const soldOutGroup = document.getElementById('soldOutGroup');
             const limitedEditionCheckbox = document.getElementById('productLimitedEdition');
@@ -343,20 +352,90 @@
         });
     }
 
+    function initializeCampaignSection() {
+        console.log('CAMPAIGN_INIT: Setting up campaign section');
+        const campaignEnabled = document.getElementById('campaignEnabled');
+        const campaignFields = document.getElementById('campaignFields');
+
+        if (!campaignEnabled || !campaignFields) return;
+
+        // Toggle campaign fields visibility
+        campaignEnabled.addEventListener('change', () => {
+            campaignFields.style.display = campaignEnabled.checked ? 'block' : 'none';
+        });
+
+        // Campaign design slots — browse storage + remove (no direct upload, URLs stored in JS vars)
+        const campaignSlots = document.querySelectorAll('.campaign-design-slot');
+        campaignSlots.forEach(slot => {
+            const field = slot.dataset.field;
+            const preview = slot.querySelector('.design-preview');
+            const browseBtn = slot.querySelector('.campaign-browse-btn');
+            const removeBtn = slot.querySelector('.campaign-remove-btn');
+
+            // Click preview to browse storage
+            preview.addEventListener('click', () => {
+                const subfolder = field.includes('mockup') ? 'merchandise' : 'designs';
+                openStorageBrowser(`Select file for ${field.replace(/_/g, ' ')}`, subfolder, (url) => {
+                    setCampaignDesignUrl(field, url);
+                    setDesignPreview(slot, url);
+                    showSuccessMessage('Campaign design set');
+                });
+            });
+
+            // Browse storage button
+            browseBtn.addEventListener('click', () => {
+                const subfolder = field.includes('mockup') ? 'merchandise' : 'designs';
+                openStorageBrowser(`Select file for ${field.replace(/_/g, ' ')}`, subfolder, (url) => {
+                    setCampaignDesignUrl(field, url);
+                    setDesignPreview(slot, url);
+                    showSuccessMessage('Campaign design set');
+                });
+            });
+
+            // Remove button
+            removeBtn.addEventListener('click', () => {
+                setCampaignDesignUrl(field, '');
+                clearDesignPreview(slot);
+                showSuccessMessage('Campaign design removed');
+            });
+        });
+    }
+
+    function setCampaignDesignUrl(field, url) {
+        if (field === 'campaign_back_design_url') {
+            campaignBackDesignUrl = url;
+        } else if (field === 'campaign_back_mockup_url') {
+            campaignBackMockupUrl = url;
+        }
+    }
+
+    // Helper to find the campaign tag key in fulfilment_meta (a key with value === true)
+    function findCampaignTag(meta) {
+        const knownKeys = ['gold_back_design_url', 'gold_back_mockup_url', 'campaign_back_design_url',
+                           'campaign_back_mockup_url', 'sale_ends', 'description', 'label_type',
+                           'label_name', 'properties'];
+        for (const key of Object.keys(meta)) {
+            if (!knownKeys.includes(key) && meta[key] === true) {
+                return key;
+            }
+        }
+        return '';
+    }
+
     function setDesignPreview(slot, url) {
         const preview = slot.querySelector('.design-preview');
-        const removeBtn = slot.querySelector('.design-remove-btn');
+        const removeBtn = slot.querySelector('.design-remove-btn') || slot.querySelector('.campaign-remove-btn');
 
         preview.innerHTML = `<img src="${url}" alt="Design" style="width: 100%; height: 100%; object-fit: cover;">`;
-        removeBtn.style.display = 'inline-block';
+        if (removeBtn) removeBtn.style.display = 'inline-block';
     }
 
     function clearDesignPreview(slot) {
         const preview = slot.querySelector('.design-preview');
-        const removeBtn = slot.querySelector('.design-remove-btn');
+        const removeBtn = slot.querySelector('.design-remove-btn') || slot.querySelector('.campaign-remove-btn');
 
         preview.innerHTML = '<span class="design-placeholder">Click to upload</span>';
-        removeBtn.style.display = 'none';
+        if (removeBtn) removeBtn.style.display = 'none';
     }
 
     function populateFulfilmentPreviews(product) {
@@ -775,7 +854,31 @@
             formData.append('print_on_demand', form.productPrintOnDemand.checked);
             formData.append('sold_out', document.getElementById('productSoldOut').checked);
             formData.append('sku', (document.getElementById('productSku').value || '').trim());
-            formData.append('fulfilment_meta', (document.getElementById('productFulfilmentMeta').value || '').trim());
+
+            // Build fulfilment_meta by merging campaign fields + custom JSON
+            let fulfilmentMeta = {};
+            const customJson = (document.getElementById('productFulfilmentMeta').value || '').trim();
+            if (customJson) {
+                try {
+                    fulfilmentMeta = JSON.parse(customJson);
+                } catch (parseErr) {
+                    throw new Error('Invalid JSON in Custom Fulfilment Properties: ' + parseErr.message);
+                }
+            }
+
+            // Merge campaign fields if enabled
+            const campaignCheckbox = document.getElementById('campaignEnabled');
+            if (campaignCheckbox && campaignCheckbox.checked) {
+                if (campaignBackDesignUrl) fulfilmentMeta.gold_back_design_url = campaignBackDesignUrl;
+                if (campaignBackMockupUrl) fulfilmentMeta.gold_back_mockup_url = campaignBackMockupUrl;
+                const tagVal = (document.getElementById('campaignTag').value || '').trim();
+                if (tagVal) fulfilmentMeta[tagVal] = true;
+                const expiryVal = (document.getElementById('campaignExpiry').value || '').trim();
+                if (expiryVal) fulfilmentMeta.sale_ends = expiryVal;
+            }
+
+            const fulfilmentMetaStr = Object.keys(fulfilmentMeta).length ? JSON.stringify(fulfilmentMeta) : '';
+            formData.append('fulfilment_meta', fulfilmentMetaStr);
 
             // Add product ID if editing
             if (currentEditingProduct) {
@@ -923,6 +1026,23 @@
         if (fulfilmentMetaInput) fulfilmentMetaInput.value = '';
         const fulfilmentMetaGroup = document.getElementById('fulfilmentMetaGroup');
         if (fulfilmentMetaGroup) fulfilmentMetaGroup.style.display = 'none';
+
+        // Clear and hide campaign section
+        campaignBackDesignUrl = '';
+        campaignBackMockupUrl = '';
+        const campaignEnabled = document.getElementById('campaignEnabled');
+        if (campaignEnabled) campaignEnabled.checked = false;
+        const campaignFields = document.getElementById('campaignFields');
+        if (campaignFields) campaignFields.style.display = 'none';
+        const campaignTag = document.getElementById('campaignTag');
+        if (campaignTag) campaignTag.value = '';
+        const campaignExpiry = document.getElementById('campaignExpiry');
+        if (campaignExpiry) campaignExpiry.value = '';
+        const campaignSection = document.getElementById('campaignSection');
+        if (campaignSection) campaignSection.style.display = 'none';
+        // Clear campaign design previews
+        const campaignSlots = document.querySelectorAll('.campaign-design-slot');
+        campaignSlots.forEach(slot => clearDesignPreview(slot));
 
         // Hide fulfilment section and clear previews
         const fulfilmentSection = document.getElementById('fulfilmentSection');
@@ -1138,13 +1258,71 @@
         if (skuInput) skuInput.value = product.sku || '';
         if (skuGroup) skuGroup.style.display = product.print_on_demand ? 'block' : 'none';
 
-        // Populate fulfilment meta and show if print on demand
+        // Populate campaign section and custom fulfilment meta
         const fulfilmentMetaInput = document.getElementById('productFulfilmentMeta');
         const fulfilmentMetaGroup = document.getElementById('fulfilmentMetaGroup');
-        if (fulfilmentMetaInput) {
-            fulfilmentMetaInput.value = product.fulfilment_meta ? JSON.stringify(product.fulfilment_meta, null, 2) : '';
-        }
+        const campaignSection = document.getElementById('campaignSection');
+        const campaignEnabledCheckbox = document.getElementById('campaignEnabled');
+        const campaignFieldsDiv = document.getElementById('campaignFields');
+        const campaignTagInput = document.getElementById('campaignTag');
+        const campaignExpiryInput = document.getElementById('campaignExpiry');
+
+        if (campaignSection) campaignSection.style.display = product.print_on_demand ? 'block' : 'none';
         if (fulfilmentMetaGroup) fulfilmentMetaGroup.style.display = product.print_on_demand ? 'block' : 'none';
+
+        // Reset campaign state
+        campaignBackDesignUrl = '';
+        campaignBackMockupUrl = '';
+
+        if (product.fulfilment_meta && typeof product.fulfilment_meta === 'object') {
+            const meta = product.fulfilment_meta;
+            const hasCampaign = !!(meta.gold_back_design_url || meta.campaign_back_design_url);
+
+            if (campaignEnabledCheckbox) campaignEnabledCheckbox.checked = hasCampaign;
+            if (campaignFieldsDiv) campaignFieldsDiv.style.display = hasCampaign ? 'block' : 'none';
+
+            // Populate campaign design URLs
+            campaignBackDesignUrl = meta.gold_back_design_url || meta.campaign_back_design_url || '';
+            campaignBackMockupUrl = meta.gold_back_mockup_url || meta.campaign_back_mockup_url || '';
+
+            // Show campaign design previews
+            const campaignBackDesignSlot = document.querySelector('.campaign-design-slot[data-field="campaign_back_design_url"]');
+            const campaignBackMockupSlot = document.querySelector('.campaign-design-slot[data-field="campaign_back_mockup_url"]');
+            if (campaignBackDesignSlot) {
+                if (campaignBackDesignUrl) setDesignPreview(campaignBackDesignSlot, campaignBackDesignUrl);
+                else clearDesignPreview(campaignBackDesignSlot);
+            }
+            if (campaignBackMockupSlot) {
+                if (campaignBackMockupUrl) setDesignPreview(campaignBackMockupSlot, campaignBackMockupUrl);
+                else clearDesignPreview(campaignBackMockupSlot);
+            }
+
+            // Populate campaign tag and expiry
+            if (campaignTagInput) campaignTagInput.value = findCampaignTag(meta);
+            if (campaignExpiryInput) campaignExpiryInput.value = meta.sale_ends || '';
+
+            // Remaining keys go into the custom JSON textarea
+            const customMeta = { ...meta };
+            delete customMeta.gold_back_design_url;
+            delete customMeta.gold_back_mockup_url;
+            delete customMeta.campaign_back_design_url;
+            delete customMeta.campaign_back_mockup_url;
+            delete customMeta.sale_ends;
+            // Delete the campaign tag key (value === true)
+            const tagKey = findCampaignTag(meta);
+            if (tagKey) delete customMeta[tagKey];
+
+            if (fulfilmentMetaInput) {
+                fulfilmentMetaInput.value = Object.keys(customMeta).length ? JSON.stringify(customMeta, null, 2) : '';
+            }
+        } else {
+            if (campaignEnabledCheckbox) campaignEnabledCheckbox.checked = false;
+            if (campaignFieldsDiv) campaignFieldsDiv.style.display = 'none';
+            if (fulfilmentMetaInput) fulfilmentMetaInput.value = '';
+            // Clear campaign design previews
+            const campaignSlots = document.querySelectorAll('.campaign-design-slot');
+            campaignSlots.forEach(slot => clearDesignPreview(slot));
+        }
 
         // Show sold_out group if limited edition
         const soldOutGroup = document.getElementById('soldOutGroup');

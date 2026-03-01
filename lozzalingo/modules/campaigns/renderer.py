@@ -114,66 +114,52 @@ def render_block(block, style, variables=None):
         subtitle = _substitute_variables(block.get('subtitle', ''), variables)
         subtitle_html = ''
         if subtitle:
-            subtitle_html = f'<p style="margin:4px 0 0;font-size:13px;color:{style["header_text"]};opacity:0.85;font-family:{style["font"]};">{subtitle}</p>'
-        return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr><td style="background-color:{style['header_bg']};padding:28px 32px;text-align:center;">
-                <h1 style="margin:0;color:{style['header_text']};font-family:{style['font_heading']};font-size:22px;font-weight:bold;letter-spacing:1px;">{text}</h1>
-                {subtitle_html}
-            </td></tr>
-        </table>'''
+            subtitle_html = f'<p style="margin:6px 0 0;font-size:13px;color:{style["header_text"]};opacity:0.85;font-family:{style["font"]};">{subtitle}</p>'
+        return f'''<div style="background:{style['header_bg']};color:{style['header_text']};padding:24px;text-align:center;">
+            <p style="font-size:20px;margin:0;letter-spacing:2px;font-weight:normal;font-family:{style['font_heading']};">{text}</p>
+            {subtitle_html}
+        </div>'''
 
     elif block_type == 'paragraph':
         content = _substitute_variables(block.get('content', ''), variables)
         content = _render_bold(content)
-        return f'<p style="margin:0 0 16px;color:{style["text"]};font-family:{style["font"]};font-size:15px;line-height:1.7;">{content}</p>'
+        return f'<p style="font-size:16px;margin:0 0 16px 0;line-height:1.7;color:{style["text"]};font-family:{style["font"]};">{content}</p>'
 
     elif block_type == 'image':
         url = _substitute_variables(block.get('url', ''), variables)
         alt = block.get('alt', '')
         border_color = block.get('border_color', '')
-        border_style = f'border:3px solid {border_color};' if border_color else ''
-        return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr><td style="text-align:center;padding:8px 0;">
-                <img src="{url}" alt="{alt}" style="max-width:100%;height:auto;{border_style}border-radius:4px;" />
-            </td></tr>
-        </table>'''
+        border_style = f'border:2px solid {border_color};' if border_color else ''
+        return f'''<div style="text-align:center;margin:20px 0;">
+                <img src="{url}" alt="{alt}" style="max-width:280px;height:auto;border-radius:6px;{border_style}" />
+            </div>'''
 
     elif block_type == 'code_box':
         label = _substitute_variables(block.get('label', ''), variables)
         code = _substitute_variables(block.get('code', ''), variables)
-        return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr><td style="padding:16px 0;">
-                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:{style['header_bg']};border-radius:8px;">
-                    <tr><td style="padding:20px 24px;text-align:center;">
-                        <p style="margin:0 0 8px;font-size:11px;color:{style['header_text']};opacity:0.7;font-family:{style['font']};text-transform:uppercase;letter-spacing:2px;">{label}</p>
-                        <p style="margin:0;font-size:28px;font-weight:bold;color:#ffd700;font-family:'Courier New',monospace;letter-spacing:3px;">{code}</p>
-                    </td></tr>
-                </table>
-            </td></tr>
-        </table>'''
+        return f'''<div style="background:{style['header_bg']};padding:20px;margin:20px 0;text-align:center;border-radius:4px;">
+                <p style="color:#999;font-size:11px;margin:0 0 6px 0;text-transform:uppercase;letter-spacing:2px;font-family:{style['font']};">{label}</p>
+                <p style="color:#ffd700;font-size:26px;font-weight:bold;margin:0;letter-spacing:3px;font-family:'Courier New',monospace;">{code}</p>
+            </div>'''
 
     elif block_type == 'button':
         text = _substitute_variables(block.get('text', 'Click Here'), variables)
         url = _substitute_variables(block.get('url', '#'), variables)
         bg_color = block.get('bg_color', style['btn_bg'])
         text_color = block.get('text_color', style['btn_text'])
-        return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr><td style="text-align:center;padding:16px 0;">
-                <a href="{url}" style="display:inline-block;background-color:{bg_color};color:{text_color};text-decoration:none;padding:14px 32px;border-radius:6px;font-family:{style['font']};font-size:15px;font-weight:bold;" target="_blank">{text}</a>
-            </td></tr>
-        </table>'''
+        border_color = block.get('border_color', '')
+        border_style = f'border:2px solid {border_color};' if border_color else ''
+        return f'''<p style="text-align:center;margin:24px 0 16px 0;">
+                <a href="{url}" style="display:inline-block;background:{bg_color};color:{text_color};padding:12px 24px;text-decoration:none;font-weight:bold;font-size:15px;font-family:{style['font']};{border_style}" target="_blank">{text}</a>
+            </p>'''
 
     elif block_type == 'note':
         text = _substitute_variables(block.get('text', ''), variables)
         color = block.get('color', style['text_secondary'])
-        return f'<p style="margin:8px 0;color:{color};font-family:{style["font"]};font-size:12px;text-align:center;">{text}</p>'
+        return f'<p style="font-size:13px;color:{color};text-align:center;margin:0;font-family:{style["font"]};">{text}</p>'
 
     elif block_type == 'divider':
-        return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr><td style="padding:16px 0;">
-                <hr style="border:none;border-top:1px solid {style['border']};margin:0;" />
-            </td></tr>
-        </table>'''
+        return f'<hr style="border:none;border-top:1px solid {style["border"]};margin:16px 0;" />'
 
     return ''
 
@@ -192,7 +178,16 @@ def render_campaign(blocks, variables=None):
     style = _get_style()
     brand = _get_brand()
 
-    blocks_html = '\n'.join(render_block(b, style, variables) for b in blocks)
+    # Split heading blocks (rendered outside content padding) from body blocks
+    heading_html = ''
+    body_blocks = []
+    for b in blocks:
+        if b.get('type') == 'heading':
+            heading_html += render_block(b, style, variables)
+        else:
+            body_blocks.append(b)
+
+    body_html = '\n            '.join(render_block(b, style, variables) for b in body_blocks)
 
     unsubscribe_url = variables.get('UNSUBSCRIBE_URL', brand['unsubscribe_url'])
 
@@ -204,27 +199,19 @@ def render_campaign(blocks, variables=None):
     <title>{brand['name']}</title>
 </head>
 <body style="margin:0;padding:0;background-color:{style['bg']};font-family:{style['font']};">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:{style['bg']};">
-        <tr><td align="center" style="padding:24px 16px;">
-            <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:{style['card_bg']};border:1px solid {style['border']};border-radius:8px;overflow:hidden;">
-                <tr><td>
-                    {blocks_html}
-                </td></tr>
-                <!-- Content padding wrapper -->
-                <tr><td style="padding:0 32px;">
-                </td></tr>
-            </table>
-            <!-- Footer -->
-            <table width="600" cellpadding="0" cellspacing="0" border="0">
-                <tr><td style="padding:20px 32px;text-align:center;">
-                    <p style="margin:0;font-size:12px;color:{style['text_secondary']};font-family:{style['font']};">
-                        <a href="{brand['url']}" style="color:{style['link']};text-decoration:none;">{brand['name']}</a>
-                        &nbsp;&middot;&nbsp;
-                        <a href="{unsubscribe_url}" style="color:{style['text_secondary']};text-decoration:underline;">Unsubscribe</a>
-                    </p>
-                </td></tr>
-            </table>
-        </td></tr>
-    </table>
+    <div style="font-family:{style['font']};line-height:1.6;color:{style['text']};background:{style['bg']};max-width:560px;margin:0 auto;padding:24px;">
+        <div style="background:{style['card_bg']};border:1px solid {style['border']};">
+            {heading_html}
+
+            <div style="padding:32px 28px;">
+            {body_html}
+            </div>
+
+            <div style="background:{style['footer_bg']};padding:16px;text-align:center;font-size:12px;color:{style['text_secondary']};border-top:1px solid {style['border']};">
+                <p style="margin:0;font-family:{style['font']};">{brand['name']}</p>
+                <p style="margin:4px 0 0 0;font-family:{style['font']};"><a href="{unsubscribe_url}" style="color:{style['text_secondary']};">Unsubscribe</a> &middot; <a href="{brand['url']}" style="color:{style['text_secondary']};">Website</a></p>
+            </div>
+        </div>
+    </div>
 </body>
 </html>'''
