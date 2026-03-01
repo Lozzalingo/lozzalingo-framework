@@ -356,6 +356,13 @@ def subscribe():
                         logger.error(f"Failed to send welcome email to {email}: {email_error}")
                         _db_log('error', f'Failed to send welcome email to {email}', {'error': str(email_error)})
 
+                # Send triggered campaigns (e.g. gold code email)
+                try:
+                    from lozzalingo.modules.campaigns.routes import send_triggered_campaigns
+                    send_triggered_campaigns(email, 'new_subscriber')
+                except ImportError:
+                    pass  # Campaigns module not installed
+
                 _notify_admin_subscriber(email, ip_address, user_agent, 'website')
 
                 return jsonify({

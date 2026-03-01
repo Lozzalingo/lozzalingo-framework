@@ -50,6 +50,7 @@ def app(tmp_db_dir):
             'projects': True,
             'projects_public': True,
             'quick_links': True,
+            'campaigns': True,
         }
     })
     return app
@@ -81,6 +82,7 @@ def test_framework_initialisation(tmp_db_dir):
             'projects': True,
             'projects_public': True,
             'quick_links': True,
+            'campaigns': True,
         }
     })
 
@@ -162,6 +164,7 @@ EXPECTED_MODULES = [
     "projects_public",
     "quick_links",
     "ops",
+    "campaigns",
 ]
 
 
@@ -222,6 +225,7 @@ def test_database_dir_creation():
                 'projects': True,
                 'projects_public': True,
                 'quick_links': True,
+                'campaigns': True,
             }
         })
 
@@ -287,6 +291,7 @@ def test_subscriber_post_route_exists(tmp_db_dir):
             'projects': True,
             'projects_public': True,
             'quick_links': True,
+            'campaigns': True,
         }
     })
     app.register_blueprint(subscribers_bp)

@@ -74,6 +74,7 @@ class Lozzalingo:
             'projects_public': False,
             'quick_links': False,
             'ops': True,
+            'campaigns': False,
         },
 
         # Analytics settings
@@ -404,6 +405,10 @@ class Lozzalingo:
         if features.get('ops', True):
             self._register_ops()
 
+        # Campaigns (email campaign editor + blast sending)
+        if features.get('campaigns', False):
+            self._register_campaigns()
+
     def _register_dashboard(self):
         """Register the admin dashboard module."""
         try:
@@ -567,6 +572,16 @@ class Lozzalingo:
             self.app.logger.debug("Registered quick_links module")
         except Exception as e:
             self.app.logger.error(f"Failed to register quick_links module: {e}")
+
+    def _register_campaigns(self):
+        """Register the campaigns (email campaign editor) module."""
+        try:
+            from .modules.campaigns import campaigns_bp
+            self.app.register_blueprint(campaigns_bp)
+            self._registered_blueprints.append('campaigns')
+            self.app.logger.debug("Registered campaigns module")
+        except Exception as e:
+            self.app.logger.error(f"Failed to register campaigns module: {e}")
 
     def _register_ops(self):
         """Register the ops (server health) module."""

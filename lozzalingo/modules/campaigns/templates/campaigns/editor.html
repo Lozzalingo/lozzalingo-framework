@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Editor</title>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('campaigns.static', filename='css/campaigns.css') }}">
+</head>
+<body>
+    <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
+
+    <div class="campaigns-layout">
+        <!-- LEFT SIDEBAR: Campaign list -->
+        <aside class="campaigns-sidebar">
+            <div class="sidebar-header">
+                <h2>Campaigns</h2>
+                <a href="{{ url_for('campaigns.new_campaign') }}" class="btn-new" name="campaigns_new">+ New</a>
+            </div>
+            <ul class="campaign-list">
+                {% for c in campaigns %}
+                <li class="campaign-item {% if current_campaign and current_campaign.id == c.id %}active{% endif %}">
+                    <a href="{{ url_for('campaigns.edit_campaign', campaign_id=c.id) }}" name="campaigns_select_{{ c.id }}">
+                        <strong>{{ c.name or 'Untitled' }}</strong>
+                        <span class="campaign-meta">
+                            {{ c.trigger }}
+                            {% if c.send_count %} &middot; {{ c.send_count }} sent{% endif %}
+                        </span>
+                    </a>
+                </li>
+                {% endfor %}
+                {% if not campaigns %}
+                <li class="campaign-item empty">No campaigns yet</li>
+                {% endif %}
+            </ul>
+            <div class="sidebar-footer">
+                <a href="{{ url_for('dashboard.admin_page') }}" name="campaigns_back_dashboard">&larr; Dashboard</a>
+            </div>
+        </aside>
+
+        <!-- LEFT PANEL: Editor -->
+        <main class="campaigns-editor">
+            {% if current_campaign %}
+            <div class="editor-meta">
+                <div class="field-group">
+                    <label for="campaign-name">Campaign Name</label>
+                    <input type="text" id="campaign-name" name="campaign_name" value="{{ current_campaign.name or '' }}" placeholder="e.g. Gold Subscriber Code">
+                </div>
+                <div class="field-group">
+                    <label for="campaign-subject">Email Subject</label>
+                    <input type="text" id="campaign-subject" name="campaign_subject" value="{{ current_campaign.subject or '' }}" placeholder="e.g. Your Exclusive Gold Code">
+                </div>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label for="campaign-trigger">Trigger</label>
+                        <select id="campaign-trigger" name="campaign_trigger">
+                            <option value="manual" {% if current_campaign.trigger == 'manual' %}selected{% endif %}>Manual</option>
+                            <option value="new_subscriber" {% if current_campaign.trigger == 'new_subscriber' %}selected{% endif %}>New Subscriber</option>
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>
+                            <input type="checkbox" id="campaign-active" name="campaign_active" {% if current_campaign.is_active %}checked{% endif %}>
+                            Active
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blocks -->
+            <div class="editor-blocks">
+                <h3>Content Blocks</h3>
+                <div id="blocks-container">
+                    <!-- Blocks populated by JS -->
+                </div>
+                <button type="button" class="btn-add-block" id="add-block-btn" name="campaigns_add_block">+ Add Block</button>
+            </div>
+
+            <!-- Variables panel -->
+            <div class="editor-variables">
+                <h3>Variables</h3>
+                <p class="hint">Click to copy. Paste into any text field.</p>
+                <div id="variables-container">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="editor-actions">
+                <button type="button" class="btn-primary" id="save-btn" name="campaigns_save">Save</button>
+                <button type="button" class="btn-secondary" id="send-test-btn" name="campaigns_send_test">Send Test</button>
+                <button type="button" class="btn-send" id="send-all-btn" name="campaigns_send_all">Send to All</button>
+                {% if current_campaign.id %}
+                <button type="button" class="btn-danger" id="delete-btn" name="campaigns_delete">Delete</button>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="editor-empty">
+                <p>Select a campaign from the sidebar or <a href="{{ url_for('campaigns.new_campaign') }}" name="campaigns_new_inline">create a new one</a>.</p>
+            </div>
+            {% endif %}
+        </main>
+
+        <!-- RIGHT PANEL: Live Preview -->
+        <section class="campaigns-preview">
+            <div class="preview-header">
+                <h3>Live Preview</h3>
+            </div>
+            <div class="preview-frame-wrapper">
+                <iframe id="preview-iframe" class="preview-iframe" sandbox="allow-same-origin"></iframe>
+            </div>
+        </section>
+    </div>
+
+    <!-- Confirm dialog for send-all -->
+    <div id="confirm-overlay" class="confirm-overlay" style="display:none;">
+        <div class="confirm-dialog">
+            <h3>Send Campaign</h3>
+            <p id="confirm-message">Are you sure you want to send this campaign?</p>
+            <div class="confirm-actions">
+                <button type="button" class="btn-send" id="confirm-send-btn" name="campaigns_confirm_send">Send</button>
+                <button type="button" class="btn-secondary" id="confirm-cancel-btn" name="campaigns_confirm_cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status toast -->
+    <div id="status-toast" class="status-toast" style="display:none;"></div>
+
+    <script>
+        // Pass server data to JS
+        window.CAMPAIGN_DATA = {{ current_campaign | tojson if current_campaign else 'null' }};
+        window.CAMPAIGN_ID = {{ current_campaign.id | tojson if current_campaign and current_campaign.id else 'null' }};
+        window.ENDPOINTS = {
+            save: {{ url_for('campaigns.save') | tojson }},
+            preview: {{ url_for('campaigns.preview') | tojson }},
+            sendTest: window.CAMPAIGN_ID ? {{ url_for('campaigns.send_test', campaign_id=0) | tojson }}.replace('/0', '/' + window.CAMPAIGN_ID) : null,
+            sendAll: window.CAMPAIGN_ID ? {{ url_for('campaigns.send_campaign', campaign_id=0) | tojson }}.replace('/0', '/' + window.CAMPAIGN_ID) : null,
+            deleteCampaign: window.CAMPAIGN_ID ? {{ url_for('campaigns.delete', campaign_id=0) | tojson }}.replace('/0', '/' + window.CAMPAIGN_ID) : null,
+            variables: {{ url_for('campaigns.get_variables') | tojson }},
+            subscriberCount: {{ url_for('campaigns.subscriber_count') | tojson }},
+            listPage: {{ url_for('campaigns.campaign_list') | tojson }}
+        };
+    </script>
+    <script src="{{ url_for('campaigns.static', filename='js/campaigns.js') }}"></script>
+</body>
+</html>
