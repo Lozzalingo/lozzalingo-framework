@@ -33,6 +33,7 @@
         loadVariables();
         bindActions();
         schedulePreview();
+        restoreTestEmail();
 
         console.log('[campaigns] Editor ready, ' + blocks.length + ' blocks loaded');
     });
@@ -312,6 +313,17 @@
         .catch(function (err) {
             showToast('Network error', 'error');
             console.error('[campaigns] Save error:', err);
+        });
+    }
+
+    // ── Test Email Persistence ───────────────────────────────────────
+    function restoreTestEmail() {
+        var input = document.getElementById('test-email-input');
+        if (!input) return;
+        var saved = localStorage.getItem('campaigns_test_email');
+        if (saved) input.value = saved;
+        input.addEventListener('input', function () {
+            localStorage.setItem('campaigns_test_email', input.value.trim());
         });
     }
 
