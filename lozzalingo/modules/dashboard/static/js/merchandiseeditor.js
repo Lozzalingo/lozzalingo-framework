@@ -27,14 +27,22 @@
                 return response.json();
             })
             .then(data => {
-                if (data.logged_in) {
-                    initialize();
-                } else {
+                if (!data.logged_in) {
                     throw new Error('Not authenticated');
                 }
+                // Initialize in separate try-catch so init errors don't redirect to login
+                try {
+                    initialize();
+                } catch (e) {
+                    console.error('[merchandise-editor] Initialization error:', e);
+                }
             })
-            .catch(() => {
-                window.location.href = '/admin/login?next=' + encodeURIComponent(window.location.pathname);
+            .catch(err => {
+                if (err && err.message === 'Not authenticated') {
+                    window.location.href = '/admin/login?next=' + encodeURIComponent(window.location.pathname);
+                } else {
+                    console.error('[merchandise-editor] Auth check failed:', err);
+                }
             });
     }
 
