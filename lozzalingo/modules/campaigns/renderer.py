@@ -97,11 +97,14 @@ def _substitute_variables(text, variables):
     return text
 
 
-def _render_bold(text):
-    """Convert **bold** markdown to <strong> tags"""
+def _render_inline(text):
+    """Convert **bold** and *italic* markdown to HTML tags"""
     if not text:
         return text
-    return re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+    # Bold first (** **), then italic (* *)
+    text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+    text = re.sub(r'\*(.*?)\*', r'<em>\1</em>', text)
+    return text
 
 
 def render_block(block, style, variables=None):
@@ -122,7 +125,7 @@ def render_block(block, style, variables=None):
 
     elif block_type == 'paragraph':
         content = _substitute_variables(block.get('content', ''), variables)
-        content = _render_bold(content)
+        content = _render_inline(content)
         return f'<p style="font-size:16px;margin:0 0 16px 0;line-height:1.7;color:{style["text"]};font-family:{style["font"]};">{content}</p>'
 
     elif block_type == 'image':
