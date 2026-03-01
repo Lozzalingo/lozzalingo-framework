@@ -244,25 +244,27 @@ def send_test(campaign_id):
     if not svc:
         return jsonify({'error': 'Email service not configured'}), 500
 
-    admin_email = current_app.config.get('EMAIL_ADMIN_EMAIL') or current_app.config.get('EMAIL_ADDRESS')
-    if not admin_email:
-        return jsonify({'error': 'Admin email not configured'}), 500
+    # Use custom email if provided, otherwise fall back to admin email
+    data = request.get_json(silent=True) or {}
+    recipient = data.get('email') or current_app.config.get('EMAIL_ADMIN_EMAIL') or current_app.config.get('EMAIL_ADDRESS')
+    if not recipient:
+        return jsonify({'error': 'No recipient email configured'}), 500
 
     try:
         # Use preview values for test
-        preview_vars = {'EMAIL': admin_email, 'UNSUBSCRIBE_URL': '#'}
+        preview_vars = {'EMAIL': recipient, 'UNSUBSCRIBE_URL': '#'}
         custom_vars = current_app.config.get('CAMPAIGN_VARIABLES', {})
         for key, var_config in custom_vars.items():
             preview_vars[key] = var_config.get('preview_value', f'{{{{{key}}}}}')
 
         html = render_campaign(campaign['blocks'], preview_vars)
         subject = f"[TEST] {campaign['subject']}"
-        success = svc.send_email([admin_email], subject, html)
+        success = svc.send_email([recipient], subject, html)
 
         if success:
-            logger.info(f"Test email sent for campaign {campaign_id} to {admin_email}")
-            _db_log('info', f'Test email sent for campaign {campaign_id}')
-            return jsonify({'message': f'Test email sent to {admin_email}'}), 200
+            logger.info(f"Test email sent for campaign {campaign_id} to {recipient}")
+            _db_log('info', f'Test email sent for campaign {campaign_id}', {'to': recipient})
+            return jsonify({'message': f'Test email sent to {recipient}'}), 200
         else:
             return jsonify({'error': 'Failed to send test email'}), 500
 

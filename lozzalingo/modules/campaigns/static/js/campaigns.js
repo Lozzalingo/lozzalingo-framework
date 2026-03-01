@@ -322,13 +322,16 @@
             return;
         }
 
-        console.log('[campaigns] Sending test email');
+        var testEmailInput = document.getElementById('test-email-input');
+        var testEmail = testEmailInput ? testEmailInput.value.trim() : '';
+        console.log('[campaigns] Sending test email to:', testEmail || '(admin default)');
         var btn = document.getElementById('send-test-btn');
         if (btn) btn.disabled = true;
 
         fetch(window.ENDPOINTS.sendTest, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: testEmail || undefined })
         })
         .then(function (r) { return r.json(); })
         .then(function (data) {
