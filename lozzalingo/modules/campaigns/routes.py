@@ -14,7 +14,8 @@ from flask import request, jsonify, render_template, session, current_app
 from . import campaigns_bp
 from .models import (
     init_campaigns_db, get_campaign, get_all_campaigns, save_campaign,
-    delete_campaign, record_send, increment_send_count, get_triggered_campaigns
+    delete_campaign, record_send, increment_send_count, get_triggered_campaigns,
+    get_sent_emails
 )
 from .renderer import render_campaign, resolve_variables
 
@@ -195,9 +196,16 @@ def send_campaign(campaign_id):
     if not emails:
         return jsonify({'error': 'No active subscribers found'}), 400
 
+    # Skip subscribers who already received this campaign
+    already_sent = get_sent_emails(campaign_id)
+    skipped = 0
+
     sent = 0
     failed = 0
     for email_addr in emails:
+        if email_addr in already_sent:
+            skipped += 1
+            continue
         try:
             variables = resolve_variables(email_addr)
             html = render_campaign(campaign['blocks'], variables)
@@ -217,15 +225,17 @@ def send_campaign(campaign_id):
 
     increment_send_count(campaign_id)
 
-    logger.info(f"Campaign {campaign_id} sent: {sent} succeeded, {failed} failed")
+    logger.info(f"Campaign {campaign_id} sent: {sent} succeeded, {failed} failed, {skipped} skipped")
     _db_log('info', f'Campaign blast sent', {
-        'campaign_id': campaign_id, 'sent': sent, 'failed': failed
+        'campaign_id': campaign_id, 'sent': sent, 'failed': failed, 'skipped': skipped
     })
 
+    skipped_msg = f', {skipped} already received' if skipped else ''
     return jsonify({
-        'message': f'Campaign sent to {sent} subscribers ({failed} failed)',
+        'message': f'Campaign sent to {sent} subscribers ({failed} failed{skipped_msg})',
         'sent': sent,
-        'failed': failed
+        'failed': failed,
+        'skipped': skipped
     }), 200
 
 

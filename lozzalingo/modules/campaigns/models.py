@@ -189,6 +189,22 @@ def delete_campaign(campaign_id):
         return False
 
 
+def get_sent_emails(campaign_id):
+    """Get set of emails that have already been successfully sent this campaign"""
+    try:
+        db_path = get_db_config()
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT recipient_email FROM campaign_sends WHERE campaign_id = ? AND status = ?',
+                (campaign_id, 'sent')
+            )
+            return {row[0] for row in cursor.fetchall()}
+    except Exception as e:
+        logger.error(f"Error getting sent emails for campaign {campaign_id}: {e}")
+        return set()
+
+
 def record_send(campaign_id, recipient_email, status='sent', error_message=None):
     """Record a send attempt for a campaign"""
     try:
