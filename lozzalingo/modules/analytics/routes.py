@@ -1581,31 +1581,38 @@ def get_ecommerce_funnel():
 
     try:
         cursor = analytics_conn.cursor()
+        owner_filter = _owner_fingerprint_filter()
 
         # Count product views (custom_event with event_name = 'product_view')
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT COUNT(*) FROM analytics_log
             WHERE event_type = 'custom_event'
             AND json_extract(additional_data, '$.event_name') = 'product_view'
             AND datetime(timestamp) >= ?
+            AND identity != 'bot'
+            {owner_filter}
         """, (cutoff_date,))
         product_views = cursor.fetchone()[0] or 0
 
         # Count add to cart events (custom_event with event_name = 'add_to_cart')
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT COUNT(*) FROM analytics_log
             WHERE event_type = 'custom_event'
             AND json_extract(additional_data, '$.event_name') = 'add_to_cart'
             AND datetime(timestamp) >= ?
+            AND identity != 'bot'
+            {owner_filter}
         """, (cutoff_date,))
         add_to_cart = cursor.fetchone()[0] or 0
 
         # Count checkout initiated events (custom_event with event_name = 'checkout_initiated')
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT COUNT(*) FROM analytics_log
             WHERE event_type = 'custom_event'
             AND json_extract(additional_data, '$.event_name') = 'checkout_initiated'
             AND datetime(timestamp) >= ?
+            AND identity != 'bot'
+            {owner_filter}
         """, (cutoff_date,))
         checkouts_initiated = cursor.fetchone()[0] or 0
 
