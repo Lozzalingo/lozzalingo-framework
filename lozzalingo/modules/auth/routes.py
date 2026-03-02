@@ -1,4 +1,4 @@
-from flask import flash, render_template, request, redirect, url_for, Blueprint, session, jsonify
+from flask import flash, render_template, request, redirect, url_for, Blueprint, session, jsonify, current_app
 import secrets
 from datetime import datetime, timedelta
 
@@ -11,6 +11,21 @@ except ImportError:
 from .database import SignInDatabase
 from .email import send_password_reset_email, send_password_changed_email, send_verification_email
 from .utils import validate_password_strength
+
+
+def _home_url():
+    """Get the home page URL, trying config then common endpoint names."""
+    # Allow host apps to override via config
+    home = current_app.config.get('AUTH_HOME_ENDPOINT')
+    if home:
+        return url_for(home)
+    # Try common endpoint names
+    for endpoint in ('index', 'home', 'store.landing'):
+        try:
+            return url_for(endpoint)
+        except Exception:
+            continue
+    return '/'
 
 signin_bp = Blueprint(
     'auth',
@@ -375,7 +390,7 @@ def oauth_callback(provider):
         session['admin_email'] = email
 
     flash(f'Successfully signed in with {provider.title()}!', 'success')
-    return redirect(url_for('index'))
+    return redirect(_home_url())
 
 @signin_bp.route('/complete-profile')
 def complete_profile():
@@ -435,7 +450,7 @@ def signin_form():
     return jsonify({
         'success': True,
         'message': 'Sign-in successful',
-        'redirect': url_for('index')
+        'redirect': _home_url()
     })
 
 @signin_bp.route('/sign-out')
@@ -443,19 +458,19 @@ def signout():
     """Sign out user"""
     session.clear()
     flash('You have been signed out successfully.', 'success')
-    return redirect(url_for('index'))
+    return redirect(_home_url())
 
 @signin_bp.route('/logout')
 def logout():
     """Logout route alias for compatibility"""
     session.clear()
     flash('You have been signed out successfully.', 'success')
-    return redirect(url_for('index'))
+    return redirect(_home_url())
 
 @signin_bp.route('/dashboard')
 def dashboard():
     """Dashboard route - redirects to home page"""
-    return redirect(url_for('index'))
+    return redirect(_home_url())
 
 @signin_bp.route('/change-password')
 def change_password():
