@@ -22,6 +22,9 @@ class SubscribersManager {
         this.loadSubscriberStats();
         this.setupValidation();
         this.loadFeeds();
+        // Set timestamp for bot detection
+        var tsInput = this.form ? this.form.querySelector('input[name="_ts"]') : null;
+        if (tsInput) tsInput.value = Math.floor(Date.now() / 1000);
     }
 
     async loadFeeds() {
@@ -134,6 +137,11 @@ class SubscribersManager {
             if (selectedFeeds.length > 0) {
                 body.feeds = selectedFeeds;
             }
+            // Anti-bot fields
+            var hp = this.form.querySelector('input[name="website"]');
+            if (hp && hp.value) body.website = hp.value;
+            var ts = this.form.querySelector('input[name="_ts"]');
+            if (ts) body._ts = ts.value;
 
             const response = await fetch('/api/subscribers', {
                 method: 'POST',

@@ -32,6 +32,8 @@ import sqlite3
 import os
 import re
 import logging
+import time
+import hashlib
 from datetime import datetime
 from flask import request, jsonify, render_template, session, current_app
 from . import subscribers_bp
@@ -253,6 +255,101 @@ def get_client_ip():
 
 
 # ===================
+# BOT DETECTION
+# ===================
+
+# In-memory rate limiter: {ip_hash: [timestamp, ...]}
+_ip_signup_times = {}
+_IP_RATE_LIMIT = 3          # max signups per IP
+_IP_RATE_WINDOW = 3600      # per hour (seconds)
+_MIN_SUBMIT_TIME = 3        # minimum seconds between form load and submit
+
+# Known Tor exit node and datacenter IP prefixes
+_BOT_IP_PREFIXES = [
+    '185.220.100.', '185.220.101.', '185.243.218.', '185.231.33.',
+    '185.100.85.', '185.107.57.', '185.150.28.',
+    '192.42.116.', '109.70.100.', '109.71.252.',
+    '45.84.107.', '45.138.16.', '45.154.98.', '45.148.10.',
+    '45.141.215.', '45.128.133.', '45.66.35.',
+    '23.129.64.', '23.137.105.',
+    '107.189.',
+    '171.25.193.',
+    '176.65.149.',
+]
+
+
+def _is_bot_ip(ip):
+    """Check if IP matches known Tor/datacenter prefixes"""
+    if not ip:
+        return False
+    return any(ip.startswith(p) for p in _BOT_IP_PREFIXES)
+
+
+def _is_scattered_dot_email(email):
+    """Detect bot Gmail pattern: scattered dots like b.g.r.o.ds.ki@gmail.com"""
+    local = email.split('@')[0]
+    dot_count = local.count('.')
+    char_count = len(local.replace('.', ''))
+    if char_count == 0:
+        return True
+    dot_ratio = dot_count / char_count
+    return dot_ratio > 0.15 and dot_count >= 3
+
+
+def _check_ip_rate_limit(ip):
+    """Rate limit signups per IP. Returns True if rate limited."""
+    now = time.time()
+    ip_hash = hashlib.sha256(ip.encode()).hexdigest()[:16]
+
+    # Clean old entries
+    if ip_hash in _ip_signup_times:
+        _ip_signup_times[ip_hash] = [
+            t for t in _ip_signup_times[ip_hash]
+            if now - t < _IP_RATE_WINDOW
+        ]
+    else:
+        _ip_signup_times[ip_hash] = []
+
+    if len(_ip_signup_times[ip_hash]) >= _IP_RATE_LIMIT:
+        return True
+
+    _ip_signup_times[ip_hash].append(now)
+    return False
+
+
+def _detect_bot(data, email, ip_address):
+    """Run all bot detection checks. Returns (is_bot, reason) tuple."""
+    # 1. Honeypot field — hidden input that only bots fill
+    honeypot = data.get('website', '') or data.get('url', '')
+    if honeypot:
+        return True, 'honeypot'
+
+    # 2. Timestamp check — form submitted too fast
+    form_ts = data.get('_ts', 0)
+    if form_ts:
+        try:
+            elapsed = time.time() - float(form_ts)
+            if elapsed < _MIN_SUBMIT_TIME:
+                return True, 'too_fast'
+        except (ValueError, TypeError):
+            pass
+
+    # 3. Known bot IP
+    if _is_bot_ip(ip_address):
+        return True, 'bot_ip'
+
+    # 4. Scattered dot Gmail pattern
+    if '@gmail.com' in email and _is_scattered_dot_email(email):
+        return True, 'scattered_dots'
+
+    # 5. IP rate limiting
+    if _check_ip_rate_limit(ip_address):
+        return True, 'rate_limited'
+
+    return False, None
+
+
+# ===================
 # PUBLIC API ROUTES
 # ===================
 
@@ -279,6 +376,17 @@ def subscribe():
             return jsonify({'error': 'Please enter a valid email address'}), 400
 
         ip_address = get_client_ip()
+
+        # Bot detection — silently reject with a fake success response
+        is_bot, reason = _detect_bot(data, email, ip_address)
+        if is_bot:
+            logger.info(f"Bot signup blocked: {email} (reason: {reason}, ip: {ip_address})")
+            _db_log('warning', f'Bot signup blocked: {reason}', {'email': email, 'ip': ip_address})
+            # Return fake success so bots think they subscribed
+            brand_name = _get_brand_name()
+            return jsonify({
+                'message': f'Successfully subscribed! Welcome to {brand_name}.'
+            }), 201
         user_agent = request.headers.get('User-Agent', '')[:500]
         brand_name = _get_brand_name()
         db_path = get_db_config()

@@ -239,6 +239,31 @@
             </div>
             {% endif %}
 
+            <!-- Campaigns Card -->
+            {% if endpoint_exists('campaigns.campaign_list') %}
+            <div class="dashboard-card">
+                <div class="card-content">
+                    <h2>Campaigns</h2>
+                    <p>Create and send email campaigns to subscribers with a visual block editor.</p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-number" id="totalCampaigns">-</span>
+                            <span class="stat-label">Campaigns</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number" id="totalSubscribers">-</span>
+                            <span class="stat-label">Subscribers</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <a href="/admin/campaigns/" class="admin-btn admin-btn-primary" name="dashboard_campaigns">
+                        Campaign Editor
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Email Logs Card -->
             {% if endpoint_exists('admin.email_logs') %}
             <div class="dashboard-card">
@@ -390,6 +415,11 @@
                     <a href="/admin/analytics" class="quick-action">
                         <span>View Stats</span>
                     </a>
+                    {% if endpoint_exists('campaigns.campaign_list') %}
+                    <a href="/admin/campaigns/" class="quick-action" name="quick_campaigns">
+                        <span>Campaigns</span>
+                    </a>
+                    {% endif %}
                     {% if endpoint_exists('email_preview.preview_index') %}
                     <a href="/admin/email-preview/" class="quick-action">
                         <span>Email Preview</span>
@@ -465,6 +495,14 @@
                             if (el) el.textContent = data.email.total_sent || '0';
                             const el2 = document.getElementById('emailsFailed');
                             if (el2) el2.textContent = data.email.total_failed || '0';
+                        }
+                        if (data.campaigns) {
+                            const el = document.getElementById('totalCampaigns');
+                            if (el) el.textContent = data.campaigns.total || '0';
+                        }
+                        if (data.subscribers) {
+                            const el = document.getElementById('totalSubscribers');
+                            if (el) el.textContent = data.subscribers.active || '0';
                         }
                     })
                     .catch(err => console.log('Stats loading failed:', err));

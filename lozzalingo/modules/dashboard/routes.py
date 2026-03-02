@@ -352,7 +352,7 @@ def api_stats():
             try:
                 with db_connect(analytics_db) as conn:
                     cursor = conn.cursor()
-                    # Filter out localhost and private IPs
+                    # Filter out localhost, private IPs, and bots
                     local_filter = """
                         AND ip IS NOT NULL
                         AND ip NOT IN ('127.0.0.1', '::1', 'localhost')
@@ -365,15 +365,32 @@ def api_stats():
                         AND ip NOT LIKE '172.2_.%'
                         AND ip NOT LIKE '172.30.%'
                         AND ip NOT LIKE '172.31.%'
+                        AND (identity IS NULL OR identity != 'bot')
                     """
 
-                    cursor.execute(f"SELECT COUNT(DISTINCT ip) FROM analytics_log WHERE 1=1 {local_filter}")
+                    # Add owner fingerprint exclusion if configured
+                    try:
+                        exclude_fps = current_app.config.get('ANALYTICS_EXCLUDE_FINGERPRINTS', [])
+                        if exclude_fps:
+                            placeholders = ','.join(['?' for _ in exclude_fps])
+                            fp_filter = f" AND (fingerprint IS NULL OR fingerprint NOT IN ({placeholders}))"
+                            local_filter += fp_filter
+                    except RuntimeError:
+                        exclude_fps = []
+
+                    if exclude_fps:
+                        cursor.execute(f"SELECT COUNT(DISTINCT ip) FROM analytics_log WHERE 1=1 {local_filter}", exclude_fps)
+                    else:
+                        cursor.execute(f"SELECT COUNT(DISTINCT ip) FROM analytics_log WHERE 1=1 {local_filter}")
                     result = cursor.fetchone()
                     stats['analytics']['total_visitors'] = result[0] if result else 0
 
                     # Today's visitors
                     today = datetime.now().strftime('%Y-%m-%d')
-                    cursor.execute(f"SELECT COUNT(DISTINCT ip) FROM analytics_log WHERE DATE(timestamp) = ? {local_filter}", (today,))
+                    if exclude_fps:
+                        cursor.execute(f"SELECT COUNT(DISTINCT ip) FROM analytics_log WHERE DATE(timestamp) = ? {local_filter}", [today] + exclude_fps)
+                    else:
+                        cursor.execute(f"SELECT COUNT(DISTINCT ip) FROM analytics_log WHERE DATE(timestamp) = ? {local_filter}", (today,))
                     result = cursor.fetchone()
                     stats['analytics']['today_visitors'] = result[0] if result else 0
             except Exception as e:
@@ -483,6 +500,32 @@ def api_stats():
                             stats['customer_spotlight']['size_savings_mb'] = max(0, savings_mb)
             except Exception as e:
                 print(f"Customer spotlight stats error: {e}")
+
+        # Get subscriber stats
+        if user_db and os.path.exists(user_db):
+            try:
+                with db_connect(user_db) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='subscribers'")
+                    if cursor.fetchone():
+                        cursor.execute("SELECT COUNT(*) FROM subscribers WHERE is_active = 1")
+                        result = cursor.fetchone()
+                        stats['subscribers'] = {'active': result[0] if result else 0}
+            except Exception as e:
+                print(f"Subscriber stats error: {e}")
+
+        # Get campaign stats
+        if user_db and os.path.exists(user_db):
+            try:
+                with db_connect(user_db) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='campaigns'")
+                    if cursor.fetchone():
+                        cursor.execute("SELECT COUNT(*) FROM campaigns")
+                        result = cursor.fetchone()
+                        stats['campaigns'] = {'total': result[0] if result else 0}
+            except Exception as e:
+                print(f"Campaign stats error: {e}")
 
         return jsonify(stats)
 

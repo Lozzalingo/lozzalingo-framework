@@ -131,6 +131,8 @@ class SubscriptionPopup {
                                 autocomplete="email"
                             >
                         </div>
+                        <input type="text" name="website" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;z-index:-1;" tabindex="-1" autocomplete="off">
+                        <input type="hidden" name="_ts" id="popupTs" value="${Math.floor(Date.now()/1000)}">
 
                         ${feedsHTML}
 
@@ -292,6 +294,11 @@ class SubscriptionPopup {
             if (selectedFeeds.length > 0) {
                 body.feeds = selectedFeeds;
             }
+            // Anti-bot fields
+            var hp = this.form.querySelector('input[name="website"]');
+            if (hp && hp.value) body.website = hp.value;
+            var ts = this.form.querySelector('input[name="_ts"]');
+            if (ts) body._ts = ts.value;
 
             const response = await fetch('/api/subscribers', {
                 method: 'POST',
