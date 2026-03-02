@@ -1693,6 +1693,7 @@ def get_button_clicks():
 
         # Define commerce-specific button patterns
         commerce_patterns = [
+            'add_to_cart',
             'accept-shipping-policy',
             'view_cart',
             'checkout',
