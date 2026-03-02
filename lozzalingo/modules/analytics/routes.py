@@ -391,8 +391,8 @@ def get_overview_stats():
         try:
             cursor = conn.cursor()
             
-            # Total subscribers
-            cursor.execute("SELECT COUNT(*) FROM subscribers")
+            # Total subscribers (active only)
+            cursor.execute("SELECT COUNT(*) FROM subscribers WHERE is_active = 1")
             stats['total_subscribers'] = cursor.fetchone()[0]
             
             # Active subscribers
