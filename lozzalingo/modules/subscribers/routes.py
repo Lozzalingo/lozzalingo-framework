@@ -264,8 +264,9 @@ _IP_RATE_LIMIT = 3          # max signups per IP
 _IP_RATE_WINDOW = 3600      # per hour (seconds)
 _MIN_SUBMIT_TIME = 3        # minimum seconds between form load and submit
 
-# Known Tor exit node and datacenter IP prefixes
-_BOT_IP_PREFIXES = [
+# Known Tor exit node IP prefixes only
+# Do NOT add datacenter/VPN ranges here — consumer VPN users (NordVPN, Google Pixel, etc.) are legitimate
+_TOR_EXIT_PREFIXES = [
     '185.220.100.', '185.220.101.', '185.243.218.', '185.231.33.',
     '185.100.85.', '185.107.57.', '185.150.28.',
     '192.42.116.', '109.70.100.', '109.71.252.',
@@ -278,11 +279,11 @@ _BOT_IP_PREFIXES = [
 ]
 
 
-def _is_bot_ip(ip):
-    """Check if IP matches known Tor/datacenter prefixes"""
+def _is_tor_exit(ip):
+    """Check if IP matches known Tor exit node prefixes"""
     if not ip:
         return False
-    return any(ip.startswith(p) for p in _BOT_IP_PREFIXES)
+    return any(ip.startswith(p) for p in _TOR_EXIT_PREFIXES)
 
 
 def _is_scattered_dot_email(email):
@@ -334,9 +335,9 @@ def _detect_bot(data, email, ip_address):
         except (ValueError, TypeError):
             pass
 
-    # 3. Known bot IP
-    if _is_bot_ip(ip_address):
-        return True, 'bot_ip'
+    # 3. Known Tor exit node
+    if _is_tor_exit(ip_address):
+        return True, 'tor_exit'
 
     # 4. Scattered dot Gmail pattern
     if '@gmail.com' in email and _is_scattered_dot_email(email):
