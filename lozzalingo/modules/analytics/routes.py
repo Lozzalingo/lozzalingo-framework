@@ -1302,15 +1302,18 @@ def get_ecommerce_analytics():
         sales_data = merchandise_cursor.fetchone()
 
         # Cart interactions from analytics
-        analytics_cursor.execute("""
+        owner_filter = _owner_fingerprint_filter()
+        analytics_cursor.execute(f"""
             SELECT
                 COUNT(CASE WHEN interaction_type = 'button_click' AND element_id LIKE '%add-to-cart%' THEN 1 END) as add_to_cart_clicks,
                 COUNT(CASE WHEN interaction_type = 'button_click' AND element_id LIKE '%checkout%' THEN 1 END) as checkout_clicks,
                 COUNT(CASE WHEN url LIKE '%/cart%' THEN 1 END) as cart_page_views,
                 COUNT(CASE WHEN url LIKE '%/merchandise/success%' THEN 1 END) as success_page_views
             FROM analytics_log
-            WHERE datetime(timestamp) >= datetime('now', '-{} days')
-        """.format(days))
+            WHERE datetime(timestamp) >= datetime('now', '-{days} days')
+            AND identity != 'bot'
+            {owner_filter}
+        """)
 
         cart_data = analytics_cursor.fetchone()
 
@@ -1351,13 +1354,15 @@ def get_ecommerce_analytics():
         }
 
         # Get product page views
-        analytics_cursor.execute("""
+        analytics_cursor.execute(f"""
             SELECT COUNT(*)
             FROM analytics_log
             WHERE url LIKE '%/merchandise/products%'
             AND event_type = 'page_view_client'
-            AND datetime(timestamp) >= datetime('now', '-{} days')
-        """.format(days))
+            AND datetime(timestamp) >= datetime('now', '-{days} days')
+            AND identity != 'bot'
+            {owner_filter}
+        """)
 
         product_views = analytics_cursor.fetchone()
         funnel_data['product_views'] = product_views[0] if product_views else 0
@@ -1716,12 +1721,14 @@ def get_button_clicks():
 
         # If we don't have enough commerce buttons from regular clicks, check custom_events
         if len(commerce_buttons) < 3:
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT json_extract(additional_data, '$.event_name') as event_name, COUNT(*) as count
                 FROM analytics_log
                 WHERE event_type = 'custom_event'
                 AND json_extract(additional_data, '$.event_name') IN ('add_to_cart', 'product_view', 'checkout_initiated')
                 AND datetime(timestamp) >= ?
+                AND identity != 'bot'
+                {owner_filter}
                 GROUP BY event_name
                 ORDER BY count DESC
             """, (cutoff_date,))
