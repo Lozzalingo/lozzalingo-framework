@@ -8,8 +8,8 @@
         <h1>Welcome to {{ brand_name }}</h1>
         <p class="hero-subtitle">Your site is up and running with Lozzalingo Framework</p>
         <div class="hero-buttons">
-            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-primary">Admin Dashboard</a>
-            <a href="{{ url_for('about') }}" class="btn btn-secondary">Learn More</a>
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-primary" name="hero_admin">Admin Dashboard</a>
+            <a href="{{ url_for('about') }}" class="btn btn-secondary" name="hero_about">Learn More</a>
         </div>
     </div>
 </section>
@@ -18,36 +18,46 @@
     <div class="container">
         <h2>What's Included</h2>
         <div class="feature-grid">
+            {% if lozzalingo_config.features.analytics %}
             <div class="feature-card">
                 <h3>Analytics</h3>
                 <p>Track page views, user behavior, devices, and referrers automatically.</p>
-                <a href="/admin/analytics">View Analytics</a>
+                <a href="/admin/analytics" name="feature_analytics">View Analytics</a>
             </div>
+            {% endif %}
             <div class="feature-card">
                 <h3>Admin Dashboard</h3>
                 <p>Manage your site with a beautiful admin interface.</p>
-                <a href="/admin/dashboard">Open Dashboard</a>
+                <a href="/admin/dashboard" name="feature_dashboard">Open Dashboard</a>
             </div>
+            {% if lozzalingo_config.features.auth %}
             <div class="feature-card">
                 <h3>User Authentication</h3>
                 <p>User registration, login, password reset, and OAuth support.</p>
-                <a href="/login">User Login</a>
+                <a href="/login" name="feature_auth">User Login</a>
             </div>
+            {% endif %}
+            {% if lozzalingo_config.features.news %}
             <div class="feature-card">
                 <h3>News/Blog</h3>
                 <p>Create and publish articles with a built-in editor.</p>
-                <a href="/news/">View News</a>
+                <a href="/blog" name="feature_news">View Blog</a>
             </div>
+            {% endif %}
+            {% if lozzalingo_config.features.email %}
             <div class="feature-card">
                 <h3>Email Service</h3>
                 <p>Send transactional emails with pre-built templates.</p>
-                <a href="/admin/email-preview/">Preview Emails</a>
+                <a href="/admin/email-preview/" name="feature_email">Preview Emails</a>
             </div>
+            {% endif %}
+            {% if lozzalingo_config.features.settings %}
             <div class="feature-card">
-                <h3>Customer Spotlight</h3>
-                <p>Showcase customer photos in an Instagram-style gallery.</p>
-                <a href="/admin/customer-spotlight-editor">Manage Spotlight</a>
+                <h3>Site Settings</h3>
+                <p>Configure API keys, email, Stripe, and more from the admin UI.</p>
+                <a href="/admin/settings/" name="feature_settings">Open Settings</a>
             </div>
+            {% endif %}
         </div>
     </div>
 </section>
@@ -58,15 +68,15 @@
         <ol class="steps">
             <li>
                 <strong>Create an admin account:</strong>
-                Visit <a href="/admin/create-admin">/admin/create-admin</a> to set up your first admin user.
+                Visit <a href="/admin/create-admin" name="step_create_admin">/admin/create-admin</a> to set up your first admin user.
             </li>
             <li>
                 <strong>Login to admin:</strong>
-                Go to <a href="/admin/login">/admin/login</a> and sign in with your admin credentials.
+                Go to <a href="/admin/login" name="step_login">/admin/login</a> and sign in with your admin credentials.
             </li>
             <li>
-                <strong>Explore the dashboard:</strong>
-                The <a href="/admin/dashboard">admin dashboard</a> shows all available modules.
+                <strong>Configure your site:</strong>
+                Visit <a href="/admin/settings/" name="step_settings">/admin/settings/</a> to set up API keys, email, and Stripe.
             </li>
             <li>
                 <strong>Customize this template:</strong>

@@ -255,7 +255,7 @@ Flask app using the Lozzalingo framework.
 """
 
 import os
-from flask import Flask, render_template, send_from_directory
+from flask import Flask, render_template
 from jinja2 import ChoiceLoader, FileSystemLoader
 
 # ===== App Setup =====
@@ -370,12 +370,6 @@ app.jinja_loader = ChoiceLoader(template_dirs)
 
 
 # ===== Routes =====
-
-@app.route('/favicon.ico')
-def favicon():
-    return send_from_directory(os.path.join(app.root_path, 'static', 'img'),
-                               'logo.png', mimetype='image/png')
-
 
 @app.route('/')
 def home():
@@ -619,10 +613,10 @@ Shared framework rules are auto-loaded from the parent `Lozzalingo-python/CLAUDE
 - Create admin locally: `localhost:<PORT>/admin/create-admin`
 ```
 
-### 2.12 Delete the Original `app.py`
-Remove the starter template's `app.py` since we've created `main.py`:
+### 2.12 Delete `app.py` (if it exists)
+The starter template no longer ships `app.py`, but remove it if present:
 ```bash
-rm <site_slug>/app.py
+rm -f <site_slug>/app.py
 ```
 
 ### 2.13 Generate Nginx Config

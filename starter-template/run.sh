@@ -41,6 +41,18 @@ fi
 # Create databases directory
 mkdir -p databases
 
+# Ensure lozzalingo framework is available
+if [ ! -d "lozzalingo" ] && [ ! -L "lozzalingo" ]; then
+    if [ -d "../lozzalingo-framework/lozzalingo" ]; then
+        echo -e "${YELLOW}Creating framework symlink...${NC}"
+        ln -s ../lozzalingo-framework/lozzalingo lozzalingo
+    else
+        echo -e "${RED}ERROR: lozzalingo framework not found. Create a symlink:${NC}"
+        echo "  ln -s ../lozzalingo-framework/lozzalingo lozzalingo"
+        exit 1
+    fi
+fi
+
 echo ""
 echo -e "${GREEN}=========================================="
 echo "  Starting server..."

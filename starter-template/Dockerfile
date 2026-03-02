@@ -23,8 +23,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Install lozzalingo framework
+# In production, the framework is installed from the local lozzalingo/ directory
+# (copied as a real directory by deploy.sh, not a symlink)
+# Fallback: install from git if lozzalingo/ directory is not present
 COPY . .
+RUN if [ -d "lozzalingo" ] && [ -f "lozzalingo/__init__.py" ]; then \
+        echo "Framework found in build context"; \
+    else \
+        pip install --no-cache-dir git+https://github.com/Lozzalingo/lozzalingo-framework.git@main; \
+    fi
 
 # Create required directories
 RUN mkdir -p databases logs

@@ -44,7 +44,7 @@ Best regards,
 The {brand} Team"""
 
     if HAS_EMAIL_SERVICE:
-        return email_service.send_email(email, subject, body)
+        return email_service.send_email([email], subject, body, text_body=body)
     else:
         print(f"[EMAIL] Would send password reset to {email}")
         return True
@@ -65,7 +65,7 @@ Best regards,
 The {brand} Team"""
 
     if HAS_EMAIL_SERVICE:
-        return email_service.send_email(email, subject, body)
+        return email_service.send_email([email], subject, body, text_body=body)
     else:
         print(f"[EMAIL] Would send password changed notification to {email}")
         return True
@@ -91,7 +91,7 @@ Best regards,
 The {brand} Team"""
 
     if HAS_EMAIL_SERVICE:
-        return email_service.send_email(email, subject, body)
+        return email_service.send_email([email], subject, body, text_body=body)
     else:
         print(f"[EMAIL] Would send verification to {email}")
         return True

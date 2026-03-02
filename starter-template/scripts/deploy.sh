@@ -49,8 +49,9 @@ $SSH_CMD "
     else
         cd $LOZZALINGO_DIR && git pull
     fi
-    # Create symlink
-    ln -sfn $LOZZALINGO_DIR/lozzalingo $REMOTE_DIR/lozzalingo
+    # Remove old symlink if present, copy real directory for Docker build context
+    rm -f $REMOTE_DIR/lozzalingo
+    cp -r $LOZZALINGO_DIR/lozzalingo $REMOTE_DIR/lozzalingo
 "
 
 # Build and start containers

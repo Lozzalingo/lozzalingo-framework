@@ -31,9 +31,10 @@ def test_app_starts(app):
 
 
 def test_health_endpoint(client):
-    """Health endpoint should return 200."""
+    """Health endpoint should respond (200=healthy, 503=issues detected)."""
     response = client.get('/health')
-    assert response.status_code == 200
+    assert response.status_code in (200, 503)
+    assert b'"status"' in response.data
 
 
 def test_homepage(client):

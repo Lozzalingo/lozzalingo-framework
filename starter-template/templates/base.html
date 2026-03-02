@@ -6,9 +6,6 @@
     <meta name="description" content="{{ brand_name }} - Built with Lozzalingo Framework">
     <title>{% block title %}{{ brand_name }}{% endblock %}</title>
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-
     <!-- Main Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
@@ -18,12 +15,16 @@
     <!-- Navigation -->
     <nav class="navbar">
         <div class="nav-container">
-            <a href="{{ url_for('index') }}" class="nav-brand">{{ brand_name }}</a>
+            <a href="{{ url_for('home') }}" class="nav-brand" name="nav_brand">{{ brand_name }}</a>
             <ul class="nav-links">
-                <li><a href="{{ url_for('index') }}">Home</a></li>
-                <li><a href="{{ url_for('about') }}">About</a></li>
-                <li><a href="{{ url_for('news.news_list') }}">News</a></li>
-                <li><a href="{{ url_for('auth.signin') }}" class="nav-btn">Sign In</a></li>
+                <li><a href="{{ url_for('home') }}" name="nav_home">Home</a></li>
+                <li><a href="{{ url_for('about') }}" name="nav_about">About</a></li>
+                {% if lozzalingo_config.features.news_public %}
+                <li><a href="/blog" name="nav_blog">Blog</a></li>
+                {% endif %}
+                {% if lozzalingo_config.features.auth %}
+                <li><a href="{{ url_for('auth.signin') }}" class="nav-btn" name="nav_signin">Sign In</a></li>
+                {% endif %}
             </ul>
         </div>
     </nav>
@@ -36,8 +37,8 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="footer-container">
-            <p>&copy; 2025 {{ brand_name }}. All rights reserved.</p>
-            <p class="footer-powered">Powered by <a href="https://github.com/lozzalingo" target="_blank">Lozzalingo Framework</a></p>
+            <p>&copy; {{ current_year() }} {{ brand_name }}. All rights reserved.</p>
+            <p class="footer-powered">Powered by <a href="https://github.com/lozzalingo" target="_blank" name="footer_lozzalingo">Lozzalingo Framework</a></p>
         </div>
     </footer>
 

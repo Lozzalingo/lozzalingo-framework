@@ -6,7 +6,7 @@ Flask app using the Lozzalingo framework.
 """
 
 import os
-from flask import Flask, render_template, send_from_directory
+from flask import Flask, render_template
 from jinja2 import ChoiceLoader, FileSystemLoader
 
 # ===== App Setup =====
@@ -103,12 +103,6 @@ app.jinja_loader = ChoiceLoader(template_dirs)
 
 
 # ===== Routes =====
-
-@app.route('/favicon.ico')
-def favicon():
-    return send_from_directory(os.path.join(app.root_path, 'static', 'img'),
-                               'logo.png', mimetype='image/png')
-
 
 @app.route('/')
 def home():
