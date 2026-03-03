@@ -399,6 +399,7 @@ class EmailService:
         Customise via app.config['EMAIL_WELCOME'] dict:
             greeting: str  - e.g. "Hey there" (default: "Welcome, {name}")
             intro: str     - intro paragraph
+            bullets_heading: str - heading above bullets (default: "What you'll receive:", set to "" to hide)
             bullets: list  - what they'll receive
             closing: str   - closing paragraph
             signoff: str   - e.g. "Cheers, Laurence" (default: "The {brand} Team")
@@ -417,7 +418,8 @@ class EmailService:
 
         subject = f"Welcome to {self.brand_name}!"
 
-        html_body = self._get_welcome_template(greeting, intro, bullets, closing)
+        bullets_heading = wc.get('bullets_heading', "What you'll receive:")
+        html_body = self._get_welcome_template(greeting, intro, bullets, closing, bullets_heading)
         bullets_text = '\n'.join(f'- {b}' for b in bullets)
         text_body = f"""
 {greeting}
@@ -436,7 +438,8 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
         return self.send_email([email], subject, html_body, text_body)
 
     def _get_welcome_template(self, greeting: str, intro: str,
-                               bullets: List[str], closing: str) -> str:
+                               bullets: List[str], closing: str,
+                               bullets_heading: str = "What you'll receive:") -> str:
         """Get welcome email HTML template"""
         s = self.style
         bullets_html = '\n'.join(f'<li>{b}</li>' for b in bullets)
@@ -461,7 +464,7 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
             <p style="font-size: 16px; margin: 16px 0; line-height: 1.7;">{intro}</p>
 
             <div style="background: {s['highlight_bg']}; padding: 24px; margin: 24px 0; border-left: 4px solid {s['highlight_border']};">
-                <p style="margin: 0 0 8px 0; font-size: 15px;"><strong>What you'll receive:</strong></p>
+                {'<p style="margin: 0 0 8px 0; font-size: 15px;"><strong>' + bullets_heading + '</strong></p>' if bullets_heading else ''}
                 <ul style="padding-left: 0; list-style: none; margin: 0;">
                     {bullets_html}
                 </ul>
