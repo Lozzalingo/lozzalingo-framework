@@ -6,9 +6,14 @@ from datetime import datetime, timedelta
 news_public_bp = Blueprint('news', __name__, url_prefix='/news', template_folder='templates')
 
 def format_content(content):
-    """Format content by converting line breaks to HTML and handling basic formatting"""
+    """Format content by converting line breaks to HTML and handling basic formatting.
+    If content already contains HTML block elements (from rich editors like Quill), return as-is."""
     if not content:
         return ""
+
+    # If content already contains HTML block elements, return as-is
+    if re.search(r'<(p|div|ul|ol|h[1-6]|table|blockquote|section|article|figure)\b', content, re.IGNORECASE):
+        return content
 
     # Replace multiple line breaks with paragraph breaks
     content = re.sub(r'\n\s*\n', '</p><p>', content)
