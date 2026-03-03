@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupInlineImageUpload();
     setupGalleryFolderTabs();
     setupCoverBrowser();
+    setupImagePositionPicker();
 });
 
 // ===== Quill Initialization =====
@@ -517,6 +518,9 @@ function setupImagePreview() {
         if (url) {
             imagePreview.style.display = 'block';
             previewImg.src = url;
+            // Apply current position to preview
+            const pos = document.getElementById('imagePosition');
+            if (pos) previewImg.style.objectPosition = 'center ' + pos.value;
 
             previewImg.onload = function() {
                 imagePreview.style.display = 'block';
@@ -531,7 +535,37 @@ function setupImagePreview() {
         } else {
             imagePreview.style.display = 'none';
         }
+        updateImagePositionVisibility();
     });
+}
+
+// ===== Image position picker =====
+
+function setupImagePositionPicker() {
+    const posGroup = document.getElementById('imagePositionGroup');
+    if (!posGroup) return;
+
+    posGroup.querySelectorAll('.pos-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            posGroup.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById('imagePosition').value = this.dataset.pos;
+
+            // Update preview image object-position
+            const previewImg = document.getElementById('previewImg');
+            if (previewImg) {
+                previewImg.style.objectPosition = 'center ' + this.dataset.pos;
+            }
+        });
+    });
+}
+
+function updateImagePositionVisibility() {
+    const posGroup = document.getElementById('imagePositionGroup');
+    const imageUrl = document.getElementById('imageUrl').value.trim();
+    if (posGroup) {
+        posGroup.style.display = imageUrl ? 'block' : 'none';
+    }
 }
 
 // ===== Load articles =====
@@ -651,10 +685,13 @@ async function handleSubmit(status) {
     const sourceId = (document.getElementById('sourceId').value || '').trim() || null;
     const sourceUrl = (document.getElementById('sourceUrl').value || '').trim() || null;
 
+    const imagePosition = (document.getElementById('imagePosition').value || '').trim() || 'center';
+
     const data = {
         title,
         content,
         image_url: imageUrl || null,
+        image_position: imagePosition,
         category_name: categoryName || null,
         status: status,
         excerpt: excerpt,
@@ -753,6 +790,16 @@ async function editArticle(id) {
         document.getElementById('authorEmail').value = article.author_email || '';
         document.getElementById('sourceId').value = article.source_id || '';
         document.getElementById('sourceUrl').value = article.source_url || '';
+
+        // Set image position picker
+        const imgPos = article.image_position || 'center';
+        document.getElementById('imagePosition').value = imgPos;
+        const posGroup = document.getElementById('imagePositionGroup');
+        if (posGroup) {
+            posGroup.querySelectorAll('.pos-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.pos === imgPos);
+            });
+        }
 
         // Trigger image preview
         if (article.image_url) {
@@ -1000,6 +1047,16 @@ function resetForm() {
     document.getElementById('statusIndicator').style.display = 'none';
     document.getElementById('imagePreview').style.display = 'none';
     document.getElementById('uploadProgress').style.display = 'none';
+
+    // Reset image position picker
+    document.getElementById('imagePosition').value = 'center';
+    const posGroup = document.getElementById('imagePositionGroup');
+    if (posGroup) {
+        posGroup.style.display = 'none';
+        posGroup.querySelectorAll('.pos-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.pos === 'center');
+        });
+    }
 
     // Clear Quill
     quill.setContents([]);
