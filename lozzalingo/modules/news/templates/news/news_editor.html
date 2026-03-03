@@ -72,6 +72,17 @@
                         <img id="previewImg" src="" alt="Preview">
                     </div>
 
+                    <div class="form-group" id="imagePositionGroup" style="display: none;">
+                        <label>Image Crop Position</label>
+                        <div class="image-position-picker">
+                            <button type="button" class="pos-btn" name="news_img_pos_top" data-pos="top">Top</button>
+                            <button type="button" class="pos-btn active" name="news_img_pos_center" data-pos="center">Center</button>
+                            <button type="button" class="pos-btn" name="news_img_pos_bottom" data-pos="bottom">Bottom</button>
+                        </div>
+                        <input type="hidden" id="imagePosition" value="center">
+                        <small class="form-hint">Controls which part of the image is shown in preview cards</small>
+                    </div>
+
                     <div class="form-group">
                         <label for="content">Article Content *</label>
                         <div id="editor"></div>

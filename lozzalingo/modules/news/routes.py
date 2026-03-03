@@ -72,7 +72,8 @@ def init_news_db():
                     author_email TEXT,
                     category_name TEXT,
                     source_id TEXT,
-                    source_url TEXT
+                    source_url TEXT,
+                    image_position TEXT DEFAULT 'center'
                 )
             ''')
 
@@ -97,6 +98,7 @@ def init_news_db():
                 ('crossposted_substack', 'BOOLEAN DEFAULT 0'),
                 ('crossposted_twitter', 'BOOLEAN DEFAULT 0'),
                 ('crossposted_threads', 'BOOLEAN DEFAULT 0'),
+                ('image_position', 'TEXT DEFAULT "center"'),
             ]
             for col_name, col_type in new_columns:
                 if col_name not in columns:
@@ -173,7 +175,7 @@ def get_all_articles_db(status=None, category_name=None, exclude_categories=None
                        excerpt, meta_title, meta_description, author_name, author_email,
                        category_name, source_id, source_url,
                        crossposted_linkedin, crossposted_medium, crossposted_substack,
-                       crossposted_twitter, crossposted_threads
+                       crossposted_twitter, crossposted_threads, image_position
                 FROM news_articles{where_clause}
                 ORDER BY created_at DESC
             ''', params)
@@ -205,6 +207,7 @@ def get_all_articles_db(status=None, category_name=None, exclude_categories=None
                 d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
                 d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
                 d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
+                d['image_position'] = row[22] if len(row) > 22 else 'center'
                 articles.append(d)
             return articles
     except Exception as e:
@@ -214,7 +217,7 @@ def get_all_articles_db(status=None, category_name=None, exclude_categories=None
 def create_article_db(title, content, image_url=None, status='draft',
                       excerpt=None, meta_title=None, meta_description=None,
                       author_name=None, author_email=None, category_name=None,
-                      source_id=None, source_url=None):
+                      source_id=None, source_url=None, image_position=None):
     """Create new article in database"""
     news_db = get_db_config()
     db_connect = get_db_connection()
@@ -227,11 +230,11 @@ def create_article_db(title, content, image_url=None, status='draft',
             cursor.execute('''
                 INSERT INTO news_articles (title, slug, content, image_url, status,
                     excerpt, meta_title, meta_description, author_name, author_email,
-                    category_name, source_id, source_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    category_name, source_id, source_url, image_position)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (title, slug, content, image_url, status,
                   excerpt, meta_title, meta_description, author_name, author_email,
-                  category_name, source_id, source_url))
+                  category_name, source_id, source_url, image_position or 'center'))
             conn.commit()
             return cursor.lastrowid, slug
     except Exception as e:
@@ -241,7 +244,7 @@ def create_article_db(title, content, image_url=None, status='draft',
 def update_article_db(article_id, title, content, image_url=None, status=None,
                       excerpt=None, meta_title=None, meta_description=None,
                       author_name=None, author_email=None, category_name=None,
-                      source_id=None, source_url=None):
+                      source_id=None, source_url=None, image_position=None):
     """Update existing article"""
     news_db = get_db_config()
     db_connect = get_db_connection()
@@ -280,12 +283,13 @@ def update_article_db(article_id, title, content, image_url=None, status=None,
                 SET title = ?, slug = ?, content = ?, image_url = ?, status = ?,
                     excerpt = ?, meta_title = ?, meta_description = ?,
                     author_name = ?, author_email = ?, category_name = ?,
-                    source_id = ?, source_url = ?, updated_at = CURRENT_TIMESTAMP
+                    source_id = ?, source_url = ?, image_position = ?,
+                    updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (title.strip(), slug, content.strip(), image_url, status,
                   excerpt, meta_title, meta_description,
                   author_name, author_email, category_name,
-                  source_id, source_url, article_id))
+                  source_id, source_url, image_position or 'center', article_id))
             conn.commit()
 
             return cursor.rowcount > 0
@@ -321,7 +325,7 @@ def get_article_db(article_id):
                        excerpt, meta_title, meta_description, author_name, author_email,
                        category_name, source_id, source_url,
                        crossposted_linkedin, crossposted_medium, crossposted_substack,
-                       crossposted_twitter, crossposted_threads
+                       crossposted_twitter, crossposted_threads, image_position
                 FROM news_articles WHERE id = ?
             ''', (article_id,))
             row = cursor.fetchone()
@@ -351,6 +355,7 @@ def get_article_db(article_id):
                 d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
                 d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
                 d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
+                d['image_position'] = row[22] if len(row) > 22 else 'center'
                 return d
             return None
     except Exception as e:
@@ -370,7 +375,7 @@ def get_article_by_slug_db(slug):
                        excerpt, meta_title, meta_description, author_name, author_email,
                        category_name, source_id, source_url,
                        crossposted_linkedin, crossposted_medium, crossposted_substack,
-                       crossposted_twitter, crossposted_threads
+                       crossposted_twitter, crossposted_threads, image_position
                 FROM news_articles WHERE slug = ?
             ''', (slug,))
             row = cursor.fetchone()
@@ -400,6 +405,7 @@ def get_article_by_slug_db(slug):
                 d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
                 d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
                 d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
+                d['image_position'] = row[22] if len(row) > 22 else 'center'
                 return d
             return None
     except Exception as e:
@@ -521,6 +527,7 @@ def create_article():
         author_email = data.get('author_email') or None
         source_id = data.get('source_id') or None
         source_url = data.get('source_url') or None
+        image_position = data.get('image_position') or 'center'
 
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
@@ -529,7 +536,7 @@ def create_article():
             title, content, image_url, status,
             excerpt=excerpt, meta_title=meta_title, meta_description=meta_description,
             author_name=author_name, author_email=author_email, category_name=category_name,
-            source_id=source_id, source_url=source_url
+            source_id=source_id, source_url=source_url, image_position=image_position
         )
 
         return jsonify({
@@ -564,6 +571,7 @@ def update_article(article_id):
         author_email = data.get('author_email') or None
         source_id = data.get('source_id') or None
         source_url = data.get('source_url') or None
+        image_position = data.get('image_position') or 'center'
 
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
@@ -572,7 +580,7 @@ def update_article(article_id):
             article_id, title, content, image_url, status,
             excerpt=excerpt, meta_title=meta_title, meta_description=meta_description,
             author_name=author_name, author_email=author_email, category_name=category_name,
-            source_id=source_id, source_url=source_url
+            source_id=source_id, source_url=source_url, image_position=image_position
         )
 
         if success:

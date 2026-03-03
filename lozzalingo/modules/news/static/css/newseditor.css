@@ -202,6 +202,37 @@
     display: block;
 }
 
+/* Image Position Picker */
+.image-position-picker {
+    display: flex;
+    gap: 8px;
+}
+
+.image-position-picker .pos-btn {
+    flex: 1;
+    padding: 8px 12px;
+    background: var(--noir-dark);
+    border: 2px solid var(--noir-gray);
+    color: var(--noir-silver);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.image-position-picker .pos-btn:hover {
+    border-color: var(--noir-light-gray);
+    color: var(--noir-white);
+}
+
+.image-position-picker .pos-btn.active {
+    background: rgba(74, 144, 217, 0.15);
+    border-color: #4a90d9;
+    color: #4a90d9;
+}
+
 /* Form Actions */
 .form-actions {
     display: flex;
