@@ -143,6 +143,14 @@ def create_slug(title):
 
     return slug
 
+_POS_MAP = {'top': '0', 'center': '50', 'bottom': '100'}
+
+def _normalize_pos(val):
+    """Normalize image_position to a numeric string (0-100)."""
+    if not val:
+        return '50'
+    return _POS_MAP.get(val, val)
+
 def get_all_articles_db(status=None, category_name=None, exclude_categories=None):
     """Get all articles with optional status, category, and exclusion filters"""
     news_db = get_db_config()
@@ -207,7 +215,7 @@ def get_all_articles_db(status=None, category_name=None, exclude_categories=None
                 d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
                 d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
                 d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
-                d['image_position'] = row[22] if len(row) > 22 else 'center'
+                d['image_position'] = _normalize_pos(row[22] if len(row) > 22 else None)
                 articles.append(d)
             return articles
     except Exception as e:
@@ -355,7 +363,7 @@ def get_article_db(article_id):
                 d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
                 d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
                 d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
-                d['image_position'] = row[22] if len(row) > 22 else 'center'
+                d['image_position'] = _normalize_pos(row[22] if len(row) > 22 else None)
                 return d
             return None
     except Exception as e:
@@ -405,7 +413,7 @@ def get_article_by_slug_db(slug):
                 d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
                 d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
                 d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
-                d['image_position'] = row[22] if len(row) > 22 else 'center'
+                d['image_position'] = _normalize_pos(row[22] if len(row) > 22 else None)
                 return d
             return None
     except Exception as e:

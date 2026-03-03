@@ -202,35 +202,45 @@
     display: block;
 }
 
-/* Image Position Picker */
-.image-position-picker {
-    display: flex;
-    gap: 8px;
+/* Image Drag-to-Reposition */
+.image-preview-drag {
+    position: relative;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
-.image-position-picker .pos-btn {
-    flex: 1;
-    padding: 8px 12px;
-    background: var(--noir-dark);
-    border: 2px solid var(--noir-gray);
-    color: var(--noir-silver);
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 500;
-    font-family: inherit;
-    transition: all 0.2s ease;
+.image-preview-drag:active {
+    cursor: grabbing;
 }
 
-.image-position-picker .pos-btn:hover {
-    border-color: var(--noir-light-gray);
-    color: var(--noir-white);
+.image-preview-drag img {
+    pointer-events: none;
 }
 
-.image-position-picker .pos-btn.active {
-    background: rgba(74, 144, 217, 0.15);
-    border-color: #4a90d9;
-    color: #4a90d9;
+.drag-hint {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    padding: 6px 0;
+    background: rgba(0, 0, 0, 0.6);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.75rem;
+    letter-spacing: 0.03em;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+
+.image-preview-drag:hover .drag-hint,
+.image-preview-drag.dragging .drag-hint {
+    opacity: 1;
+}
+
+.image-preview-drag.dragging .drag-hint {
+    background: rgba(74, 144, 217, 0.7);
 }
 
 /* Form Actions */

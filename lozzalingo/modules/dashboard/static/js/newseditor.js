@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupInlineImageUpload();
     setupGalleryFolderTabs();
     setupCoverBrowser();
-    setupImagePositionPicker();
+    setupImageDragReposition();
 });
 
 // ===== Quill Initialization =====
@@ -518,12 +518,10 @@ function setupImagePreview() {
         if (url) {
             imagePreview.style.display = 'block';
             previewImg.src = url;
-            // Apply current position to preview
-            const pos = document.getElementById('imagePosition');
-            if (pos) previewImg.style.objectPosition = 'center ' + pos.value;
 
             previewImg.onload = function() {
                 imagePreview.style.display = 'block';
+                applyImagePosition(document.getElementById('imagePosition').value);
             };
 
             previewImg.onerror = function() {
@@ -535,36 +533,93 @@ function setupImagePreview() {
         } else {
             imagePreview.style.display = 'none';
         }
-        updateImagePositionVisibility();
     });
 }
 
-// ===== Image position picker =====
+// ===== Image drag-to-reposition =====
 
-function setupImagePositionPicker() {
-    const posGroup = document.getElementById('imagePositionGroup');
-    if (!posGroup) return;
+function setupImageDragReposition() {
+    const dragArea = document.getElementById('imagePreviewDrag');
+    if (!dragArea) return;
 
-    posGroup.querySelectorAll('.pos-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            posGroup.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            document.getElementById('imagePosition').value = this.dataset.pos;
+    let dragging = false;
+    let startY = 0;
+    let startPos = 50;
 
-            // Update preview image object-position
-            const previewImg = document.getElementById('previewImg');
-            if (previewImg) {
-                previewImg.style.objectPosition = 'center ' + this.dataset.pos;
-            }
-        });
+    function getPos() {
+        return parseFloat(document.getElementById('imagePosition').value) || 50;
+    }
+
+    function setPos(val) {
+        val = Math.max(0, Math.min(100, val));
+        document.getElementById('imagePosition').value = Math.round(val);
+        const previewImg = document.getElementById('previewImg');
+        if (previewImg) {
+            previewImg.style.objectPosition = 'center ' + Math.round(val) + '%';
+        }
+        // Update hint text
+        const hint = document.getElementById('dragHint');
+        if (hint) {
+            hint.textContent = dragging ? Math.round(val) + '%' : 'Drag to reposition';
+        }
+    }
+
+    function onStart(clientY) {
+        dragging = true;
+        startY = clientY;
+        startPos = getPos();
+        dragArea.classList.add('dragging');
+    }
+
+    function onMove(clientY) {
+        if (!dragging) return;
+        const containerHeight = dragArea.offsetHeight;
+        const delta = clientY - startY;
+        // Moving mouse down = showing higher part = lower percentage
+        const posDelta = (delta / containerHeight) * -100;
+        setPos(startPos + posDelta);
+    }
+
+    function onEnd() {
+        if (!dragging) return;
+        dragging = false;
+        dragArea.classList.remove('dragging');
+        const hint = document.getElementById('dragHint');
+        if (hint) hint.textContent = 'Drag to reposition';
+    }
+
+    // Mouse events
+    dragArea.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        onStart(e.clientY);
     });
+    document.addEventListener('mousemove', function(e) { onMove(e.clientY); });
+    document.addEventListener('mouseup', onEnd);
+
+    // Touch events
+    dragArea.addEventListener('touchstart', function(e) {
+        onStart(e.touches[0].clientY);
+    }, { passive: true });
+    document.addEventListener('touchmove', function(e) {
+        if (dragging) onMove(e.touches[0].clientY);
+    }, { passive: true });
+    document.addEventListener('touchend', onEnd);
 }
 
-function updateImagePositionVisibility() {
-    const posGroup = document.getElementById('imagePositionGroup');
-    const imageUrl = document.getElementById('imageUrl').value.trim();
-    if (posGroup) {
-        posGroup.style.display = imageUrl ? 'block' : 'none';
+function normalizeImagePosition(val) {
+    // Convert legacy string values to percentages
+    if (val === 'top') return 0;
+    if (val === 'center' || !val) return 50;
+    if (val === 'bottom') return 100;
+    return parseFloat(val) || 50;
+}
+
+function applyImagePosition(val) {
+    const pct = normalizeImagePosition(val);
+    document.getElementById('imagePosition').value = Math.round(pct);
+    const previewImg = document.getElementById('previewImg');
+    if (previewImg) {
+        previewImg.style.objectPosition = 'center ' + Math.round(pct) + '%';
     }
 }
 
@@ -791,15 +846,8 @@ async function editArticle(id) {
         document.getElementById('sourceId').value = article.source_id || '';
         document.getElementById('sourceUrl').value = article.source_url || '';
 
-        // Set image position picker
-        const imgPos = article.image_position || 'center';
-        document.getElementById('imagePosition').value = imgPos;
-        const posGroup = document.getElementById('imagePositionGroup');
-        if (posGroup) {
-            posGroup.querySelectorAll('.pos-btn').forEach(b => {
-                b.classList.toggle('active', b.dataset.pos === imgPos);
-            });
-        }
+        // Set image position
+        applyImagePosition(article.image_position);
 
         // Trigger image preview
         if (article.image_url) {
@@ -1048,15 +1096,8 @@ function resetForm() {
     document.getElementById('imagePreview').style.display = 'none';
     document.getElementById('uploadProgress').style.display = 'none';
 
-    // Reset image position picker
-    document.getElementById('imagePosition').value = 'center';
-    const posGroup = document.getElementById('imagePositionGroup');
-    if (posGroup) {
-        posGroup.style.display = 'none';
-        posGroup.querySelectorAll('.pos-btn').forEach(b => {
-            b.classList.toggle('active', b.dataset.pos === 'center');
-        });
-    }
+    // Reset image position
+    document.getElementById('imagePosition').value = '50';
 
     // Clear Quill
     quill.setContents([]);
