@@ -836,6 +836,14 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
         excerpt = project.get('excerpt', project.get('content', '')[:320] + '...')
         project_url = f"{self.website_url}{project.get('url', '/projects/' + project.get('slug', ''))}"
         technologies = project.get('technologies', '')
+        image_url = project.get('image_url', '')
+
+        image_block = ''
+        if image_url:
+            image_block = f'''
+        <a href="{project_url}" style="display: block; text-decoration: none;">
+            <img src="{image_url}" alt="{title}" style="width: 100%; height: auto; display: block;" />
+        </a>'''
 
         tech_html = ''
         if technologies:
@@ -861,7 +869,7 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
             <h1 style="font-family: {s['font_heading']}; font-size: 24px; margin: 0 0 8px 0; font-weight: normal; letter-spacing: 2px;">{self.brand_name.upper()}</h1>
             <p style="font-size: 14px; margin: 0; opacity: 0.8;">New Project</p>
         </div>
-
+{image_block}
         <div style="padding: 40px 32px;">
             <h2 style="font-family: {s['font_heading']}; font-size: 22px; margin: 0 0 16px 0; font-weight: normal; color: {s['text']}; line-height: 1.3;">{title}</h2>
 
@@ -924,6 +932,14 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
         title = project.get('title', 'Project Update')
         update_description = project.get('update_description', '')
         project_url = f"{self.website_url}{project.get('url', '/projects/' + project.get('slug', ''))}"
+        image_url = project.get('image_url', '')
+
+        image_block = ''
+        if image_url:
+            image_block = f'''
+        <a href="{project_url}" style="display: block; text-decoration: none;">
+            <img src="{image_url}" alt="{title}" style="width: 100%; height: auto; display: block;" />
+        </a>'''
 
         return f"""
 <!DOCTYPE html>
@@ -939,7 +955,7 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
             <h1 style="font-family: {s['font_heading']}; font-size: 24px; margin: 0 0 8px 0; font-weight: normal; letter-spacing: 2px;">{self.brand_name.upper()}</h1>
             <p style="font-size: 14px; margin: 0; opacity: 0.8;">Project Updated</p>
         </div>
-
+{image_block}
         <div style="padding: 40px 32px;">
             <h2 style="font-family: {s['font_heading']}; font-size: 22px; margin: 0 0 24px 0; font-weight: normal; color: {s['text']}; line-height: 1.3;">{title}</h2>
 
