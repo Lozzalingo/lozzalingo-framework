@@ -11,8 +11,13 @@ def format_content(content):
     if not content:
         return ""
 
-    # If content already contains HTML block elements, return as-is
+    # If content already contains HTML block elements, add inline styles for
+    # list elements (host app CSS resets often strip bullets) and return as-is
     if re.search(r'<(p|div|ul|ol|h[1-6]|table|blockquote|section|article|figure)\b', content, re.IGNORECASE):
+        content = re.sub(r'<ul(?![^>]*style)', '<ul style="margin:1em 0;padding-left:2em;list-style-type:disc"', content)
+        content = re.sub(r'<ol(?![^>]*style)', '<ol style="margin:1em 0;padding-left:2em;list-style-type:decimal"', content)
+        content = re.sub(r'<li(?![^>]*style)', '<li style="margin-bottom:0.5em;line-height:1.6"', content)
+        content = re.sub(r'<blockquote(?![^>]*style)', '<blockquote style="border-left:3px solid #ccc;padding-left:1em;margin:1em 0;color:#555"', content)
         return content
 
     # Replace multiple line breaks with paragraph breaks
