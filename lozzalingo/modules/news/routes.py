@@ -799,7 +799,8 @@ def send_article_email(article_id):
             'slug': slug,
             'excerpt': article.get('excerpt') or (content[:300] + '...' if len(content) > 300 else content),
             'date': article.get('created_at', ''),
-            'url': article_url
+            'url': article_url,
+            'image_url': article.get('image_url', ''),
         }
 
         # Get email service (optional import)

@@ -755,6 +755,14 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
         excerpt = article.get('excerpt', article.get('content', '')[:320] + '...')
         article_url = f"{self.website_url}{article.get('url', '/news/' + article.get('slug', ''))}"
         date = article.get('date', datetime.now().strftime('%B %d, %Y'))
+        image_url = article.get('image_url', '')
+
+        image_block = ''
+        if image_url:
+            image_block = f'''
+        <a href="{article_url}" style="display: block; text-decoration: none;">
+            <img src="{image_url}" alt="{title}" style="width: 100%; height: auto; display: block;" />
+        </a>'''
 
         return f"""
 <!DOCTYPE html>
@@ -770,7 +778,7 @@ To unsubscribe, visit: {self.website_url}/unsubscribe
             <h1 style="font-family: {s['font_heading']}; font-size: 24px; margin: 0 0 8px 0; font-weight: normal; letter-spacing: 2px;">{self.brand_name.upper()}</h1>
             <p style="font-size: 14px; margin: 0; opacity: 0.8;">New Post</p>
         </div>
-
+{image_block}
         <div style="padding: 40px 32px;">
             <h2 style="font-family: {s['font_heading']}; font-size: 22px; margin: 0 0 16px 0; font-weight: normal; color: {s['text']}; line-height: 1.3;">{title}</h2>
             <div style="font-size: 14px; color: {s['text_secondary']}; margin-bottom: 24px; font-style: italic;">{date}</div>
