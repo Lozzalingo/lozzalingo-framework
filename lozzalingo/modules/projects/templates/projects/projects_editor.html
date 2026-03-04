@@ -102,6 +102,14 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="parentProject">Parent Project</label>
+                        <select id="parentProject" name="parent_id">
+                            <option value="">None (standalone)</option>
+                        </select>
+                        <small class="form-hint">Make this a sub-project of another project</small>
+                    </div>
+
+                    <div class="form-group">
                         <label for="techSearchInput">Technologies</label>
                         <div class="tech-input-wrap" id="techInputWrap">
                             <div class="tech-tags" id="techTags"></div>
@@ -1350,10 +1358,21 @@
                 return;
             }
 
-            container.innerHTML = filtered.map(p => `
-                <div class="article-card" data-id="${p.id}">
+            // Sort: parents first, then children after their parent
+            const parentMap = {};
+            filtered.forEach(p => { if (p.parent_id) { (parentMap[p.parent_id] = parentMap[p.parent_id] || []).push(p); } });
+            const ordered = [];
+            filtered.filter(p => !p.parent_id).forEach(p => {
+                ordered.push(p);
+                if (parentMap[p.id]) ordered.push(...parentMap[p.id]);
+            });
+            // Add orphaned sub-projects (parent not in filtered list)
+            filtered.filter(p => p.parent_id && !ordered.includes(p)).forEach(p => ordered.push(p));
+
+            container.innerHTML = ordered.map(p => `
+                <div class="article-card" data-id="${p.id}" style="${p.parent_id ? 'margin-left:24px;border-left:2px solid var(--accent-gold-dim,#b8943f);' : ''}">
                     <div class="article-card-header">
-                        <h3 class="article-title">${p.title}</h3>
+                        <h3 class="article-title">${p.parent_id ? '└ ' : ''}${p.title}</h3>
                         <div>
                             <span class="status-badge status-${p.status}">${p.status}</span>
                             <span class="status-badge ps-${p.project_status}">${p.project_status}</span>
@@ -1461,7 +1480,8 @@
                 hero_image_align: document.getElementById('heroImageAlign').value || 'center center',
                 insights: document.getElementById('insightsHidden').value || null,
                 external_url: document.getElementById('externalUrl').value.trim() || null,
-                fetched_content: document.getElementById('fetchedExternalContent').value || null
+                fetched_content: document.getElementById('fetchedExternalContent').value || null,
+                parent_id: document.getElementById('parentProject').value || null
             };
 
             try {
@@ -1544,6 +1564,8 @@
                 document.getElementById('earningsLabel').value = p.earnings_label || '';
                 setInsightsFromJSON(p.insights || '');
                 document.getElementById('externalUrl').value = p.external_url || '';
+                populateParentDropdown(id);
+                document.getElementById('parentProject').value = p.parent_id || '';
                 if (p.external_url && p.fetched_content) {
                     document.getElementById('fetchedExternalContent').value = p.fetched_content;
                     const sizeKb = (new Blob([p.fetched_content]).size / 1024).toFixed(1);
@@ -2140,6 +2162,25 @@
             window._openFilmstripModal = openFilmstripModal;
         })();
 
+        function populateParentDropdown(excludeId) {
+            const sel = document.getElementById('parentProject');
+            const currentVal = sel.value;
+            sel.innerHTML = '<option value="">None (standalone)</option>';
+            // Only show top-level projects (no parent_id) as potential parents
+            // Also exclude the current project and its children
+            const childIds = new Set();
+            if (excludeId) {
+                cachedProjects.forEach(p => { if (p.parent_id == excludeId) childIds.add(p.id); });
+            }
+            cachedProjects.forEach(p => {
+                if (p.id == excludeId) return;
+                if (childIds.has(p.id)) return;
+                if (p.parent_id) return; // only top-level projects can be parents
+                sel.innerHTML += `<option value="${p.id}">${p.title}</option>`;
+            });
+            sel.value = currentVal;
+        }
+
         function resetForm() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
             editingId = null;
@@ -2166,6 +2207,8 @@
             document.getElementById('metaDescription').value = '';
             document.getElementById('grossEarnings').value = '';
             document.getElementById('earningsCurrency').value = '£';
+            populateParentDropdown(null);
+            document.getElementById('parentProject').value = '';
             document.getElementById('externalUrl').value = '';
             document.getElementById('fetchedExternalContent').value = '';
             document.getElementById('fetchStatus').textContent = '';
