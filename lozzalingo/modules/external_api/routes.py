@@ -532,7 +532,7 @@ def get_article_external(article_id):
 @external_api_bp.route('/articles', methods=['POST'])
 @require_api_key
 def create_article_external():
-    """Create new article (external API)"""
+    """Create new article (external API). Supports blog_section='projects' to route to projects DB."""
     try:
         data = request.json
 
@@ -549,7 +549,41 @@ def create_article_external():
         meta_description = data.get('meta_description')
         source_id = data.get('source_id')
         source_url = data.get('source_url')
+        blog_section = data.get('blog_section', 'news')
 
+        if not title or not content:
+            return jsonify({'error': 'Title and content are required'}), 400
+
+        # Route to projects DB if blog_section is 'projects'
+        if blog_section == 'projects':
+            print(f"[ExternalAPI] Routing to projects DB: {title}")
+            try:
+                from lozzalingo.modules.projects.routes import create_project_db, init_projects_db
+                init_projects_db()
+                article_id, final_slug = create_project_db(
+                    title=title,
+                    content=content,
+                    image_url=image_url or None,
+                    status=status,
+                    excerpt=excerpt,
+                    meta_description=meta_description,
+                    external_url=source_url,
+                )
+                print(f"[ExternalAPI] Project created: id={article_id}, slug={final_slug}")
+                return jsonify({
+                    'success': True,
+                    'id': article_id,
+                    'slug': final_slug,
+                    'status': status,
+                    'message': 'Project created successfully'
+                }), 201
+            except ImportError:
+                print("[ExternalAPI] Projects module not available, falling back to news")
+            except Exception as e:
+                print(f"[ExternalAPI] Error creating project: {e}")
+                return jsonify({'error': str(e)}), 500
+
+        # Default: create in news_articles
         # Handle author - can be an object or individual fields
         author = data.get('author')
         if author and isinstance(author, dict):
@@ -565,9 +599,6 @@ def create_article_external():
             category_name = category.get('name')
         else:
             category_name = data.get('category_name')
-
-        if not title or not content:
-            return jsonify({'error': 'Title and content are required'}), 400
 
         article_id, final_slug = create_news_article_db(
             title=title,
