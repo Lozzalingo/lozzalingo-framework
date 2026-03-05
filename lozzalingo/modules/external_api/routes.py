@@ -689,6 +689,81 @@ def delete_article_external(article_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ===== Projects External API Routes =====
+
+@external_api_bp.route('/projects', methods=['GET'])
+@require_api_key
+def get_projects_external():
+    """Get all projects (external API) - lightweight list for dropdowns"""
+    try:
+        from lozzalingo.modules.projects.routes import get_all_projects_db, init_projects_db
+        init_projects_db()
+        projects = get_all_projects_db()
+        print(f"[ExternalAPI] Returning {len(projects)} projects")
+        return jsonify({
+            'success': True,
+            'projects': [{
+                'id': p['id'],
+                'title': p['title'],
+                'slug': p['slug'],
+                'status': p.get('status', 'draft'),
+                'project_status': p.get('project_status', 'active'),
+                'image_url': p.get('image_url'),
+            } for p in projects],
+            'count': len(projects)
+        })
+    except ImportError:
+        print("[ExternalAPI] Projects module not available")
+        return jsonify({'success': False, 'error': 'Projects module not available'}), 404
+    except Exception as e:
+        print(f"[ExternalAPI] Error fetching projects: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@external_api_bp.route('/projects/<int:project_id>', methods=['PUT'])
+@require_api_key
+def update_project_content_external(project_id):
+    """Update project content only (external API) - leaves all other metadata untouched"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'Request body required'}), 400
+
+        content = data.get('content')
+        if not content:
+            return jsonify({'error': 'Content is required'}), 400
+
+        from lozzalingo.modules.projects.routes import get_db_config, get_db_connection, init_projects_db
+        init_projects_db()
+
+        projects_db = get_db_config()
+        db_connect = get_db_connection()
+
+        with db_connect(projects_db) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT id, slug FROM projects WHERE id = ?', (project_id,))
+            row = cursor.fetchone()
+            if not row:
+                return jsonify({'error': 'Project not found'}), 404
+
+            cursor.execute('''
+                UPDATE projects SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+            ''', (content, project_id))
+            conn.commit()
+            print(f"[ExternalAPI] Updated project content: id={project_id}, slug={row[1]}")
+
+        return jsonify({
+            'success': True,
+            'id': row[0],
+            'slug': row[1],
+            'message': 'Project content updated successfully'
+        })
+    except ImportError:
+        print("[ExternalAPI] Projects module not available")
+        return jsonify({'success': False, 'error': 'Projects module not available'}), 404
+    except Exception as e:
+        print(f"[ExternalAPI] Error updating project content: {e}")
+        return jsonify({'error': str(e)}), 500
+
 # ===== Admin Routes (Session Auth) =====
 
 @external_api_admin_bp.before_request
