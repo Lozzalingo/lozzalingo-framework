@@ -1383,6 +1383,7 @@
                         <span>Updated: ${new Date(p.updated_at).toLocaleDateString()}</span>
                     </div>
                     <div class="article-actions">
+                        ${p.status === 'published' || p.status === 'coming-soon' ? `<a href="/projects/${p.slug}" target="_blank" class="view-btn" name="project_view_${p.id}">View</a>` : ''}
                         <button class="btn-small btn-edit" name="project_edit_${p.id}" onclick="window._editProject(${p.id})">Edit</button>
                         <button class="btn-small btn-toggle-publish" name="project_toggle_publish_${p.id}" onclick="window._togglePublish(${p.id})">
                             ${p.status === 'published' ? 'Unpublish' : 'Publish'}
