@@ -363,8 +363,9 @@ class ReferrerTracker:
                 return f"{referrer_data['platform']} ({referrer_data['term'][:30]}...)" if len(referrer_data['term']) > 30 else f"{referrer_data['platform']} ({referrer_data['term']})"
             return referrer_data['platform'] or referrer_data['source']
 
+        # Convert "Internal" to user-friendly "Direct" for display
         if referrer_data['category'] == 'Internal Navigation' or referrer_data['source'] == 'Internal':
-            return 'Internal'
+            return 'Direct'
 
         return referrer_data['source']
 
