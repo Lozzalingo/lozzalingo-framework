@@ -53,12 +53,15 @@
         </div>
 
         <footer>
+            {% set _share_base = request.url.split('?')[0] %}
             <div class="share">
                 <span>Share:</span>
-                <a href="https://twitter.com/intent/tweet?text={{ article.title|urlencode }}&url={{ request.url|urlencode }}"
+                <a href="https://twitter.com/intent/tweet?text={{ article.title|urlencode }}&url={{ (_share_base ~ '?utm_source=x&utm_medium=social')|urlencode }}"
                    target="_blank" rel="noopener" name="share_twitter">Twitter</a>
-                <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.url|urlencode }}"
+                <a href="https://www.facebook.com/sharer/sharer.php?u={{ (_share_base ~ '?utm_source=facebook&utm_medium=social')|urlencode }}"
                    target="_blank" rel="noopener" name="share_facebook">Facebook</a>
+                <a href="https://api.whatsapp.com/send?text={{ article.title|urlencode }}%20{{ (_share_base ~ '?utm_source=whatsapp&utm_medium=social')|urlencode }}"
+                   target="_blank" rel="noopener" name="share_whatsapp">WhatsApp</a>
             </div>
         </footer>
     </article>
