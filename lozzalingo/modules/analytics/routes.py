@@ -637,12 +637,12 @@ def get_subscriber_details():
 
         # Recent subscribers
         cursor.execute("""
-            SELECT email, subscribed_at, is_active, source, ip_address
+            SELECT email, subscribed_at, is_active, source, ip_address, is_confirmed
             FROM subscribers
             ORDER BY datetime(subscribed_at) DESC
             LIMIT ?
         """, (limit,))
-        
+
         recent_subscribers = []
         for row in cursor.fetchall():
             recent_subscribers.append({
@@ -650,7 +650,8 @@ def get_subscriber_details():
                 'subscribed_at': row[1],
                 'is_active': bool(row[2]),
                 'source': row[3] or 'Unknown',
-                'ip_address': row[4] or 'Unknown'
+                'ip_address': row[4] or 'Unknown',
+                'is_confirmed': bool(row[5]) if row[5] is not None else True
             })
         
         # Subscription trend
@@ -1055,11 +1056,10 @@ def get_referer_data():
                 JSON_EXTRACT(a.additional_data, '$.utm_params') as utm_params_json,
                 JSON_EXTRACT(a.additional_data, '$.search_params') as search_params,
                 JSON_EXTRACT(a.additional_data, '$.referrer_info') as referrer_info_json,
-                COUNT(*) as visits
+                a.user_agent,
+                a.rowid
             FROM first_visit fv
             JOIN analytics_log a ON a.rowid = fv.first_rowid
-            GROUP BY a.referer, doc_referrer
-            ORDER BY visits DESC
         """)
 
         # Process referrer data using enhanced tracker
@@ -1072,39 +1072,68 @@ def get_referer_data():
             utm_params_json = row[2]
             search_params = row[3]
             referrer_info_json = row[4]
-            visits = row[5]
+            row_user_agent = row[5]
+            visits = 1  # Each row is one unique visitor
 
-            # Parse UTM parameters — try utm_params first, then search_params
-            url_params = {}
-            try:
-                if utm_params_json:
-                    import json
-                    url_params = json.loads(utm_params_json)
-            except:
-                pass
-            if not url_params and search_params:
+            # Multi-pronged detection:
+            # 1. Try stored referrer_info first (already processed at ingestion)
+            referrer_data = None
+            if referrer_info_json:
                 try:
-                    from urllib.parse import parse_qs
-                    parsed_params = parse_qs(search_params.lstrip('?'))
-                    for k, v in parsed_params.items():
-                        if k.startswith('utm_') and v:
-                            url_params[k] = v[0]
-                except:
+                    import json as _json
+                    stored = _json.loads(referrer_info_json)
+                    # Use stored data if it identified a real source (not Direct/Internal)
+                    if stored.get('source') and stored['source'] not in ('Direct', 'Internal'):
+                        referrer_data = {
+                            'source': stored['source'],
+                            'medium': stored.get('medium', 'referral'),
+                            'campaign': stored.get('utm_campaign') or stored.get('campaign'),
+                            'content': None,
+                            'term': None,
+                            'category': stored.get('category', 'Referral'),
+                            'platform': stored.get('platform'),
+                            'is_social': stored.get('is_social', False),
+                            'is_search': stored.get('is_search', False),
+                            'is_internal': False,
+                            'raw_referrer': document_referrer or referer,
+                            'utm_source': stored.get('utm_source'),
+                            'utm_medium': stored.get('utm_medium'),
+                            'utm_campaign': stored.get('utm_campaign'),
+                            'utm_content': stored.get('utm_content'),
+                            'utm_term': stored.get('utm_term')
+                        }
+                except Exception:
                     pass
 
-            # Use document.referrer from client JS — this is the real external referrer.
-            # Do NOT fall back to HTTP Referer header (which is always the page's own URL
-            # for JS-initiated requests and would incorrectly classify Direct as Internal).
-            has_doc_referrer = document_referrer and document_referrer != 'None' and document_referrer.strip()
-            primary_referrer = document_referrer if has_doc_referrer else None
+            # 2. Re-parse from referrer URL + UTM + user agent if stored info was Direct/Internal
+            if not referrer_data:
+                # Parse UTM parameters — try utm_params first, then search_params
+                url_params = {}
+                try:
+                    if utm_params_json:
+                        import json as _json
+                        url_params = _json.loads(utm_params_json)
+                except Exception:
+                    pass
+                if not url_params and search_params:
+                    try:
+                        from urllib.parse import parse_qs
+                        parsed_params = parse_qs(search_params.lstrip('?'))
+                        for k, v in parsed_params.items():
+                            if k.startswith('utm_') and v:
+                                url_params[k] = v[0]
+                    except Exception:
+                        pass
 
-            # Use enhanced referrer tracking with priority referrer
-            referrer_data = ReferrerTracker.parse_referrer(primary_referrer, url_params)
+                has_doc_referrer = document_referrer and document_referrer != 'None' and document_referrer.strip()
+                primary_referrer = document_referrer if has_doc_referrer else None
 
-            # Reclassify internal as Direct — since we already deduplicated to one entry
-            # per unique visitor, an "internal" first page view just means we don't know
-            # the original source. Count them as Direct rather than dropping them.
-            if referrer_data['is_internal']:
+                # parse_referrer checks: referrer URL → UTM → user agent (in that order)
+                referrer_data = ReferrerTracker.parse_referrer(primary_referrer, url_params, user_agent=row_user_agent)
+
+            # Reclassify internal as Direct — an "internal" first page view just means
+            # we don't know the original source
+            if referrer_data.get('is_internal'):
                 referrer_data.update({
                     'source': 'Direct',
                     'medium': 'direct',

@@ -72,14 +72,48 @@ class ReferrerTracker:
         'correiodemanha.pt': 'Correio da Manhã'
     }
 
+    # In-app browser signatures in user agent strings
+    IN_APP_BROWSERS = {
+        'Instagram': [r'Instagram', r'FBAN.*Instagram'],
+        'Facebook': [r'FBAN', r'FBAV', r'FB_IAB', r'\[FB'],
+        'LinkedIn': [r'LinkedInApp', r'LinkedIn'],
+        'Twitter/X': [r'Twitter', r'TwitterAndroid'],
+        'Threads': [r'Barcelona'],
+        'TikTok': [r'TikTok', r'BytedanceWebview', r'ByteLocale'],
+        'Snapchat': [r'Snapchat'],
+        'Pinterest': [r'Pinterest'],
+        'Reddit': [r'Reddit'],
+        'WhatsApp': [r'WhatsApp'],
+        'Telegram': [r'TelegramBot', r'Telegram'],
+        'Discord': [r'Discord'],
+    }
+
     @staticmethod
-    def parse_referrer(referrer_url: Optional[str], url_params: Dict = None) -> Dict:
+    def detect_in_app_browser(user_agent: Optional[str]) -> Optional[str]:
+        """Check user agent for in-app browser signatures. Returns platform name or None."""
+        if not user_agent:
+            return None
+        for platform, patterns in ReferrerTracker.IN_APP_BROWSERS.items():
+            for pattern in patterns:
+                if re.search(pattern, user_agent, re.IGNORECASE):
+                    return platform
+        return None
+
+    @staticmethod
+    def parse_referrer(referrer_url: Optional[str], url_params: Dict = None, user_agent: str = None) -> Dict:
         """
         Parse and categorize referrer information
+
+        Multi-pronged detection order:
+        1. Referrer URL (document.referrer or HTTP Referer)
+        2. UTM parameters
+        3. User agent in-app browser detection
+        4. Only "Direct" if none of the above yield a source
 
         Args:
             referrer_url: The HTTP referer header value
             url_params: URL parameters from the current request
+            user_agent: The User-Agent header for in-app browser detection
 
         Returns:
             Dict with referrer analysis results
@@ -127,6 +161,17 @@ class ReferrerTracker:
                 if result['utm_campaign']:
                     result['campaign'] = result['utm_campaign']
                     result['category'] = 'Campaign Traffic'
+            # Fallback: check user agent for in-app browsers
+            if result['source'] == 'Direct' and user_agent:
+                in_app_platform = ReferrerTracker.detect_in_app_browser(user_agent)
+                if in_app_platform:
+                    result.update({
+                        'source': in_app_platform,
+                        'medium': 'social',
+                        'category': 'Social Media',
+                        'platform': in_app_platform,
+                        'is_social': True,
+                    })
             return result
 
         # Parse the referrer URL
@@ -204,6 +249,20 @@ class ReferrerTracker:
             if result['utm_campaign']:
                 result['campaign'] = result['utm_campaign']
                 result['category'] = 'Campaign Traffic'
+
+        # Fallback: if still Direct/Internal, check user agent for in-app browsers
+        # (e.g. Instagram, Facebook, LinkedIn in-app browsers strip the referrer)
+        if result['source'] in ('Direct', 'Internal') and user_agent:
+            in_app_platform = ReferrerTracker.detect_in_app_browser(user_agent)
+            if in_app_platform:
+                result.update({
+                    'source': in_app_platform,
+                    'medium': 'social',
+                    'category': 'Social Media',
+                    'platform': in_app_platform,
+                    'is_social': True,
+                    'is_internal': False
+                })
 
         return result
 

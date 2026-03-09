@@ -300,7 +300,7 @@ class Analytics:
                         if k.startswith('utm_') and v:
                             url_params[k] = v[0]
             referrer_url = doc_referrer or referer
-            referrer_data = ReferrerTracker.parse_referrer(referrer_url, url_params)
+            referrer_data = ReferrerTracker.parse_referrer(referrer_url, url_params, user_agent=user_agent)
 
             print(f"[DEBUG ANALYTICS] Request data - IP: {ip}, User-Agent: {user_agent[:50]}...")
             print(f"[DEBUG ANALYTICS] Enhanced referrer data: {referrer_data}")
