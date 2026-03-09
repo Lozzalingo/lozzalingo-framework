@@ -133,8 +133,12 @@ def render_block(block, style, variables=None):
         alt = block.get('alt', '')
         border_color = block.get('border_color', '')
         border_style = f'border:2px solid {border_color};' if border_color else ''
+        link_url = _substitute_variables(block.get('link_url', ''), variables)
+        img_tag = f'<img src="{url}" alt="{alt}" style="max-width:280px;height:auto;border-radius:6px;{border_style}" />'
+        if link_url:
+            img_tag = f'<a href="{link_url}" style="text-decoration:none;">{img_tag}</a>'
         return f'''<div style="text-align:center;margin:20px 0;">
-                <img src="{url}" alt="{alt}" style="max-width:280px;height:auto;border-radius:6px;{border_style}" />
+                {img_tag}
             </div>'''
 
     elif block_type == 'code_box':
@@ -179,8 +183,13 @@ def _add_utm_params(html, campaign_name):
         # Skip mailto:, tel:, and anchor-only links
         if url.startswith(('mailto:', 'tel:', '#')):
             return match.group(0)
+        # Separate fragment from URL so UTM goes before #anchor
+        fragment = ''
+        if '#' in url:
+            url, fragment = url.split('#', 1)
+            fragment = '#' + fragment
         separator = '&' if '?' in url else '?'
-        return f'href="{url}{separator}utm_source=campaign&utm_medium=email&utm_campaign={slug}"'
+        return f'href="{url}{separator}utm_source=campaign&utm_medium=email&utm_campaign={slug}{fragment}"'
 
     return re.sub(r'href="([^"]+)"', _tag_url, html)
 
