@@ -103,6 +103,7 @@ def init_projects_db():
                 ('external_url', 'TEXT'),
                 ('fetched_content', 'TEXT'),
                 ('parent_id', 'INTEGER'),
+                ('card_image_url', 'TEXT'),
             ]
             for col_name, col_type in new_columns:
                 if col_name not in columns:
@@ -187,7 +188,7 @@ _SELECT_COLS = '''id, title, slug, content, image_url, year, status, project_sta
                   earnings_label, insights,
                   crossposted_linkedin, crossposted_medium, crossposted_substack,
                   crossposted_twitter, crossposted_threads,
-                  upvote_count, external_url, parent_id'''
+                  upvote_count, external_url, parent_id, card_image_url'''
 
 def _row_to_dict(row):
     """Convert a DB row to a project dict"""
@@ -215,6 +216,7 @@ def _row_to_dict(row):
     d['upvote_count'] = row[27] if len(row) > 27 else 0
     d['external_url'] = row[28] if len(row) > 28 else None
     d['parent_id'] = row[29] if len(row) > 29 else None
+    d['card_image_url'] = row[30] if len(row) > 30 else None
     return d
 
 def create_slug(title):
@@ -283,7 +285,8 @@ def create_project_db(title, content, image_url=None, year=None,
                       year_end=None, gross_earnings=None, earnings_currency=None,
                       gallery_images=None, gallery_layout=None,
                       hero_image_align=None, earnings_label=None, insights=None,
-                      external_url=None, fetched_content=None, parent_id=None):
+                      external_url=None, fetched_content=None, parent_id=None,
+                      card_image_url=None):
     """Create new project in database"""
     projects_db = get_db_config()
     db_connect = get_db_connection()
@@ -298,13 +301,13 @@ def create_project_db(title, content, image_url=None, year=None,
                     status, project_status, excerpt, meta_description, technologies,
                     year_end, gross_earnings, earnings_currency,
                     gallery_images, gallery_layout, hero_image_align, earnings_label,
-                    insights, external_url, fetched_content, parent_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    insights, external_url, fetched_content, parent_id, card_image_url)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (title, slug, content, image_url, year,
                   status, project_status, excerpt, meta_description, technologies,
                   year_end, gross_earnings, earnings_currency,
                   gallery_images, gallery_layout, hero_image_align, earnings_label,
-                  insights, external_url, fetched_content, parent_id))
+                  insights, external_url, fetched_content, parent_id, card_image_url))
             conn.commit()
             return cursor.lastrowid, slug
     except Exception as e:
@@ -317,7 +320,8 @@ def update_project_db(project_id, title, content, image_url=None, year=None,
                       year_end=None, gross_earnings=None, earnings_currency=None,
                       gallery_images=None, gallery_layout=None,
                       hero_image_align=None, earnings_label=None, insights=None,
-                      external_url=None, fetched_content=None, parent_id=None):
+                      external_url=None, fetched_content=None, parent_id=None,
+                      card_image_url=None):
     """Update existing project"""
     projects_db = get_db_config()
     db_connect = get_db_connection()
@@ -355,13 +359,15 @@ def update_project_db(project_id, title, content, image_url=None, year=None,
                     earnings_currency = ?, gallery_images = ?, gallery_layout = ?,
                     hero_image_align = ?, earnings_label = ?, insights = ?,
                     external_url = ?, fetched_content = ?, parent_id = ?,
+                    card_image_url = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (title.strip(), slug, content.strip(), image_url, year,
                   status, project_status, excerpt, meta_description,
                   technologies, year_end, gross_earnings, earnings_currency,
                   gallery_images, gallery_layout, hero_image_align, earnings_label,
-                  insights, external_url, fetched_content, parent_id, project_id))
+                  insights, external_url, fetched_content, parent_id,
+                  card_image_url, project_id))
             conn.commit()
 
             return cursor.rowcount > 0
@@ -397,7 +403,7 @@ def get_project_db(project_id):
             if not row:
                 return None
             d = _row_to_dict(row)
-            d['fetched_content'] = row[30] if len(row) > 30 else None
+            d['fetched_content'] = row[31] if len(row) > 31 else None
             return d
     except Exception as e:
         print(f"Error getting project: {e}")
@@ -640,6 +646,7 @@ def create_project():
         external_url = data.get('external_url') or None
         fetched_content = data.get('fetched_content') or None
         parent_id = data.get('parent_id') or None
+        card_image_url = data.get('card_image_url') or None
 
         if not title:
             return jsonify({'error': 'Title is required'}), 400
@@ -683,7 +690,8 @@ def create_project():
             gallery_images=gallery_images, gallery_layout=gallery_layout,
             hero_image_align=hero_image_align, earnings_label=earnings_label,
             insights=insights, external_url=external_url,
-            fetched_content=fetched_content, parent_id=parent_id
+            fetched_content=fetched_content, parent_id=parent_id,
+            card_image_url=card_image_url
         )
 
         return jsonify({
@@ -735,6 +743,7 @@ def update_project(project_id):
                 parent_id = int(parent_id)
             except (ValueError, TypeError):
                 parent_id = None
+        card_image_url = data.get('card_image_url') or None
 
         if not title:
             return jsonify({'error': 'Title is required'}), 400
@@ -772,7 +781,8 @@ def update_project(project_id):
             gallery_images=gallery_images, gallery_layout=gallery_layout,
             hero_image_align=hero_image_align, earnings_label=earnings_label,
             insights=insights, external_url=external_url,
-            fetched_content=fetched_content, parent_id=parent_id
+            fetched_content=fetched_content, parent_id=parent_id,
+            card_image_url=card_image_url
         )
 
         if success:

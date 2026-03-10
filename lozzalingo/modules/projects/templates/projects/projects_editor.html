@@ -194,6 +194,12 @@
                         <input type="hidden" id="imageUrl" name="image_url">
                     </div>
 
+                    <div class="form-group">
+                        <label for="cardImageUrl">Card Image URL (optional)</label>
+                        <input type="url" id="cardImageUrl" name="card_image_url" placeholder="https://... (overrides banner image on homepage cards)">
+                        <small class="form-hint">If set, this image is used on homepage featured cards instead of the gallery banner.</small>
+                    </div>
+
                     <div class="form-group" id="editorGroup">
                         <label for="content">Project Description *</label>
                         <div id="editor"></div>
@@ -1478,6 +1484,7 @@
                 gallery_images: document.getElementById('galleryImagesHidden').value || null,
                 gallery_layout: document.getElementById('galleryLayout').value || 'single',
                 hero_image_align: document.getElementById('heroImageAlign').value || 'center center',
+                card_image_url: document.getElementById('cardImageUrl').value.trim() || null,
                 insights: document.getElementById('insightsHidden').value || null,
                 external_url: document.getElementById('externalUrl').value.trim() || null,
                 fetched_content: document.getElementById('fetchedExternalContent').value || null,
@@ -1557,6 +1564,7 @@
                 }
                 updateFocalPreview();
 
+                document.getElementById('cardImageUrl').value = p.card_image_url || '';
                 document.getElementById('excerpt').value = p.excerpt || '';
                 document.getElementById('metaDescription').value = p.meta_description || '';
                 document.getElementById('grossEarnings').value = p.gross_earnings || '';
@@ -2203,6 +2211,7 @@
             syncGalleryHidden();
             document.getElementById('imageFile').value = '';
             document.getElementById('galleryUrlInput').value = '';
+            document.getElementById('cardImageUrl').value = '';
             document.getElementById('excerpt').value = '';
             document.getElementById('metaDescription').value = '';
             document.getElementById('grossEarnings').value = '';
