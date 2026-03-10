@@ -195,9 +195,19 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="cardImageUrl">Card Image URL (optional)</label>
-                        <input type="url" id="cardImageUrl" name="card_image_url" placeholder="https://... (overrides banner image on homepage cards)">
-                        <small class="form-hint">If set, this image is used on homepage featured cards instead of the gallery banner.</small>
+                        <label for="cardImageUrl">Card Image (optional)</label>
+                        <div id="cardImagePreview" style="display:none; margin-bottom:8px;">
+                            <img id="cardImageThumb" src="" style="max-width:200px; max-height:120px; border-radius:6px; object-fit:cover; display:block;">
+                            <button type="button" class="btn-secondary" id="cardImageClearBtn" name="card_image_clear" style="margin-top:4px; font-size:0.75rem;">Remove</button>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input type="file" id="cardImageFile" accept="image/*,.heic,.heif" style="flex:1;">
+                            <button type="button" class="btn-secondary" id="cardImageBrowseBtn" name="card_image_browse" style="white-space:nowrap;">Browse</button>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+                            <input type="url" id="cardImageUrl" name="card_image_url" placeholder="Or paste image URL..." style="flex:1;">
+                        </div>
+                        <small class="form-hint">Overrides the gallery banner on homepage featured cards.</small>
                     </div>
 
                     <div class="form-group" id="editorGroup">
@@ -1325,6 +1335,57 @@
             finally { progress.style.display = 'none'; this.value = ''; }
         });
 
+        // Card image — upload, browse, preview, clear
+        function updateCardImagePreview() {
+            const url = document.getElementById('cardImageUrl').value.trim();
+            const preview = document.getElementById('cardImagePreview');
+            const thumb = document.getElementById('cardImageThumb');
+            if (url) {
+                thumb.src = url;
+                preview.style.display = 'block';
+            } else {
+                thumb.src = '';
+                preview.style.display = 'none';
+            }
+        }
+
+        document.getElementById('cardImageUrl').addEventListener('input', updateCardImagePreview);
+
+        document.getElementById('cardImageClearBtn').addEventListener('click', function() {
+            document.getElementById('cardImageUrl').value = '';
+            updateCardImagePreview();
+        });
+
+        document.getElementById('cardImageFile')?.addEventListener('change', async function() {
+            if (!this.files[0]) return;
+            const compressed = typeof compressImageFile === 'function' ? await compressImageFile(this.files[0]) : this.files[0];
+            const formData = new FormData();
+            formData.append('image', compressed);
+            try {
+                const res = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('cardImageUrl').value = data.image_url;
+                    updateCardImagePreview();
+                } else {
+                    alert('Upload failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) { alert('Upload error: ' + e.message); }
+            finally { this.value = ''; }
+        });
+
+        document.getElementById('cardImageBrowseBtn').addEventListener('click', function() {
+            ibSelectCallback = function(url) {
+                document.getElementById('cardImageUrl').value = url;
+                updateCardImagePreview();
+                ibSelectCallback = null;
+            };
+            ibMultiSelect = false;
+            ibSelected = [];
+            ibModal.style.display = 'flex';
+            loadBrowserImages(ibCurrentFolder);
+        });
+
         // Save buttons — single dropdown + Save at top and bottom, kept in sync
         function syncSaveMode(source) {
             const val = source.value;
@@ -1565,6 +1626,7 @@
                 updateFocalPreview();
 
                 document.getElementById('cardImageUrl').value = p.card_image_url || '';
+                updateCardImagePreview();
                 document.getElementById('excerpt').value = p.excerpt || '';
                 document.getElementById('metaDescription').value = p.meta_description || '';
                 document.getElementById('grossEarnings').value = p.gross_earnings || '';
@@ -2212,6 +2274,7 @@
             document.getElementById('imageFile').value = '';
             document.getElementById('galleryUrlInput').value = '';
             document.getElementById('cardImageUrl').value = '';
+            updateCardImagePreview();
             document.getElementById('excerpt').value = '';
             document.getElementById('metaDescription').value = '';
             document.getElementById('grossEarnings').value = '';
