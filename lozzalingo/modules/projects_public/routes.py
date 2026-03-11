@@ -104,6 +104,21 @@ def youtube_thumb_filter(url):
     return url
 
 
+@projects_public_bp.app_template_filter('restore_youtube_embeds')
+def restore_youtube_embeds_filter(html):
+    """Convert escaped YouTube iframes (from Quill) back into real responsive embeds."""
+    if not html or '&lt;iframe' not in html:
+        return html
+    import html as html_mod
+    def _replace(m):
+        tag = html_mod.unescape(m.group(0))
+        # Verify it's actually a YouTube iframe
+        if 'youtube.com/embed/' not in tag:
+            return m.group(0)
+        return f'<div class="project-hero-video">{tag}</div>'
+    return re.sub(r'&lt;iframe\b.*?&lt;/iframe&gt;', _replace, html, flags=re.DOTALL)
+
+
 # ===== Routes =====
 
 @projects_public_bp.route('/')
