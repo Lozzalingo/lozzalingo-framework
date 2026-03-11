@@ -228,6 +228,12 @@
                         <textarea id="fetchedExternalContent" style="display:none;"></textarea>
                     </div>
 
+                    <div class="form-group">
+                        <label for="externalUrlLabel">Website Link Label (optional)</label>
+                        <input type="text" id="externalUrlLabel" name="external_url_label" placeholder="e.g. bucketrace.com, live show, soundcloud.com">
+                        <small class="form-hint">Custom label shown on the businesses page instead of the URL. Leave blank to show the domain.</small>
+                    </div>
+
                     <div class="form-section">
                         <h3 class="form-section-title">SEO & Metadata</h3>
                         <div class="form-group">
@@ -1548,6 +1554,7 @@
                 card_image_url: document.getElementById('cardImageUrl').value.trim() || null,
                 insights: document.getElementById('insightsHidden').value || null,
                 external_url: document.getElementById('externalUrl').value.trim() || null,
+                external_url_label: document.getElementById('externalUrlLabel').value.trim() || null,
                 fetched_content: document.getElementById('fetchedExternalContent').value || null,
                 parent_id: document.getElementById('parentProject').value || null
             };
@@ -1634,6 +1641,7 @@
                 document.getElementById('earningsLabel').value = p.earnings_label || '';
                 setInsightsFromJSON(p.insights || '');
                 document.getElementById('externalUrl').value = p.external_url || '';
+                document.getElementById('externalUrlLabel').value = p.external_url_label || '';
                 populateParentDropdown(id);
                 document.getElementById('parentProject').value = p.parent_id || '';
                 if (p.external_url && p.fetched_content) {
