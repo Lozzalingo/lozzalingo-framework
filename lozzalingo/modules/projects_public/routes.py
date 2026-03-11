@@ -106,17 +106,27 @@ def youtube_thumb_filter(url):
 
 @projects_public_bp.app_template_filter('restore_youtube_embeds')
 def restore_youtube_embeds_filter(html):
-    """Convert escaped YouTube iframes (from Quill) back into real responsive embeds."""
-    if not html or '&lt;iframe' not in html:
+    """Convert YouTube URLs and escaped iframes in content into real responsive embeds."""
+    if not html:
         return html
-    import html as html_mod
-    def _replace(m):
-        tag = html_mod.unescape(m.group(0))
-        # Verify it's actually a YouTube iframe
-        if 'youtube.com/embed/' not in tag:
+    # 1. Bare YouTube URLs in <p> tags → responsive iframe
+    def _replace_url(m):
+        url = m.group(1)
+        vid = _extract_yt_id(url)
+        if not vid:
             return m.group(0)
-        return f'<div class="project-hero-video">{tag}</div>'
-    return re.sub(r'&lt;iframe\b.*?&lt;/iframe&gt;', _replace, html, flags=re.DOTALL)
+        return f'<div class="project-hero-video"><iframe src="https://www.youtube.com/embed/{vid}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>'
+    html = re.sub(r'<p>\s*(https?://(?:www\.)?(?:youtube\.com|youtu\.be)[^\s<]+)\s*</p>', _replace_url, html)
+    # 2. Escaped iframes from Quill
+    if '&lt;iframe' in html:
+        import html as html_mod
+        def _replace_iframe(m):
+            tag = html_mod.unescape(m.group(0))
+            if 'youtube.com/embed/' not in tag:
+                return m.group(0)
+            return f'<div class="project-hero-video">{tag}</div>'
+        html = re.sub(r'&lt;iframe\b.*?&lt;/iframe&gt;', _replace_iframe, html, flags=re.DOTALL)
+    return html
 
 
 # ===== Routes =====
