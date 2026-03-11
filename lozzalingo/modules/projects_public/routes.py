@@ -173,7 +173,9 @@ def project_embed(slug):
     if not row or not row[2]:
         abort(404)
 
-    html = row[0] or row[1] or ''
+    html = row[0] or ''
+    if not html:
+        abort(404)
     response = make_response(html)
     response.headers['Content-Type'] = 'text/html'
     return response
