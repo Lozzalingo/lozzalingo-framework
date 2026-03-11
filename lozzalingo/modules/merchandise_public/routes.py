@@ -20,8 +20,10 @@ logger = logging.getLogger(__name__)
 # Allowed origins for CORS — add any domains that need to fetch products
 ALLOWED_ORIGINS = [
     'https://aiblogbuilder.laurence.computer',
+    'https://promptnews.laurence.computer',
     'https://crowdsauced.laurence.computer',
     'https://www.mariopintomma.com',
+    'https://fatbigquiz.com',
     'http://localhost:3000',
     'http://localhost:5001',
 ]
