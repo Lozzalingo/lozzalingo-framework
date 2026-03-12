@@ -206,7 +206,7 @@ class ReferrerTracker:
 
                 # Check for social click tracking on internal referrals
                 # Instagram's in-app browser adds fbclid, so check IG signals first
-                if any(p in referrer_url for p in ['igshid=', 'utm_source=ig']):
+                if any(p in referrer_url for p in ['igshid=', 'utm_source=ig', 'MjU2MjgxMDQwNTU4']):
                     result.update({
                         'source': 'Instagram',
                         'medium': 'social',
@@ -371,8 +371,9 @@ class ReferrerTracker:
                 return result
 
         # Check for Instagram first — Instagram's in-app browser adds fbclid
-        # but utm_source=ig or igshid= confirms it's actually Instagram
-        if any(param in full_url for param in ['igshid=', 'utm_source=ig']):
+        # but utm_source=ig, igshid=, or Instagram's app ID in fbclid confirms it
+        # Instagram app ID 256281040558 encodes as MjU2MjgxMDQwNTU4 in fbclid
+        if any(param in full_url for param in ['igshid=', 'utm_source=ig', 'MjU2MjgxMDQwNTU4']):
             result.update({
                 'source': 'Instagram',
                 'medium': 'social',
