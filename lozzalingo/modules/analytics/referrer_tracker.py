@@ -72,6 +72,16 @@ class ReferrerTracker:
         'correiodemanha.pt': 'Correio da Manhã'
     }
 
+    # Meta platform app IDs embedded in fbclid parameters (base64-encoded)
+    # These identify which Meta app generated the click, enabling accurate attribution
+    META_APP_IDS = {
+        'MjU2MjgxMDQwNTU4': 'Facebook',        # 256281040558 — Facebook / Messenger
+        'MzUwNjg1NTMxNzI4': 'Facebook',        # 350685531728 — Facebook for Android
+        'MTI0MDI0NTc0Mjg3NDE0': 'Instagram',   # 124024574287414 — Instagram
+        'MTUxMjc0MzUxNTY2NDE2': 'Meta Quest',  # 151274351566416 — Meta Quest
+        'MTkyMTMxNTkwODEy': 'Facebook Pages',  # 192131590812 — Facebook Pages
+    }
+
     # In-app browser signatures in user agent strings
     IN_APP_BROWSERS = {
         'Instagram': [r'Instagram', r'FBAN.*Instagram'],
@@ -87,6 +97,16 @@ class ReferrerTracker:
         'Telegram': [r'TelegramBot', r'Telegram'],
         'Discord': [r'Discord'],
     }
+
+    @staticmethod
+    def detect_meta_app(url: str) -> Optional[str]:
+        """Detect Meta platform from fbclid app ID embedded in URL. Returns platform name or None."""
+        if 'fbclid=' not in url:
+            return None
+        for app_id_b64, platform in ReferrerTracker.META_APP_IDS.items():
+            if app_id_b64 in url:
+                return platform
+        return None
 
     @staticmethod
     def detect_in_app_browser(user_agent: Optional[str]) -> Optional[str]:
@@ -204,9 +224,18 @@ class ReferrerTracker:
                     'is_internal': True
                 })
 
-                # Check for social click tracking on internal referrals
-                # Instagram's in-app browser adds fbclid, so check IG signals first
-                if any(p in referrer_url for p in ['igshid=', 'utm_source=ig', 'MjU2MjgxMDQwNTU4']):
+                # Meta app ID detection on internal referrals (first check)
+                meta_platform = ReferrerTracker.detect_meta_app(referrer_url)
+                if meta_platform:
+                    result.update({
+                        'source': meta_platform,
+                        'medium': 'social',
+                        'category': 'Social Media',
+                        'platform': meta_platform,
+                        'is_social': True,
+                        'is_internal': False
+                    })
+                elif any(p in referrer_url for p in ['igshid=', 'utm_source=ig']):
                     result.update({
                         'source': 'Instagram',
                         'medium': 'social',
@@ -370,10 +399,21 @@ class ReferrerTracker:
                 })
                 return result
 
-        # Check for Instagram first — Instagram's in-app browser adds fbclid
-        # but utm_source=ig, igshid=, or Instagram's app ID in fbclid confirms it
-        # Instagram app ID 256281040558 encodes as MjU2MjgxMDQwNTU4 in fbclid
-        if any(param in full_url for param in ['igshid=', 'utm_source=ig', 'MjU2MjgxMDQwNTU4']):
+        # Meta app ID detection — FIRST CHECK for fbclid-bearing URLs
+        # Identifies exact Meta platform (Instagram, Facebook, Quest, etc.)
+        meta_platform = ReferrerTracker.detect_meta_app(full_url)
+        if meta_platform:
+            result.update({
+                'source': meta_platform,
+                'medium': 'social',
+                'category': 'Social Media',
+                'platform': meta_platform,
+                'is_social': True
+            })
+            return result
+
+        # Instagram-specific params (igshid, utm_source=ig) without app ID
+        if any(param in full_url for param in ['igshid=', 'utm_source=ig']):
             result.update({
                 'source': 'Instagram',
                 'medium': 'social',
@@ -383,7 +423,7 @@ class ReferrerTracker:
             })
             return result
 
-        # Facebook click tracking (only if not already caught as Instagram)
+        # Generic fbclid without recognised app ID — assume Facebook
         if 'fbclid=' in full_url:
             result.update({
                 'source': 'Facebook',
