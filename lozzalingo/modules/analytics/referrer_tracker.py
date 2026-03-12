@@ -204,9 +204,18 @@ class ReferrerTracker:
                     'is_internal': True
                 })
 
-                # Check for Facebook click tracking on internal referrals
-                # (fbclid fallback — UTM override below takes priority)
-                if 'fbclid=' in referrer_url:
+                # Check for social click tracking on internal referrals
+                # Instagram's in-app browser adds fbclid, so check IG signals first
+                if any(p in referrer_url for p in ['igshid=', 'utm_source=ig']):
+                    result.update({
+                        'source': 'Instagram',
+                        'medium': 'social',
+                        'category': 'Social Media',
+                        'platform': 'Instagram',
+                        'is_social': True,
+                        'is_internal': False
+                    })
+                elif 'fbclid=' in referrer_url:
                     result.update({
                         'source': 'Facebook',
                         'medium': 'social',
@@ -361,24 +370,25 @@ class ReferrerTracker:
                 })
                 return result
 
-        # Check for Facebook click tracking parameters
-        if 'fbclid=' in full_url:
-            result.update({
-                'source': 'Facebook',
-                'medium': 'social',
-                'category': 'Social Media',
-                'platform': 'Facebook',
-                'is_social': True
-            })
-            return result
-
-        # Check for other social tracking parameters
+        # Check for Instagram first — Instagram's in-app browser adds fbclid
+        # but utm_source=ig or igshid= confirms it's actually Instagram
         if any(param in full_url for param in ['igshid=', 'utm_source=ig']):
             result.update({
                 'source': 'Instagram',
                 'medium': 'social',
                 'category': 'Social Media',
                 'platform': 'Instagram',
+                'is_social': True
+            })
+            return result
+
+        # Facebook click tracking (only if not already caught as Instagram)
+        if 'fbclid=' in full_url:
+            result.update({
+                'source': 'Facebook',
+                'medium': 'social',
+                'category': 'Social Media',
+                'platform': 'Facebook',
                 'is_social': True
             })
             return result
