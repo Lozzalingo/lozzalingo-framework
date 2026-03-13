@@ -855,6 +855,88 @@ def log_interaction():
         print(f"Error logging interaction: {e}")
         return jsonify({"error": str(e)}), 400
 
+_unnamed_alerts_sent = {}  # {page: last_sent_date} — rate limit to once/day/page
+
+@analytics_bp.route('/api/unnamed-elements', methods=['POST'])
+def report_unnamed_elements():
+    """Receive reports of unnamed links/buttons and email admin."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"status": "ignored"}), 200
+
+        page = data.get('page', '?')
+        elements = data.get('elements', [])
+        if not elements:
+            return jsonify({"status": "ok"}), 200
+
+        # Rate limit: once per page per day
+        today = datetime.now().strftime('%Y-%m-%d')
+        cache_key = f"{page}:{today}"
+        if cache_key in _unnamed_alerts_sent:
+            return jsonify({"status": "already_reported"}), 200
+        _unnamed_alerts_sent[cache_key] = True
+
+        # Clean old entries
+        for k in list(_unnamed_alerts_sent.keys()):
+            if not k.endswith(today):
+                del _unnamed_alerts_sent[k]
+
+        admin_email = current_app.config.get('EMAIL_ADMIN_EMAIL', '')
+        brand = current_app.config.get('EMAIL_BRAND_NAME', 'Site')
+        if not admin_email:
+            logger.warning('analytics', f'Unnamed elements on {page} but no admin email configured')
+            return jsonify({"status": "no_admin_email"}), 200
+
+        # Build email
+        rows = ''
+        for el in elements[:30]:  # Cap at 30
+            tag = el.get('tag', '?')
+            text = el.get('text', '')[:60]
+            href = el.get('href', '')[:80]
+            classes = el.get('classes', '')[:80]
+            rows += f'<tr><td style="padding:6px 10px;border:1px solid #333;">&lt;{tag}&gt;</td>'
+            rows += f'<td style="padding:6px 10px;border:1px solid #333;">{text}</td>'
+            rows += f'<td style="padding:6px 10px;border:1px solid #333;">{href}</td>'
+            rows += f'<td style="padding:6px 10px;border:1px solid #333;">{classes}</td></tr>'
+
+        html = f'''<div style="font-family:monospace;background:#0a0a0f;color:#e8e0d4;padding:24px;">
+            <h2 style="color:#d4a855;">Unnamed Elements Detected</h2>
+            <p><strong>Page:</strong> {page}</p>
+            <p><strong>Count:</strong> {len(elements)} element(s) missing <code>name</code> attribute</p>
+            <p style="color:#ff6b6b;">These will appear as "unnamed_link" or "unnamed" in analytics — add a <code>name</code> attribute to track them properly.</p>
+            <table style="border-collapse:collapse;margin-top:12px;font-size:13px;">
+                <tr style="background:#1a1a2e;">
+                    <th style="padding:8px 10px;border:1px solid #333;color:#d4a855;">Tag</th>
+                    <th style="padding:8px 10px;border:1px solid #333;color:#d4a855;">Text</th>
+                    <th style="padding:8px 10px;border:1px solid #333;color:#d4a855;">Href</th>
+                    <th style="padding:8px 10px;border:1px solid #333;color:#d4a855;">Classes</th>
+                </tr>
+                {rows}
+            </table>
+            <p style="margin-top:16px;color:#888;font-size:12px;">Fix: add <code>name="descriptive_name"</code> to each element.<br>
+            This alert is sent once per page per day.</p>
+        </div>'''
+
+        try:
+            from lozzalingo.modules.email.email_service import EmailService
+            svc = EmailService()
+            svc.send_email(
+                [admin_email],
+                f'[{brand}] {len(elements)} unnamed element(s) on {page}',
+                html
+            )
+            logger.info('analytics', f'Sent unnamed elements alert for {page}: {len(elements)} elements')
+        except Exception as e:
+            logger.warning('analytics', f'Failed to send unnamed elements email: {e}')
+
+        return jsonify({"status": "reported", "count": len(elements)})
+
+    except Exception as e:
+        logger.warning('analytics', f'Error in unnamed elements report: {e}')
+        return jsonify({"status": "error"}), 200
+
+
 @analytics_bp.route('/api/route-analytics')
 def get_route_analytics():
     """Get route navigation analytics"""
@@ -1780,6 +1862,116 @@ def get_button_clicks():
             'top_buttons': [],
             'commerce_buttons': []
         })
+    finally:
+        if analytics_conn:
+            analytics_conn.close()
+
+
+# ── Mission Ctrl Summary Endpoint ────────────────────────────────────────────
+
+@analytics_bp.route('/api/summary')
+def api_analytics_summary():
+    """Public summary endpoint for Mission Ctrl. Protected by API key, not admin session."""
+    key = request.args.get('key', '')
+    expected_key = os.getenv('MISSION_CTRL_API_KEY', '')
+    if not expected_key or key != expected_key:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    days = request.args.get('days', '1')
+    try:
+        days_int = int(days)
+    except ValueError:
+        days_int = 1
+
+    analytics_conn = None
+    try:
+        analytics_db = get_analytics_db()
+        analytics_table = get_analytics_table()
+        analytics_conn = sqlite3.connect(analytics_db)
+        cursor = analytics_conn.cursor()
+        owner_filter = _owner_fingerprint_filter()
+
+        # Unique human visitors
+        cursor.execute(f"""
+            SELECT COUNT(DISTINCT fingerprint_hash)
+            FROM {analytics_table}
+            WHERE fingerprint_hash IS NOT NULL
+            AND identity IN ('human', 'likely_human')
+            AND datetime(timestamp) >= datetime('now', '-{days_int} days')
+            {owner_filter}
+        """)
+        unique_visitors = cursor.fetchone()[0]
+
+        # Identity breakdown
+        cursor.execute(f"""
+            SELECT identity, COUNT(*)
+            FROM {analytics_table}
+            WHERE datetime(timestamp) >= datetime('now', '-{days_int} days')
+            GROUP BY identity
+        """)
+        identity_breakdown = dict(cursor.fetchall())
+
+        human_visitors = identity_breakdown.get('human', 0) + identity_breakdown.get('likely_human', 0)
+        bot_hits = identity_breakdown.get('bot', 0)
+        page_views = sum(identity_breakdown.values())
+
+        # Top countries (humans only)
+        cursor.execute(f"""
+            SELECT country, COUNT(*) as cnt
+            FROM {analytics_table}
+            WHERE datetime(timestamp) >= datetime('now', '-{days_int} days')
+            AND country NOT IN ('Unknown', 'Local', '')
+            AND identity IN ('human', 'likely_human')
+            {owner_filter}
+            GROUP BY country
+            ORDER BY cnt DESC
+            LIMIT 10
+        """)
+        top_countries = [{'name': r[0], 'count': r[1]} for r in cursor.fetchall()]
+
+        # Top pages (humans only)
+        cursor.execute(f"""
+            SELECT COALESCE(url, from_route, 'unknown') as page, COUNT(*) as cnt
+            FROM {analytics_table}
+            WHERE datetime(timestamp) >= datetime('now', '-{days_int} days')
+            AND identity IN ('human', 'likely_human')
+            AND event_type = 'page_view_client'
+            {owner_filter}
+            GROUP BY page
+            ORDER BY cnt DESC
+            LIMIT 10
+        """)
+        top_pages = [{'path': r[0], 'views': r[1]} for r in cursor.fetchall()]
+
+        # Top referrers
+        cursor.execute(f"""
+            SELECT referer, COUNT(*) as cnt
+            FROM {analytics_table}
+            WHERE datetime(timestamp) >= datetime('now', '-{days_int} days')
+            AND identity IN ('human', 'likely_human')
+            AND referer IS NOT NULL AND referer != ''
+            {owner_filter}
+            GROUP BY referer
+            ORDER BY cnt DESC
+            LIMIT 10
+        """)
+        top_referrers = [{'name': r[0], 'count': r[1]} for r in cursor.fetchall()]
+
+        return jsonify({
+            'unique_visitors': unique_visitors,
+            'human_visitors': human_visitors,
+            'page_views': page_views,
+            'bot_hits': bot_hits,
+            'top_countries': top_countries,
+            'top_pages': top_pages,
+            'top_referrers': top_referrers,
+            'identity_breakdown': identity_breakdown,
+            'period_days': days_int,
+        })
+
+    except Exception as e:
+        print(f"Analytics summary error: {e}")
+        return jsonify({'error': str(e)}), 500
     finally:
         if analytics_conn:
             analytics_conn.close()

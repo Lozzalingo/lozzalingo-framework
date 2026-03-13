@@ -875,6 +875,33 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!window.analyticsClient) {
         window.analyticsClient = new AnalyticsClient();
     }
+
+    // Scan for unnamed links/buttons and alert admin (skip admin pages)
+    if (!window.location.pathname.startsWith('/admin')) {
+        setTimeout(function() {
+            var unnamed = [];
+            document.querySelectorAll('a[href], button').forEach(function(el) {
+                if (el.getAttribute('name') || el.id) return;
+                // Skip elements inside script tags or hidden elements
+                if (el.closest('script, template')) return;
+                var tag = el.tagName.toLowerCase();
+                var text = (el.textContent || '').trim().substring(0, 60);
+                var href = el.getAttribute('href') || '';
+                var classes = el.className || '';
+                unnamed.push({ tag: tag, text: text, href: href, classes: classes });
+            });
+            if (unnamed.length > 0) {
+                fetch('/admin/analytics/api/unnamed-elements', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        page: window.location.pathname,
+                        elements: unnamed
+                    })
+                }).catch(function() {});
+            }
+        }, 3000); // Wait 3s for dynamic content to render
+    }
 });
 
 // Example usage for tracking specific route events:
