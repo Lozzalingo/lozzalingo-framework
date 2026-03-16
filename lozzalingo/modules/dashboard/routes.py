@@ -6,7 +6,7 @@ Core admin dashboard functionality extracted from Mario Pinto project.
 Provides authentication and dashboard interface for admin users.
 """
 
-from flask import render_template, request, redirect, url_for, flash, session, jsonify
+from flask import render_template, request, redirect, url_for, flash, session, jsonify, current_app
 from . import dashboard_bp
 import hashlib
 import os
@@ -373,7 +373,7 @@ def api_stats():
                         exclude_fps = current_app.config.get('ANALYTICS_EXCLUDE_FINGERPRINTS', [])
                         if exclude_fps:
                             placeholders = ','.join(['?' for _ in exclude_fps])
-                            fp_filter = f" AND (fingerprint IS NULL OR fingerprint NOT IN ({placeholders}))"
+                            fp_filter = f" AND (fingerprint_hash IS NULL OR fingerprint_hash NOT IN ({placeholders}))"
                             local_filter += fp_filter
                     except RuntimeError:
                         exclude_fps = []
@@ -508,7 +508,7 @@ def api_stats():
                     cursor = conn.cursor()
                     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='subscribers'")
                     if cursor.fetchone():
-                        cursor.execute("SELECT COUNT(*) FROM subscribers WHERE is_active = 1")
+                        cursor.execute("SELECT COUNT(*) FROM subscribers WHERE is_active = 1 AND is_confirmed = 1")
                         result = cursor.fetchone()
                         stats['subscribers'] = {'active': result[0] if result else 0}
             except Exception as e:
