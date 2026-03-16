@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Confirmation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --noir-black: #0a0a0a;
+            --noir-charcoal: #1a1a1a;
+            --noir-dark: #2a2a2a;
+            --noir-gray: #3a3a3a;
+            --noir-light-gray: #666666;
+            --noir-white: #ffffff;
+            --accent-green: #2d5016;
+            --accent-red: #8b2635;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--noir-black);
+            color: var(--noir-white);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .confirmation-container {
+            background: var(--noir-charcoal);
+            border: 1px solid var(--noir-gray);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 32px;
+        }
+
+        .title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+            color: var(--noir-white);
+        }
+
+        .message {
+            padding: 16px;
+            margin: 20px 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .message.success {
+            background: rgba(45, 80, 22, 0.2);
+            border: 1px solid var(--accent-green);
+            color: #90c695;
+        }
+
+        .message.error {
+            background: rgba(139, 38, 53, 0.2);
+            border: 1px solid var(--accent-red);
+            color: #f19ca3;
+        }
+
+        .back-link {
+            color: var(--noir-light-gray);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.3s ease;
+            display: inline-block;
+            margin-top: 16px;
+        }
+
+        .back-link:hover {
+            color: var(--noir-white);
+        }
+
+        @media (max-width: 480px) {
+            .confirmation-container {
+                padding: 24px;
+            }
+            .title {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="confirmation-container">
+        <div class="header">
+            <h1 class="title">{{ title }}</h1>
+        </div>
+
+        <div class="message {{ 'success' if success else 'error' }}">
+            {{ message }}
+        </div>
+
+        <a href="/" class="back-link" name="confirmation_back_home">&larr; Back to homepage</a>
+    </div>
+</body>
+</html>

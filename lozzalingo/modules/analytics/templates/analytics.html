@@ -1637,8 +1637,17 @@
             const subscribersBody = document.getElementById('recentSubscribers');
             if (subscriberDetails && subscriberDetails.recent_subscribers && subscriberDetails.recent_subscribers.length > 0) {
                 subscribersBody.innerHTML = subscriberDetails.recent_subscribers.map(subscriber => {
-                    const statusBadge = subscriber.is_active ? 'badge-active' : 'badge-inactive';
-                    const statusText = subscriber.is_active ? 'Active' : 'Inactive';
+                    let statusBadge, statusText;
+                    if (subscriber.is_active && subscriber.is_confirmed !== false) {
+                        statusBadge = 'badge-active';
+                        statusText = 'Active';
+                    } else if (!subscriber.is_active && subscriber.is_confirmed === false) {
+                        statusBadge = 'badge-unconfirmed';
+                        statusText = 'Unconfirmed';
+                    } else {
+                        statusBadge = 'badge-inactive';
+                        statusText = 'Inactive';
+                    }
                     const subscribedDate = escapeHtml(new Date(subscriber.subscribed_at).toLocaleDateString());
                     const email = escapeHtml(subscriber.email);
                     const source = escapeHtml(subscriber.source);

@@ -3,14 +3,16 @@ Subscribers Routes
 ==================
 
 Provides:
-- POST / -- subscribe (accepts optional feed/feeds param)
-- GET /stats -- subscriber count
+- POST / -- subscribe (double opt-in: inserts unconfirmed, sends confirmation email)
+- GET /confirm/<token> -- confirm subscription via email link
+- GET /stats -- subscriber count (confirmed only)
 - GET /feeds -- available feed categories (from app config) + popup config
 - GET /manage -- manage subscription preferences page
 - POST /manage -- update subscription preferences
 - GET /unsubscribe -- unsubscribe page
 - POST /unsubscribe -- process unsubscribe
-- GET /export -- export list (admin auth required)
+- GET /export -- export list (admin auth required, confirmed only)
+- GET /process-reminders -- send reminder emails to unconfirmed subscribers (cron, secret-protected)
 - GET /popup-editor -- admin popup config editor
 - GET /popup-config -- return current popup config (admin)
 - POST /popup-config -- save popup config (admin)
@@ -34,7 +36,8 @@ import re
 import logging
 import time
 import hashlib
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 from flask import request, jsonify, render_template, session, current_app
 from . import subscribers_bp
 
@@ -211,6 +214,39 @@ def init_subscribers_db():
                 cursor.execute("ALTER TABLE subscribers ADD COLUMN feeds TEXT DEFAULT '[]'")
                 logger.info("Migrated subscribers table: added feeds column")
 
+            # Migrate: add double opt-in columns
+            if 'is_confirmed' not in columns:
+                cursor.execute("ALTER TABLE subscribers ADD COLUMN is_confirmed BOOLEAN DEFAULT 0")
+                cursor.execute("ALTER TABLE subscribers ADD COLUMN confirmed_at TIMESTAMP")
+                # Back-fill: existing active subscribers are auto-confirmed
+                cursor.execute(
+                    "UPDATE subscribers SET is_confirmed = 1, confirmed_at = subscribed_at WHERE is_active = 1"
+                )
+                logger.info("Migrated subscribers table: added is_confirmed, confirmed_at columns")
+
+            # Create confirmation tokens table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS subscriber_confirmation_tokens (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    subscriber_id INTEGER NOT NULL,
+                    email TEXT NOT NULL,
+                    token TEXT UNIQUE NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP NOT NULL,
+                    used BOOLEAN DEFAULT 0,
+                    reminder_sent BOOLEAN DEFAULT 0,
+                    reminder_sent_at TIMESTAMP
+                )
+            ''')
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_confirmation_token
+                ON subscriber_confirmation_tokens(token)
+            ''')
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_confirmation_pending
+                ON subscriber_confirmation_tokens(used, reminder_sent, created_at)
+            ''')
+
             conn.commit()
             logger.info("Subscribers database table created/verified successfully")
 
@@ -371,86 +407,111 @@ def subscribe():
             cursor = conn.cursor()
 
             # Check if email already exists
-            cursor.execute('SELECT id, is_active, feeds FROM subscribers WHERE email = ?', (email,))
+            cursor.execute('SELECT id, is_active, feeds, is_confirmed FROM subscribers WHERE email = ?', (email,))
             existing = cursor.fetchone()
 
             if existing:
-                subscriber_id, is_active, feeds_json = existing
+                subscriber_id, is_active, feeds_json, is_confirmed = existing
                 current_feeds = json.loads(feeds_json) if feeds_json else []
 
-                # Add any new feeds to the subscriber's list
-                feeds_changed = False
-                if feeds_input:
-                    # Replace feeds entirely with the new selection
-                    if set(feeds_input) != set(current_feeds):
-                        current_feeds = feeds_input
-                        feeds_changed = True
-                elif not current_feeds:
-                    # No feeds specified and none existing — keep empty (= all)
-                    pass
-
-                if is_active and not feeds_changed:
-                    return jsonify({
-                        'message': 'You are already subscribed!'
-                    }), 200
-
-                # Reactivate or update feeds
-                cursor.execute('''
-                    UPDATE subscribers
-                    SET is_active = TRUE,
-                        updated_at = CURRENT_TIMESTAMP,
-                        ip_address = ?,
-                        user_agent = ?,
-                        feeds = ?
-                    WHERE id = ?
-                ''', (ip_address, user_agent, json.dumps(current_feeds), subscriber_id))
-                conn.commit()
-
-                if not is_active:
-                    logger.info(f"Reactivated subscription for: {email}")
-                    _notify_admin_subscriber(email, ip_address, user_agent, 'website (reactivated)')
-                    return jsonify({
-                        'message': 'Welcome back! Your subscription has been reactivated.'
-                    }), 200
-                else:
+                # Already active AND confirmed — handle feeds update only
+                if is_active and is_confirmed:
+                    feeds_changed = False
+                    if feeds_input:
+                        if set(feeds_input) != set(current_feeds):
+                            current_feeds = feeds_input
+                            feeds_changed = True
+                    if not feeds_changed:
+                        return jsonify({
+                            'message': 'You are already subscribed!'
+                        }), 200
+                    cursor.execute('''
+                        UPDATE subscribers
+                        SET feeds = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (json.dumps(current_feeds), subscriber_id))
+                    conn.commit()
                     logger.info(f"Updated feeds for: {email}")
                     return jsonify({
                         'message': 'Subscription preferences updated!'
                     }), 200
+
+                # Unconfirmed re-submit — delete old unused tokens and resend
+                if not is_confirmed or not is_active:
+                    # Update subscriber record
+                    new_feeds = feeds_input if feeds_input else current_feeds
+                    cursor.execute('''
+                        UPDATE subscribers
+                        SET is_active = FALSE, is_confirmed = 0,
+                            updated_at = CURRENT_TIMESTAMP,
+                            ip_address = ?, user_agent = ?, feeds = ?
+                        WHERE id = ?
+                    ''', (ip_address, user_agent, json.dumps(new_feeds), subscriber_id))
+
+                    # Delete old unused tokens for this subscriber
+                    cursor.execute(
+                        'DELETE FROM subscriber_confirmation_tokens WHERE subscriber_id = ? AND used = 0',
+                        (subscriber_id,)
+                    )
+
+                    # Generate fresh token and send confirmation
+                    token = secrets.token_urlsafe(32)
+                    expires_at = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
+                    cursor.execute('''
+                        INSERT INTO subscriber_confirmation_tokens
+                        (subscriber_id, email, token, expires_at)
+                        VALUES (?, ?, ?, ?)
+                    ''', (subscriber_id, email, token, expires_at))
+                    conn.commit()
+
+                    confirm_link = f"{request.url_root.rstrip('/')}api/subscribers/confirm/{token}"
+                    svc = _get_email_service()
+                    if svc:
+                        try:
+                            _send_confirmation_email(svc, email, confirm_link)
+                        except Exception:
+                            pass  # Logged inside helper
+
+                    return jsonify({
+                        'message': 'Please check your email to confirm your subscription.'
+                    }), 201
+
             else:
-                # Add new subscription
+                # New subscriber — insert as unconfirmed
                 feeds_list = feeds_input if feeds_input else []
                 cursor.execute('''
-                    INSERT INTO subscribers (email, ip_address, user_agent, source, feeds)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO subscribers (email, ip_address, user_agent, source, feeds, is_active, is_confirmed)
+                    VALUES (?, ?, ?, ?, ?, FALSE, 0)
                 ''', (email, ip_address, user_agent, 'website', json.dumps(feeds_list)))
+                subscriber_id = cursor.lastrowid
                 conn.commit()
 
-                logger.info(f"New subscription added: {email}")
-                _db_log('info', f'New subscriber: {email}', {'ip': ip_address})
+                logger.info(f"New unconfirmed subscription: {email}")
+                _db_log('info', f'New unconfirmed subscriber: {email}', {'ip': ip_address})
 
-                # Send welcome email
+                # Generate confirmation token
+                token = secrets.token_urlsafe(32)
+                expires_at = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
+                with sqlite3.connect(db_path) as conn2:
+                    conn2.execute('''
+                        INSERT INTO subscriber_confirmation_tokens
+                        (subscriber_id, email, token, expires_at)
+                        VALUES (?, ?, ?, ?)
+                    ''', (subscriber_id, email, token, expires_at))
+                    conn2.commit()
+
+                confirm_link = f"{request.url_root.rstrip('/')}api/subscribers/confirm/{token}"
                 svc = _get_email_service()
                 if svc:
                     try:
-                        svc.send_welcome_email(email)
-                        logger.info(f"Welcome email sent to: {email}")
-                        _db_log('info', f'Welcome email sent to: {email}')
-                    except Exception as email_error:
-                        logger.error(f"Failed to send welcome email to {email}: {email_error}")
-                        _db_log('error', f'Failed to send welcome email to {email}', {'error': str(email_error)})
+                        _send_confirmation_email(svc, email, confirm_link)
+                    except Exception:
+                        pass  # Logged inside helper
 
-                # Send triggered campaigns (e.g. gold code email)
-                try:
-                    from lozzalingo.modules.campaigns.routes import send_triggered_campaigns
-                    send_triggered_campaigns(email, 'new_subscriber')
-                except ImportError:
-                    pass  # Campaigns module not installed
-
-                _notify_admin_subscriber(email, ip_address, user_agent, 'website')
+                _notify_admin_subscriber(email, ip_address, user_agent, 'website (pending confirmation)')
 
                 return jsonify({
-                    'message': f'Successfully subscribed! Welcome to {brand_name}.'
+                    'message': 'Please check your email to confirm your subscription.'
                 }), 201
 
     except sqlite3.Error as e:
@@ -481,6 +542,120 @@ def _notify_admin_subscriber(email, ip_address, user_agent, source):
             logger.error(f"Failed to send admin notification for {email}: {e}")
 
 
+def _send_confirmation_email(svc, email, confirm_link):
+    """Send double opt-in confirmation email with branded styling"""
+    brand_name = _get_brand_name()
+    style = getattr(svc, 'style', {})
+    bg = style.get('bg', '#faf8f5')
+    card_bg = style.get('card_bg', '#ffffff')
+    header_bg = style.get('header_bg', '#1a1a2e')
+    header_text = style.get('header_text', '#ffffff')
+    text = style.get('text', '#333333')
+    text_secondary = style.get('text_secondary', '#666666')
+    accent = style.get('accent', '#d4a574')
+    btn_bg = style.get('btn_bg', '#1a1a2e')
+    btn_text = style.get('btn_text', '#ffffff')
+    border = style.get('border', '#e8e0d8')
+    font = style.get('font', "'Georgia', 'Times New Roman', serif")
+    font_heading = style.get('font_heading', font)
+
+    html = f'''<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:{bg};font-family:{font};">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{bg};padding:40px 20px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:{card_bg};border:1px solid {border};">
+<tr><td style="background:{header_bg};padding:30px 40px;text-align:center;">
+<h1 style="margin:0;color:{header_text};font-family:{font_heading};font-size:24px;">Confirm your subscription</h1>
+</td></tr>
+<tr><td style="padding:40px;">
+<p style="color:{text};font-size:16px;line-height:1.6;margin:0 0 20px;">
+You've been asked to confirm your subscription to <strong>{brand_name}</strong>.
+</p>
+<p style="color:{text};font-size:16px;line-height:1.6;margin:0 0 30px;">
+Click the button below to confirm your email address and start receiving updates.
+</p>
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:10px 0 30px;">
+<a href="{confirm_link}" name="confirm_subscription" style="display:inline-block;background:{btn_bg};color:{btn_text};text-decoration:none;padding:14px 40px;font-size:16px;font-weight:600;font-family:{font_heading};">
+Confirm Subscription
+</a>
+</td></tr></table>
+<p style="color:{text_secondary};font-size:13px;line-height:1.5;margin:0;">
+If you didn't sign up for this, you can safely ignore this email and you won't be subscribed.
+</p>
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>'''
+
+    subject = f'Confirm your subscription to {brand_name}'
+    try:
+        svc.send_email([email], subject, html)
+        logger.info(f"Confirmation email sent to: {email}")
+        _db_log('info', f'Confirmation email sent to: {email}')
+    except Exception as e:
+        logger.error(f"Failed to send confirmation email to {email}: {e}")
+        _db_log('error', f'Failed to send confirmation email to {email}', {'error': str(e)})
+        raise
+
+
+def _send_reminder_email(svc, email, confirm_link):
+    """Send reminder confirmation email (sent once, 2 days after signup)"""
+    brand_name = _get_brand_name()
+    style = getattr(svc, 'style', {})
+    bg = style.get('bg', '#faf8f5')
+    card_bg = style.get('card_bg', '#ffffff')
+    header_bg = style.get('header_bg', '#1a1a2e')
+    header_text = style.get('header_text', '#ffffff')
+    text = style.get('text', '#333333')
+    text_secondary = style.get('text_secondary', '#666666')
+    accent = style.get('accent', '#d4a574')
+    btn_bg = style.get('btn_bg', '#1a1a2e')
+    btn_text = style.get('btn_text', '#ffffff')
+    border = style.get('border', '#e8e0d8')
+    font = style.get('font', "'Georgia', 'Times New Roman', serif")
+    font_heading = style.get('font_heading', font)
+
+    html = f'''<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:{bg};font-family:{font};">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{bg};padding:40px 20px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:{card_bg};border:1px solid {border};">
+<tr><td style="background:{header_bg};padding:30px 40px;text-align:center;">
+<h1 style="margin:0;color:{header_text};font-family:{font_heading};font-size:24px;">Still interested?</h1>
+</td></tr>
+<tr><td style="padding:40px;">
+<p style="color:{text};font-size:16px;line-height:1.6;margin:0 0 20px;">
+Don't forget to confirm your subscription to <strong>{brand_name}</strong>.
+</p>
+<p style="color:{text};font-size:16px;line-height:1.6;margin:0 0 30px;">
+Click below to confirm and start receiving updates. This is the only reminder we'll send.
+</p>
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:10px 0 30px;">
+<a href="{confirm_link}" name="confirm_subscription_reminder" style="display:inline-block;background:{btn_bg};color:{btn_text};text-decoration:none;padding:14px 40px;font-size:16px;font-weight:600;font-family:{font_heading};">
+Confirm Subscription
+</a>
+</td></tr></table>
+<p style="color:{text_secondary};font-size:13px;line-height:1.5;margin:0;">
+If you didn't sign up for this, you can safely ignore this email. This is the only reminder we'll send.
+</p>
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>'''
+
+    subject = f"Don't forget to confirm your {brand_name} subscription"
+    try:
+        svc.send_email([email], subject, html)
+        logger.info(f"Reminder confirmation email sent to: {email}")
+        _db_log('info', f'Reminder confirmation email sent to: {email}')
+    except Exception as e:
+        logger.error(f"Failed to send reminder email to {email}: {e}")
+        _db_log('error', f'Failed to send reminder email to {email}', {'error': str(e)})
+        raise
+
+
 @subscribers_bp.route('/stats', methods=['GET'])
 def get_subscriber_stats():
     """Get subscriber statistics"""
@@ -490,10 +665,10 @@ def get_subscriber_stats():
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
 
-            cursor.execute('SELECT COUNT(*) FROM subscribers WHERE is_active = TRUE')
+            cursor.execute('SELECT COUNT(*) FROM subscribers WHERE is_active = TRUE AND is_confirmed = 1')
             count = cursor.fetchone()[0]
 
-            cursor.execute('SELECT MAX(subscribed_at) FROM subscribers WHERE is_active = TRUE')
+            cursor.execute('SELECT MAX(subscribed_at) FROM subscribers WHERE is_active = TRUE AND is_confirmed = 1')
             last_updated = cursor.fetchone()[0]
 
             return jsonify({
@@ -561,6 +736,148 @@ def unsubscribe():
         return jsonify({'error': 'An unexpected error occurred'}), 500
 
 
+@subscribers_bp.route('/confirm/<token>', methods=['GET'])
+def confirm_subscription(token):
+    """Handle email confirmation link click"""
+    init_subscribers_db()
+    brand_name = _get_brand_name()
+    try:
+        db_path = get_db_config()
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                'SELECT id, subscriber_id, email, used, expires_at FROM subscriber_confirmation_tokens WHERE token = ?',
+                (token,)
+            )
+            token_row = cursor.fetchone()
+
+            if not token_row:
+                return render_template('subscribers/confirmation_result.html',
+                    title='Invalid Link',
+                    message='This confirmation link is not valid. Please subscribe again.',
+                    success=False
+                )
+
+            token_id, subscriber_id, email, used, expires_at = token_row
+
+            if used:
+                return render_template('subscribers/confirmation_result.html',
+                    title='Already Confirmed',
+                    message=f'Your subscription to {brand_name} has already been confirmed. You\'re all set!',
+                    success=True
+                )
+
+            if datetime.strptime(expires_at, '%Y-%m-%d %H:%M:%S') < datetime.now():
+                return render_template('subscribers/confirmation_result.html',
+                    title='Link Expired',
+                    message='This confirmation link has expired. Please subscribe again to receive a new one.',
+                    success=False
+                )
+
+            # Confirm the subscriber
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            cursor.execute('''
+                UPDATE subscribers
+                SET is_active = TRUE, is_confirmed = 1, confirmed_at = ?, updated_at = ?
+                WHERE id = ?
+            ''', (now, now, subscriber_id))
+
+            cursor.execute(
+                'UPDATE subscriber_confirmation_tokens SET used = 1 WHERE id = ?',
+                (token_id,)
+            )
+            conn.commit()
+
+            logger.info(f"Subscription confirmed: {email}")
+            _db_log('info', f'Subscription confirmed: {email}')
+
+            # Now send welcome email + triggered campaigns
+            svc = _get_email_service()
+            if svc:
+                try:
+                    svc.send_welcome_email(email)
+                    logger.info(f"Welcome email sent to: {email}")
+                    _db_log('info', f'Welcome email sent to: {email}')
+                except Exception as email_error:
+                    logger.error(f"Failed to send welcome email to {email}: {email_error}")
+                    _db_log('error', f'Failed to send welcome email to {email}', {'error': str(email_error)})
+
+            try:
+                from lozzalingo.modules.campaigns.routes import send_triggered_campaigns
+                send_triggered_campaigns(email, 'new_subscriber')
+            except ImportError:
+                pass
+
+            return render_template('subscribers/confirmation_result.html',
+                title='Subscription Confirmed',
+                message=f'Thank you! Your subscription to {brand_name} has been confirmed. Welcome aboard!',
+                success=True
+            )
+
+    except Exception as e:
+        logger.error(f"Error in confirm_subscription: {e}")
+        _db_log('error', f'Error in confirm_subscription', {'error': str(e)})
+        return render_template('subscribers/confirmation_result.html',
+            title='Something went wrong',
+            message='An error occurred while confirming your subscription. Please try again later.',
+            success=False
+        )
+
+
+@subscribers_bp.route('/process-reminders', methods=['GET'])
+def process_reminders():
+    """Send reminder emails to unconfirmed subscribers (cron endpoint)"""
+    secret = request.args.get('secret', '')
+    expected = current_app.config.get('SUBSCRIBER_REMINDER_SECRET') or os.getenv('SUBSCRIBER_REMINDER_SECRET', '')
+    if not expected or secret != expected:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    init_subscribers_db()
+    processed = 0
+    sent = 0
+    failed = 0
+
+    try:
+        db_path = get_db_config()
+        cutoff = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d %H:%M:%S')
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, email, token FROM subscriber_confirmation_tokens
+                WHERE used = 0 AND reminder_sent = 0
+                AND created_at <= ? AND expires_at > ?
+            ''', (cutoff, now))
+            rows = cursor.fetchall()
+            processed = len(rows)
+
+            svc = _get_email_service()
+            for token_id, email, token in rows:
+                try:
+                    confirm_link = f"{request.url_root.rstrip('/')}api/subscribers/confirm/{token}"
+                    if svc:
+                        _send_reminder_email(svc, email, confirm_link)
+                    cursor.execute(
+                        'UPDATE subscriber_confirmation_tokens SET reminder_sent = 1, reminder_sent_at = ? WHERE id = ?',
+                        (now, token_id)
+                    )
+                    conn.commit()
+                    sent += 1
+                except Exception as e:
+                    logger.error(f"Failed to send reminder to {email}: {e}")
+                    _db_log('error', f'Failed to send reminder to {email}', {'error': str(e)})
+                    failed += 1
+
+        return jsonify({'processed': processed, 'sent': sent, 'failed': failed}), 200
+
+    except Exception as e:
+        logger.error(f"Error in process_reminders: {e}")
+        _db_log('error', f'Error in process_reminders', {'error': str(e)})
+        return jsonify({'error': 'An error occurred', 'processed': processed, 'sent': sent, 'failed': failed}), 500
+
+
 @subscribers_bp.route('/export', methods=['GET'])
 def export_subscribers():
     """Export subscribers list (admin auth required)"""
@@ -576,7 +893,7 @@ def export_subscribers():
             cursor.execute('''
                 SELECT email, subscribed_at, source, ip_address, feeds
                 FROM subscribers
-                WHERE is_active = TRUE
+                WHERE is_active = TRUE AND is_confirmed = 1
                 ORDER BY subscribed_at DESC
             ''')
 
@@ -668,7 +985,7 @@ def get_subscriber_count():
         db_path = get_db_config()
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT COUNT(*) FROM subscribers WHERE is_active = TRUE')
+            cursor.execute('SELECT COUNT(*) FROM subscribers WHERE is_active = TRUE AND is_confirmed = 1')
             return cursor.fetchone()[0]
     except Exception:
         return 0
@@ -797,7 +1114,7 @@ def get_all_subscriber_emails(feed=None):
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                'SELECT email, feeds FROM subscribers WHERE is_active = TRUE ORDER BY subscribed_at DESC'
+                'SELECT email, feeds FROM subscribers WHERE is_active = TRUE AND is_confirmed = 1 ORDER BY subscribed_at DESC'
             )
 
             if feed is None:

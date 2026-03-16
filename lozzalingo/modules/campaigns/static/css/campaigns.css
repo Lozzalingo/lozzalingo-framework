@@ -1,13 +1,25 @@
 /* Campaigns Editor Styles */
 
+/* Bridge admin theme vars → campaigns vars */
+.campaigns-layout,
+.confirm-overlay {
+    --bg-primary: var(--lz-bg, #f8f6f0);
+    --bg-secondary: var(--lz-bg-card, #ffffff);
+    --text-primary: var(--lz-text, #2a2a2a);
+    --text-secondary: var(--lz-text-secondary, #666666);
+    --accent-color: var(--lz-accent, #2a2a2a);
+    --accent-text: var(--lz-bg, #f8f6f0);
+    --border-color: var(--lz-border, #d4c5a0);
+}
+
 /* Layout: 3 columns — sidebar | editor | preview */
 .campaigns-layout {
     display: grid;
     grid-template-columns: 220px 1fr 1fr;
     height: 100vh;
     overflow: hidden;
-    background: var(--bg-primary, #f8f6f0);
-    color: var(--text-primary, #2a2a2a);
+    background: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 /* Sidebar */
