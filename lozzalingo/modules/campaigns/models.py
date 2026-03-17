@@ -172,6 +172,38 @@ def save_campaign(data):
         return None
 
 
+def duplicate_campaign(campaign_id):
+    """Duplicate a campaign with '(Copy)' appended to the name. Returns new campaign ID."""
+    try:
+        db_path = get_db_config()
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM campaigns WHERE id = ?', (campaign_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            cursor.execute('''
+                INSERT INTO campaigns (name, subject, blocks, is_active, trigger)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (
+                row['name'] + ' (Copy)',
+                row['subject'],
+                row['blocks'],
+                row['is_active'],
+                row['trigger']
+            ))
+            new_id = cursor.lastrowid
+            conn.commit()
+            logger.info(f"Duplicated campaign {campaign_id} -> {new_id}")
+            return new_id
+    except Exception as e:
+        logger.error(f"Error duplicating campaign {campaign_id}: {e}")
+        _db_log('error', f'Error duplicating campaign {campaign_id}', {'error': str(e)})
+        return None
+
+
 def delete_campaign(campaign_id):
     """Delete a campaign and its send records"""
     try:

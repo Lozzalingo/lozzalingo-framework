@@ -93,6 +93,7 @@
                 <button type="button" class="btn-secondary" id="send-test-btn" name="campaigns_send_test">Send Test</button>
                 <button type="button" class="btn-send" id="send-all-btn" name="campaigns_send_all">Send to All</button>
                 {% if current_campaign.id %}
+                <button type="button" class="btn-secondary" id="duplicate-btn" name="campaigns_duplicate">Duplicate</button>
                 <button type="button" class="btn-danger" id="delete-btn" name="campaigns_delete">Delete</button>
                 {% endif %}
             </div>
@@ -139,6 +140,7 @@
             sendTest: window.CAMPAIGN_ID ? {{ url_for('campaigns.send_test', campaign_id=0) | tojson }}.replace('/0', '/' + window.CAMPAIGN_ID) : null,
             sendAll: window.CAMPAIGN_ID ? {{ url_for('campaigns.send_campaign', campaign_id=0) | tojson }}.replace('/0', '/' + window.CAMPAIGN_ID) : null,
             deleteCampaign: window.CAMPAIGN_ID ? {{ url_for('campaigns.delete', campaign_id=0) | tojson }}.replace('/0', '/' + window.CAMPAIGN_ID) : null,
+            duplicate: window.CAMPAIGN_ID ? {{ url_for('campaigns.duplicate', campaign_id=0) | tojson }}.replace('/0', '/' + window.CAMPAIGN_ID) : null,
             variables: {{ url_for('campaigns.get_variables') | tojson }},
             subscriberCount: {{ url_for('campaigns.subscriber_count') | tojson }},
             listPage: {{ url_for('campaigns.campaign_list') | tojson }}

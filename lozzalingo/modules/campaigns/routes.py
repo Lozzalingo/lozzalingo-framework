@@ -14,8 +14,8 @@ from flask import request, jsonify, render_template, session, current_app
 from . import campaigns_bp
 from .models import (
     init_campaigns_db, get_campaign, get_all_campaigns, save_campaign,
-    delete_campaign, record_send, increment_send_count, get_triggered_campaigns,
-    get_sent_emails
+    delete_campaign, duplicate_campaign, record_send, increment_send_count,
+    get_triggered_campaigns, get_sent_emails
 )
 from .renderer import render_campaign, resolve_variables
 
@@ -282,6 +282,22 @@ def send_test(campaign_id):
         logger.error(f"Error sending test email: {e}")
         _db_log('error', 'Error sending test email', {'error': str(e)})
         return jsonify({'error': str(e)}), 500
+
+
+@campaigns_bp.route('/duplicate/<int:campaign_id>', methods=['POST'])
+def duplicate(campaign_id):
+    """Duplicate a campaign"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    init_campaigns_db()
+    new_id = duplicate_campaign(campaign_id)
+    if new_id:
+        logger.info(f"Campaign {campaign_id} duplicated as {new_id}")
+        _db_log('info', f'Campaign duplicated', {'source_id': campaign_id, 'new_id': new_id})
+        return jsonify({'id': new_id, 'message': 'Campaign duplicated'}), 200
+    else:
+        return jsonify({'error': 'Failed to duplicate campaign'}), 500
 
 
 @campaigns_bp.route('/<int:campaign_id>', methods=['DELETE'])

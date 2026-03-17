@@ -264,6 +264,9 @@
         var sendAllBtn = document.getElementById('send-all-btn');
         if (sendAllBtn) sendAllBtn.onclick = showSendConfirm;
 
+        var duplicateBtn = document.getElementById('duplicate-btn');
+        if (duplicateBtn) duplicateBtn.onclick = duplicateCampaign;
+
         var deleteBtn = document.getElementById('delete-btn');
         if (deleteBtn) deleteBtn.onclick = deleteCampaign;
 
@@ -400,6 +403,31 @@
         })
         .finally(function () {
             if (btn) { btn.disabled = false; btn.textContent = 'Send to All'; }
+        });
+    }
+
+    // ── Duplicate ─────────────────────────────────────────────────────
+    function duplicateCampaign() {
+        if (!window.ENDPOINTS.duplicate) return;
+
+        console.log('[campaigns] Duplicating campaign ' + window.CAMPAIGN_ID);
+
+        fetch(window.ENDPOINTS.duplicate, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.id) {
+                showToast('Campaign duplicated', 'success');
+                window.location.href = window.ENDPOINTS.listPage.replace(/\/$/, '') + '/editor/' + data.id;
+            } else {
+                showToast(data.error || 'Duplicate failed', 'error');
+            }
+        })
+        .catch(function (err) {
+            showToast('Network error', 'error');
+            console.error('[campaigns] Duplicate error:', err);
         });
     }
 
