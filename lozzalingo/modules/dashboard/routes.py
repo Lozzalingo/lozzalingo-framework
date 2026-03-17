@@ -352,10 +352,14 @@ def api_stats():
             try:
                 with db_connect(analytics_db) as conn:
                     cursor = conn.cursor()
-                    # Filter out localhost, private IPs, and bots
+                    # Filter: human page_view_client events, exclude localhost/private IPs
+                    # Uses fingerprint_hash for unique visitors (consistent with analytics page)
                     local_filter = """
+                        AND event_type = 'page_view_client'
+                        AND fingerprint_hash IS NOT NULL
+                        AND identity = 'human'
                         AND ip IS NOT NULL
-                        AND ip NOT IN ('127.0.0.1', '::1', 'localhost')
+                        AND ip NOT IN ('127.0.0.1', '::1', 'localhost', '')
                         AND ip NOT LIKE '192.168.%'
                         AND ip NOT LIKE '10.%'
                         AND ip NOT LIKE '172.16.%'
@@ -365,7 +369,6 @@ def api_stats():
                         AND ip NOT LIKE '172.2_.%'
                         AND ip NOT LIKE '172.30.%'
                         AND ip NOT LIKE '172.31.%'
-                        AND (identity IS NULL OR identity != 'bot')
                     """
 
                     # Add owner fingerprint exclusion if configured
@@ -373,24 +376,24 @@ def api_stats():
                         exclude_fps = current_app.config.get('ANALYTICS_EXCLUDE_FINGERPRINTS', [])
                         if exclude_fps:
                             placeholders = ','.join(['?' for _ in exclude_fps])
-                            fp_filter = f" AND (fingerprint_hash IS NULL OR fingerprint_hash NOT IN ({placeholders}))"
+                            fp_filter = f" AND fingerprint_hash NOT IN ({placeholders})"
                             local_filter += fp_filter
                     except RuntimeError:
                         exclude_fps = []
 
                     if exclude_fps:
-                        cursor.execute(f"SELECT COUNT(DISTINCT ip) FROM analytics_log WHERE 1=1 {local_filter}", exclude_fps)
+                        cursor.execute(f"SELECT COUNT(DISTINCT fingerprint_hash) FROM analytics_log WHERE 1=1 {local_filter}", exclude_fps)
                     else:
-                        cursor.execute(f"SELECT COUNT(DISTINCT ip) FROM analytics_log WHERE 1=1 {local_filter}")
+                        cursor.execute(f"SELECT COUNT(DISTINCT fingerprint_hash) FROM analytics_log WHERE 1=1 {local_filter}")
                     result = cursor.fetchone()
                     stats['analytics']['total_visitors'] = result[0] if result else 0
 
                     # Today's visitors
                     today = datetime.now().strftime('%Y-%m-%d')
                     if exclude_fps:
-                        cursor.execute(f"SELECT COUNT(DISTINCT ip) FROM analytics_log WHERE DATE(timestamp) = ? {local_filter}", [today] + exclude_fps)
+                        cursor.execute(f"SELECT COUNT(DISTINCT fingerprint_hash) FROM analytics_log WHERE DATE(timestamp) = ? {local_filter}", [today] + exclude_fps)
                     else:
-                        cursor.execute(f"SELECT COUNT(DISTINCT ip) FROM analytics_log WHERE DATE(timestamp) = ? {local_filter}", (today,))
+                        cursor.execute(f"SELECT COUNT(DISTINCT fingerprint_hash) FROM analytics_log WHERE DATE(timestamp) = ? {local_filter}", (today,))
                     result = cursor.fetchone()
                     stats['analytics']['today_visitors'] = result[0] if result else 0
             except Exception as e:
