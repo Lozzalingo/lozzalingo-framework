@@ -1029,7 +1029,15 @@ def get_route_analytics():
             AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
             GROUP BY url
         """)
-        exit_times = {row[0]: row[1] for row in cursor.fetchall()}
+        # Normalize exit_times keys so they match normalized page URLs
+        exit_times_normalized = {}
+        for row in cursor.fetchall():
+            norm_url = normalize_page_url(row[0])
+            # Keep a running average if multiple raw URLs normalize to the same thing
+            if norm_url in exit_times_normalized:
+                exit_times_normalized[norm_url] = (exit_times_normalized[norm_url] + row[1]) / 2
+            else:
+                exit_times_normalized[norm_url] = row[1]
 
         # For route_change events, extract from_url from additional_data JSON
         # The time_spent_seconds on route_change is for the page the user LEFT (from_url)
@@ -1046,7 +1054,13 @@ def get_route_analytics():
             AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
             GROUP BY from_url
         """)
-        route_change_times = {row[0]: row[1] for row in cursor.fetchall()}
+        route_change_times_normalized = {}
+        for row in cursor.fetchall():
+            norm_url = normalize_page_url(row[0])
+            if norm_url in route_change_times_normalized:
+                route_change_times_normalized[norm_url] = (route_change_times_normalized[norm_url] + row[1]) / 2
+            else:
+                route_change_times_normalized[norm_url] = row[1]
 
         # Process and normalize URLs
         url_data = {}
@@ -1054,17 +1068,16 @@ def get_route_analytics():
             raw_url = row[0]
             visits = row[1]
 
-            # Merge time from page_exit and route_change sources
-            # Average them if both exist, otherwise use whichever is available
-            exit_time = exit_times.get(raw_url)
-            route_time = route_change_times.get(raw_url)
+            # Normalize URL by removing tracking parameters and standardizing
+            normalized_url = normalize_page_url(raw_url)
+
+            # Merge time from page_exit and route_change sources (using normalized keys)
+            exit_time = exit_times_normalized.get(normalized_url)
+            route_time = route_change_times_normalized.get(normalized_url)
             if exit_time and route_time:
                 avg_time = (exit_time + route_time) / 2
             else:
                 avg_time = exit_time or route_time or 0
-
-            # Normalize URL by removing tracking parameters and standardizing
-            normalized_url = normalize_page_url(raw_url)
 
             # Aggregate by normalized URL
             if normalized_url in url_data:
