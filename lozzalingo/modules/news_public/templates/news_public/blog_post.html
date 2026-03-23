@@ -298,9 +298,9 @@
             {% for related in related_articles %}
             <article>
                 {% if related.image_url %}
-                <img src="{{ related.image_url }}" alt="{{ related.title }}" loading="lazy">
+                <img src="{{ related.image_url }}" alt="{{ related.title }}" loading="lazy" style="object-position: center {{ related.image_position or '50' }}%">
                 {% endif %}
-                <h3><a href="{{ article_url(related) }}">{{ related.title }}</a></h3>
+                <h3><a href="{{ article_url(related) }}" name="related_article">{{ related.title }}</a></h3>
                 <time>{{ related.created_at }}</time>
             </article>
             {% endfor %}
