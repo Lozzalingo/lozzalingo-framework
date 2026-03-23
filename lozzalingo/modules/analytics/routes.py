@@ -297,12 +297,12 @@ def get_overview_stats():
                 AND ip NOT LIKE '172.31.%'
             """ + _owner_fingerprint_filter()
 
-            # Total page views (only count page_view_client events, exclude localhost)
-            cursor.execute(f"SELECT COUNT(*) FROM analytics_log WHERE event_type = 'page_view_client' {local_ip_filter}")
+            # Total page views (only count page_view_client events, exclude localhost and bots)
+            cursor.execute(f"SELECT COUNT(*) FROM analytics_log WHERE event_type = 'page_view_client' AND identity != 'bot' {local_ip_filter}")
             stats['total_page_views'] = cursor.fetchone()[0]
 
-            # Recent page views (only count page_view_client events, exclude localhost)
-            cursor.execute(f"SELECT COUNT(*) FROM analytics_log WHERE event_type = 'page_view_client' AND datetime(timestamp) >= ? {local_ip_filter}", (cutoff_date,))
+            # Recent page views (only count page_view_client events, exclude localhost and bots)
+            cursor.execute(f"SELECT COUNT(*) FROM analytics_log WHERE event_type = 'page_view_client' AND identity != 'bot' AND datetime(timestamp) >= ? {local_ip_filter}", (cutoff_date,))
             stats['recent_page_views'] = cursor.fetchone()[0]
 
             # Unique human visitors (by fingerprint, only humans with page views, exclude localhost)
@@ -531,7 +531,7 @@ def get_traffic_timeline():
             SELECT DATE(timestamp) as date, COUNT(*) as views,
                    COUNT(DISTINCT CASE WHEN identity = 'human' THEN fingerprint END) as unique_visitors
             FROM analytics_log
-            WHERE event_type = 'page_view_client' AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
+            WHERE event_type = 'page_view_client' AND identity != 'bot' AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
             GROUP BY DATE(timestamp)
             ORDER BY date
         """)
@@ -733,6 +733,7 @@ def get_news_metrics():
                         SELECT url, COUNT(*) as views
                         FROM {analytics_table}
                         WHERE event_type = 'page_view_client'
+                        AND identity != 'bot'
                         AND ({like_clauses})
                         GROUP BY url
                     """, like_params)
@@ -811,11 +812,12 @@ def get_geographic_data():
             AND ip NOT LIKE '172.31.%'
         """ + _owner_fingerprint_filter()
 
-        # Country and region data (from page views only, exclude localhost)
+        # Country and region data (from page views only, exclude localhost and bots)
         cursor.execute(f"""
             SELECT country, region, city, COUNT(*) as visits
             FROM analytics_log
             WHERE event_type = 'page_view_client'
+            AND identity != 'bot'
             AND timestamp IS NOT NULL
             AND datetime(timestamp) >= datetime('now', '-{days} days')
             AND country IS NOT NULL AND country != '' {local_ip_filter}
@@ -1000,11 +1002,12 @@ def get_route_analytics():
         """ + _owner_fingerprint_filter()
 
         # Most visited pages/routes (exclude localhost) with URL normalization
-        # Step 1: Get visit counts from page_view_client events
+        # Step 1: Get visit counts from page_view_client events (exclude bots)
         cursor.execute(f"""
             SELECT url, COUNT(*) as visits
             FROM analytics_log
             WHERE event_type = 'page_view_client'
+            AND identity != 'bot'
             AND url IS NOT NULL AND url != ''
             AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
             AND url NOT LIKE '%/admin/%'
