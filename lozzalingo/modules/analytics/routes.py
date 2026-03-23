@@ -701,20 +701,51 @@ def get_news_metrics():
 
         # Recent articles
         cursor.execute("""
-            SELECT id, title, created_at, LENGTH(content) as content_length
+            SELECT id, title, created_at, LENGTH(content) as content_length, slug
             FROM news_articles
             ORDER BY datetime(created_at) DESC
             LIMIT ?
         """, (limit,))
-        
+
         recent_articles = []
         for row in cursor.fetchall():
             recent_articles.append({
                 'id': row[0],
                 'title': row[1],
                 'created_at': row[2],
-                'content_length': row[3]
+                'content_length': row[3],
+                'slug': row[4] if len(row) > 4 else None
             })
+
+        # Cross-reference with analytics to get view counts per article
+        article_slugs = [a['slug'] for a in recent_articles if a.get('slug')]
+        article_views = {}
+        if article_slugs:
+            try:
+                analytics_conn = get_db_connection(get_analytics_db())
+                if analytics_conn:
+                    analytics_cursor = analytics_conn.cursor()
+                    analytics_table = get_analytics_table()
+                    # Match URLs containing the article slug (newsletter/<slug>)
+                    like_clauses = ' OR '.join(['url LIKE ?' for _ in article_slugs])
+                    like_params = [f'%/newsletter/{slug}%' for slug in article_slugs]
+                    analytics_cursor.execute(f"""
+                        SELECT url, COUNT(*) as views
+                        FROM {analytics_table}
+                        WHERE event_type = 'page_view_client'
+                        AND ({like_clauses})
+                        GROUP BY url
+                    """, like_params)
+                    for row in analytics_cursor.fetchall():
+                        for slug in article_slugs:
+                            if f'/newsletter/{slug}' in row[0]:
+                                article_views[slug] = article_views.get(slug, 0) + row[1]
+                    analytics_conn.close()
+            except Exception as e:
+                print(f"Error fetching article views: {e}")
+
+        for article in recent_articles:
+            article['views'] = article_views.get(article.get('slug'), 0)
         
         # Publishing trend
         cutoff_date = datetime.now() - timedelta(days=days)
@@ -969,15 +1000,12 @@ def get_route_analytics():
         """ + _owner_fingerprint_filter()
 
         # Most visited pages/routes (exclude localhost) with URL normalization
+        # Step 1: Get visit counts from page_view_client events
         cursor.execute(f"""
-            SELECT
-                url,
-                COUNT(CASE WHEN event_type = 'page_view_client' THEN 1 END) as visits,
-                AVG(CASE WHEN time_spent_seconds IS NOT NULL AND time_spent_seconds != ''
-                         AND CAST(time_spent_seconds AS REAL) > 0
-                         THEN CAST(time_spent_seconds AS REAL) END) as avg_time_spent
+            SELECT url, COUNT(*) as visits
             FROM analytics_log
-            WHERE url IS NOT NULL AND url != ''
+            WHERE event_type = 'page_view_client'
+            AND url IS NOT NULL AND url != ''
             AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
             AND url NOT LIKE '%/admin/%'
             AND url NOT LIKE '%/email-preview/%'
@@ -987,13 +1015,53 @@ def get_route_analytics():
             HAVING visits > 0
             ORDER BY visits DESC
         """)
+        page_visits = cursor.fetchall()
+
+        # Step 2: Get avg time from page_exit events (time attributed to correct url)
+        # and route_change events (time is for from_url, stored in additional_data JSON)
+        cursor.execute(f"""
+            SELECT url, AVG(CAST(time_spent_seconds AS REAL)) as avg_time
+            FROM analytics_log
+            WHERE event_type = 'page_exit'
+            AND time_spent_seconds IS NOT NULL AND time_spent_seconds != ''
+            AND CAST(time_spent_seconds AS REAL) > 0
+            AND url IS NOT NULL AND url != ''
+            AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
+            GROUP BY url
+        """)
+        exit_times = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # For route_change events, extract from_url from additional_data JSON
+        # The time_spent_seconds on route_change is for the page the user LEFT (from_url)
+        cursor.execute(f"""
+            SELECT
+                json_extract(additional_data, '$.from_url') as from_url,
+                AVG(CAST(time_spent_seconds AS REAL)) as avg_time
+            FROM analytics_log
+            WHERE event_type = 'route_change'
+            AND time_spent_seconds IS NOT NULL AND time_spent_seconds != ''
+            AND CAST(time_spent_seconds AS REAL) > 0
+            AND additional_data IS NOT NULL
+            AND json_extract(additional_data, '$.from_url') IS NOT NULL
+            AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
+            GROUP BY from_url
+        """)
+        route_change_times = {row[0]: row[1] for row in cursor.fetchall()}
 
         # Process and normalize URLs
         url_data = {}
-        for row in cursor.fetchall():
+        for row in page_visits:
             raw_url = row[0]
             visits = row[1]
-            avg_time = row[2] if row[2] else 0
+
+            # Merge time from page_exit and route_change sources
+            # Average them if both exist, otherwise use whichever is available
+            exit_time = exit_times.get(raw_url)
+            route_time = route_change_times.get(raw_url)
+            if exit_time and route_time:
+                avg_time = (exit_time + route_time) / 2
+            else:
+                avg_time = exit_time or route_time or 0
 
             # Normalize URL by removing tracking parameters and standardizing
             normalized_url = normalize_page_url(raw_url)

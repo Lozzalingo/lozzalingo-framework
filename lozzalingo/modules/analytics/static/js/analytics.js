@@ -766,22 +766,22 @@ class AnalyticsClient {
             }
         });
 
-        // Track page exit
-        window.addEventListener('beforeunload', async () => {
+        // Track page exit — MUST be synchronous; async/await prevents sendBeacon from firing
+        // before the page unloads. deviceDetails is already cached on this.deviceDetails.
+        window.addEventListener('beforeunload', () => {
             try {
-                const deviceDetails = await this.rateLimiterByDevice;
                 const activeTimeMs = this.getActiveTimeMs();
                 const exitData = {
                     type: 'page_exit',
-                    deviceDetails: deviceDetails,
+                    deviceDetails: this.deviceDetails || null,
                     time_spent_seconds: Math.round(activeTimeMs / 1000),
                     url: window.location.href
                 };
-                
+
                 const blob = new Blob([JSON.stringify(exitData)], {
                     type: 'application/json'
                 });
-                
+
                 navigator.sendBeacon('/admin/analytics/api/log-interaction', blob);
             } catch (e) {
                 console.warn('sendBeacon failed:', e);

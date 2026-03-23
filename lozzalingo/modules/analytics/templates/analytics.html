@@ -18,13 +18,13 @@
         </div>
         <div class="admin-actions">
             <button name="theme_toggle" class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
-            <a href="{{ url_for('admin.dashboard') }}" class="admin-btn admin-btn-secondary">
+            <a href="{{ url_for('admin.dashboard') }}" name="analytics_main_dashboard" class="admin-btn admin-btn-secondary">
                 🏠 Main Dashboard
             </a>
-            <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="admin-btn admin-btn-secondary">
+            <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" name="analytics_change_password" class="admin-btn admin-btn-secondary">
                 🔒 Change Password
             </a>
-            <a href="{{ url_for(auth_bp_name ~ '.logout') }}" class="admin-btn admin-btn-danger">
+            <a href="{{ url_for(auth_bp_name ~ '.logout') }}" name="analytics_logout" class="admin-btn admin-btn-danger">
                 🚪 Logout
             </a>
         </div>
@@ -281,7 +281,7 @@
             <div class="charts-section">
                 <h2 class="section-title">Activity Details</h2>
                 <div class="charts-grid">
-                    <div class="chart-card">
+                    <div class="chart-card full-width">
                         <h3>Recent Activity</h3>
                         <div class="chart-container table-container">
                             <div style="overflow-x: auto;">
@@ -337,11 +337,12 @@
                                     <tr>
                                         <th>Title</th>
                                         <th>Published</th>
+                                        <th>Views</th>
                                         <th>Length</th>
                                     </tr>
                                 </thead>
                                 <tbody id="recentArticles">
-                                    <tr><td colspan="3">Loading...</td></tr>
+                                    <tr><td colspan="4">Loading...</td></tr>
                                 </tbody>
                                 </table>
                             </div>
@@ -1671,16 +1672,18 @@
                     const publishedDate = escapeHtml(new Date(article.created_at).toLocaleDateString());
                     const wordCount = Math.ceil(article.content_length / 6); // Rough word count estimate
                     const title = escapeHtml(article.title);
+                    const views = article.views || 0;
                     return `
                         <tr>
                             <td>${title}</td>
                             <td>${publishedDate}</td>
+                            <td>${views}</td>
                             <td>${wordCount} words</td>
                         </tr>
                     `;
                 }).join('');
             } else {
-                articlesBody.innerHTML = '<tr><td colspan="3">No articles data</td></tr>';
+                articlesBody.innerHTML = '<tr><td colspan="4">No articles data</td></tr>';
             }
 
             // Geographic Data
