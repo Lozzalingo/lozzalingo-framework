@@ -55,7 +55,8 @@ class Analytics:
         r'bot', r'crawler', r'spider', r'scraper', r'scraping', r'wget', r'curl',
         r'python', r'requests', r'urllib', r'postman', r'insomnia', r'http',
         r'automated', r'headless', r'phantom', r'selenium', r'puppeteer',
-        r'googlebot', r'bingbot', r'slurp', r'duckduckbot', r'baiduspider',
+        r'googlebot', r'google-inspectiontool', r'google-safety', r'google-extended',
+        r'bingbot', r'slurp', r'duckduckbot', r'baiduspider',
         r'facebookexternalhit', r'twitterbot', r'linkedinbot', r'whatsapp',
         r'telegram', r'discord', r'slack', r'preview'
     ]
