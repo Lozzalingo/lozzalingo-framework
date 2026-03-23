@@ -106,6 +106,63 @@ def add_no_cache_headers(response):
     return response
 
 
+_last_bot_reclassification = None
+
+def _reclassify_stealth_bots():
+    """Reclassify visitors that look human but behave like bots.
+
+    Real browsers execute JS and fire page_exit/route_change/click events.
+    Crawlers that render JS may trigger page_view_client but never produce
+    interactive events. Fingerprints with only page_view_client events
+    (and no page_exit, route_change, or click events) are reclassified as bots.
+
+    Runs at most once per hour to avoid unnecessary DB writes.
+    """
+    global _last_bot_reclassification
+    now = datetime.now()
+    if _last_bot_reclassification and (now - _last_bot_reclassification).total_seconds() < 3600:
+        return
+
+    try:
+        conn = get_db_connection(get_analytics_db())
+        if not conn:
+            return
+        cursor = conn.cursor()
+
+        # Find fingerprints classified as human that have page_view_client events
+        # but zero interactive events (page_exit, route_change, button/link clicks)
+        cursor.execute("""
+            UPDATE analytics_log
+            SET identity = 'bot'
+            WHERE identity IN ('human', 'likely_human', 'possible_human')
+            AND fingerprint_hash IS NOT NULL
+            AND fingerprint_hash IN (
+                SELECT fingerprint_hash
+                FROM analytics_log
+                WHERE fingerprint_hash IS NOT NULL
+                GROUP BY fingerprint_hash
+                HAVING
+                    COUNT(CASE WHEN event_type = 'page_view_client' THEN 1 END) > 0
+                    AND COUNT(CASE WHEN event_type IN (
+                        'page_exit', 'route_change',
+                        'internal_link_click'
+                    ) OR event_type LIKE 'button_click_%'
+                       OR event_type LIKE 'link_click_%'
+                    THEN 1 END) = 0
+            )
+        """)
+        reclassified = cursor.rowcount
+        conn.commit()
+        conn.close()
+
+        if reclassified > 0:
+            print(f"[Analytics] Reclassified {reclassified} stealth bot events")
+
+        _last_bot_reclassification = now
+    except Exception as e:
+        print(f"[Analytics] Bot reclassification error: {e}")
+
+
 def get_allowed_origins():
     """
     Get allowed origins for analytics API requests.
@@ -268,12 +325,15 @@ def get_overview_stats():
     is_admin, message = check_admin_access()
     if not is_admin:
         return jsonify({"error": message}), 403
-    
+
+    # Reclassify stealth bots before returning stats (runs at most once/hour)
+    _reclassify_stealth_bots()
+
     days_param = request.args.get('days', '7')
     cutoff_date = get_cutoff_date(days_param)
-    
+
     stats = {}
-    
+
     # Analytics data
     conn = get_db_connection(get_analytics_db())
     if conn:
