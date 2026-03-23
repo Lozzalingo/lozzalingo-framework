@@ -1019,6 +1019,10 @@ def get_route_analytics():
 
         # Step 2: Get avg time from page_exit events (time attributed to correct url)
         # and route_change events (time is for from_url, stored in additional_data JSON)
+        # Time queries include owner data (valid browsing time) but exclude bots
+        time_filter = """
+            AND identity != 'bot'
+        """
         cursor.execute(f"""
             SELECT url, AVG(CAST(time_spent_seconds AS REAL)) as avg_time
             FROM analytics_log
@@ -1026,7 +1030,7 @@ def get_route_analytics():
             AND time_spent_seconds IS NOT NULL AND time_spent_seconds != ''
             AND CAST(time_spent_seconds AS REAL) > 0
             AND url IS NOT NULL AND url != ''
-            AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
+            AND datetime(timestamp) >= datetime('now', '-{days} days') {time_filter}
             GROUP BY url
         """)
         # Normalize exit_times keys so they match normalized page URLs
@@ -1051,7 +1055,7 @@ def get_route_analytics():
             AND CAST(time_spent_seconds AS REAL) > 0
             AND additional_data IS NOT NULL
             AND json_extract(additional_data, '$.from_url') IS NOT NULL
-            AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
+            AND datetime(timestamp) >= datetime('now', '-{days} days') {time_filter}
             GROUP BY from_url
         """)
         route_change_times_normalized = {}
