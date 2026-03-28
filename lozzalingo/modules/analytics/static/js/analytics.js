@@ -778,19 +778,25 @@ class AnalyticsClient {
             }
         });
 
-        // Track page exit — send beacon on both beforeunload and visibilitychange
-        // (mobile browsers often skip beforeunload but fire visibilitychange to hidden)
-        this._exitBeaconSent = false;
+        // Track page exit — send beacon on beforeunload (actual navigation away)
+        // and visibilitychange to hidden (tab close, mobile app switch).
+        // visibilitychange fires on tab switches too, so we allow re-sending
+        // with updated time when the user actually leaves.
+        this._lastExitBeaconTime = 0;
 
-        const sendExitBeacon = () => {
-            if (this._exitBeaconSent) return;
-            this._exitBeaconSent = true;
+        const sendExitBeacon = (isFinal) => {
             try {
                 const activeTimeMs = this.getActiveTimeMs();
+                const timeSeconds = Math.round(activeTimeMs / 1000);
+
+                // Skip duplicate beacons within 1 second with same time
+                if (!isFinal && timeSeconds === this._lastExitBeaconTime) return;
+                this._lastExitBeaconTime = timeSeconds;
+
                 const exitData = {
                     type: 'page_exit',
                     deviceDetails: this.deviceDetails || null,
-                    time_spent_seconds: Math.round(activeTimeMs / 1000),
+                    time_spent_seconds: timeSeconds,
                     url: window.location.href,
                     session_id: this._sessionId || null
                 };
@@ -805,10 +811,10 @@ class AnalyticsClient {
             }
         };
 
-        window.addEventListener('beforeunload', sendExitBeacon);
+        window.addEventListener('beforeunload', () => sendExitBeacon(true));
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
-                sendExitBeacon();
+                sendExitBeacon(false);
             }
         });
 

@@ -1248,18 +1248,22 @@ def get_route_analytics():
             # Build page sequence from page_view_client events only
             pages = []
             exit_page = None
-            total_time = 0
+            # Track max exit time per URL (beacons may re-send with updated time)
+            exit_times_by_url = {}
             for event in session:
                 if event['event_type'] == 'page_view_client':
                     pages.append(normalize_page_url(event['url']))
                 elif event['event_type'] == 'page_exit':
                     exit_page = normalize_page_url(event['url'])
-                # Sum time from any event that has it (page_exit or page_view_client)
-                try:
-                    if event['time_spent']:
-                        total_time += float(event['time_spent'])
-                except (ValueError, TypeError):
-                    pass
+                    try:
+                        if event['time_spent']:
+                            t = float(event['time_spent'])
+                            url = normalize_page_url(event['url'])
+                            exit_times_by_url[url] = max(exit_times_by_url.get(url, 0), t)
+                    except (ValueError, TypeError):
+                        pass
+            # Total time = sum of max exit time per unique page URL
+            total_time = sum(exit_times_by_url.values())
 
             if pages:
                 # Deduplicate consecutive same-page views
