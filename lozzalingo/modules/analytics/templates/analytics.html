@@ -417,20 +417,21 @@
                             </div>
                         </div>
                     </div>
-                    <div class="chart-card">
-                        <h3>Route Transitions</h3>
+                    <div class="chart-card full-width">
+                        <h3>User Journeys</h3>
                         <div class="chart-container table-container">
                             <div style="overflow-x: auto;">
                                 <table class="analytics-table">
                                 <thead>
                                     <tr>
-                                        <th>From</th>
-                                        <th>To</th>
-                                        <th>Count</th>
+                                        <th>Date</th>
+                                        <th>Journey</th>
+                                        <th>Pages</th>
+                                        <th>Time</th>
                                     </tr>
                                 </thead>
-                                <tbody id="routeTransitions">
-                                    <tr><td colspan="3">Loading...</td></tr>
+                                <tbody id="userJourneys">
+                                    <tr><td colspan="4">Loading...</td></tr>
                                 </tbody>
                                 </table>
                             </div>
@@ -1762,22 +1763,42 @@
                 topPagesBody.innerHTML = '<tr><td colspan="3">No page data available</td></tr>';
             }
 
-            // Update route transitions table
-            const routeTransitionsBody = document.getElementById('routeTransitions');
-            if (routeData && routeData.route_transitions && routeData.route_transitions.length > 0) {
-                routeTransitionsBody.innerHTML = routeData.route_transitions.map(transition => {
-                    const fromRoute = escapeHtml(transition.from_route || 'Direct');
-                    const toRoute = escapeHtml(transition.to_route);
+            // Update user journeys table
+            const journeysBody = document.getElementById('userJourneys');
+            if (routeData && routeData.user_journeys && routeData.user_journeys.length > 0) {
+                journeysBody.innerHTML = routeData.user_journeys.map(journey => {
+                    const date = escapeHtml(new Date(journey.timestamp).toLocaleDateString());
+                    // Show path as arrow-separated page names, strip domain
+                    const pages = journey.pages.map(url => {
+                        try {
+                            const path = new URL(url).pathname;
+                            return path === '/' ? 'Home' : path.replace(/^\/|\/$/g, '').split('/').pop();
+                        } catch { return url; }
+                    });
+                    const exitPage = journey.exit_page ? (() => {
+                        try {
+                            const path = new URL(journey.exit_page).pathname;
+                            return path === '/' ? 'Home' : path.replace(/^\/|\/$/g, '').split('/').pop();
+                        } catch { return journey.exit_page; }
+                    })() : null;
+
+                    let pathHtml = pages.map(p => `<span class="journey-page">${escapeHtml(p)}</span>`).join(' → ');
+                    if (exitPage) {
+                        pathHtml += ` → <span class="journey-exit">✕ ${escapeHtml(exitPage)}</span>`;
+                    }
+
+                    const timeStr = journey.total_time ? `${journey.total_time}s` : '-';
                     return `
                         <tr>
-                            <td class="route-cell">${fromRoute}</td>
-                            <td class="route-cell">${toRoute}</td>
-                            <td>${transition.count}</td>
+                            <td>${date}</td>
+                            <td>${pathHtml}</td>
+                            <td>${journey.page_count}</td>
+                            <td>${timeStr}</td>
                         </tr>
                     `;
                 }).join('');
             } else {
-                routeTransitionsBody.innerHTML = '<tr><td colspan="3">No route transition data</td></tr>';
+                journeysBody.innerHTML = '<tr><td colspan="4">No journey data</td></tr>';
             }
         }
 

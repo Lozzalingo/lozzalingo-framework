@@ -1041,7 +1041,7 @@ def get_route_analytics():
 
     conn = get_db_connection(get_analytics_db())
     if not conn:
-        return jsonify({'top_pages': [], 'route_transitions': [], 'session_stats': {'avg_pages_per_session': 0, 'max_pages_per_session': 0}})
+        return jsonify({'top_pages': [], 'user_journeys': [], 'session_stats': {'avg_pages_per_session': 0, 'max_pages_per_session': 0}})
 
     try:
         cursor = conn.cursor()
@@ -1171,25 +1171,82 @@ def get_route_analytics():
                 'avg_time_spent': round(data['avg_time_spent'], 1)
             })
 
-        # Route transitions (navigation paths, exclude localhost)
+        # User journeys — reconstruct page sequences per visitor from page_view/page_exit events
         cursor.execute(f"""
-            SELECT from_route, to_route, COUNT(*) as transitions
+            SELECT fingerprint_hash, url, event_type, timestamp, time_spent_seconds
             FROM analytics_log
-            WHERE event_type = 'route_change'
-            AND from_route IS NOT NULL AND to_route IS NOT NULL
+            WHERE event_type IN ('page_view_client', 'page_exit')
+            AND identity != 'bot'
+            AND fingerprint_hash IS NOT NULL AND fingerprint_hash != ''
             AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
-            GROUP BY from_route, to_route
-            ORDER BY transitions DESC
-            LIMIT 15
+            ORDER BY fingerprint_hash, timestamp
         """)
 
-        route_transitions = []
+        # Group events by fingerprint into sessions (30min gap = new session)
+        from collections import defaultdict
+        visitor_events = defaultdict(list)
         for row in cursor.fetchall():
-            route_transitions.append({
-                'from_route': row[0],
-                'to_route': row[1],
-                'transitions': row[2]
+            visitor_events[row[0]].append({
+                'url': row[1],
+                'event_type': row[2],
+                'timestamp': row[3],
+                'time_spent': row[4]
             })
+
+        user_journeys = []
+        for fp_hash, events in visitor_events.items():
+            # Split into sessions (30min gap between events = new session)
+            sessions = []
+            current_session = []
+            for i, event in enumerate(events):
+                if i > 0:
+                    try:
+                        prev_time = datetime.fromisoformat(events[i-1]['timestamp'])
+                        curr_time = datetime.fromisoformat(event['timestamp'])
+                        if (curr_time - prev_time).total_seconds() > 1800:
+                            if current_session:
+                                sessions.append(current_session)
+                            current_session = []
+                    except (ValueError, TypeError):
+                        pass
+                current_session.append(event)
+            if current_session:
+                sessions.append(current_session)
+
+            for session in sessions:
+                # Build page sequence from page_view_client events only
+                pages = []
+                exit_page = None
+                total_time = 0
+                for event in session:
+                    if event['event_type'] == 'page_view_client':
+                        pages.append(normalize_page_url(event['url']))
+                    elif event['event_type'] == 'page_exit':
+                        exit_page = normalize_page_url(event['url'])
+                        try:
+                            if event['time_spent']:
+                                total_time += float(event['time_spent'])
+                        except (ValueError, TypeError):
+                            pass
+
+                if pages:
+                    # Deduplicate consecutive same-page views
+                    deduped = [pages[0]]
+                    for p in pages[1:]:
+                        if p != deduped[-1]:
+                            deduped.append(p)
+
+                    user_journeys.append({
+                        'pages': deduped,
+                        'page_count': len(deduped),
+                        'exit_page': exit_page,
+                        'timestamp': session[0]['timestamp'],
+                        'total_time': round(total_time) if total_time else None
+                    })
+
+        # Sort by most recent first
+        user_journeys.sort(key=lambda j: j['timestamp'], reverse=True)
+        user_journeys = user_journeys[:20]
 
         # Session analytics (exclude localhost)
         cursor.execute(f"""
@@ -1209,13 +1266,13 @@ def get_route_analytics():
 
         return jsonify({
             'top_pages': top_pages,
-            'route_transitions': route_transitions,
+            'user_journeys': user_journeys,
             'session_stats': session_stats
         })
 
     except Exception as e:
         print(f"Route analytics error: {e}")
-        return jsonify({'top_pages': [], 'route_transitions': [], 'session_stats': {'avg_pages_per_session': 0, 'max_pages_per_session': 0}})
+        return jsonify({'top_pages': [], 'user_journeys': [], 'session_stats': {'avg_pages_per_session': 0, 'max_pages_per_session': 0}})
     finally:
         conn.close()
 
