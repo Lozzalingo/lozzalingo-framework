@@ -1171,15 +1171,36 @@ def get_route_analytics():
                 'avg_time_spent': round(data['avg_time_spent'], 1)
             })
 
+        # Ensure session_id column exists (added in later version)
+        cursor.execute(f"PRAGMA table_info(analytics_log)")
+        existing_cols = {col[1] for col in cursor.fetchall()}
+        has_session_id = 'session_id' in existing_cols
+        if not has_session_id:
+            try:
+                cursor.execute("ALTER TABLE analytics_log ADD COLUMN session_id TEXT")
+                conn.commit()
+                has_session_id = True
+            except Exception:
+                pass
+
         # User journeys — reconstruct page sequences per visitor from page_view/page_exit events
+        if has_session_id:
+            session_id_select = ', session_id'
+            session_id_filter = "OR (session_id IS NOT NULL AND session_id != '')"
+            session_id_order = 'COALESCE(session_id, fingerprint_hash)'
+        else:
+            session_id_select = ''
+            session_id_filter = ''
+            session_id_order = 'fingerprint_hash'
+
         cursor.execute(f"""
-            SELECT fingerprint_hash, url, event_type, timestamp, time_spent_seconds, session_id
+            SELECT fingerprint_hash, url, event_type, timestamp, time_spent_seconds {session_id_select}
             FROM analytics_log
             WHERE event_type IN ('page_view_client', 'page_exit')
             AND identity != 'bot'
-            AND ((fingerprint_hash IS NOT NULL AND fingerprint_hash != '') OR (session_id IS NOT NULL AND session_id != ''))
+            AND ((fingerprint_hash IS NOT NULL AND fingerprint_hash != '') {session_id_filter})
             AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
-            ORDER BY COALESCE(session_id, fingerprint_hash), timestamp
+            ORDER BY {session_id_order}, timestamp
         """)
 
         # Group events: prefer session_id, fall back to fingerprint + 30min gap
@@ -1193,8 +1214,9 @@ def get_route_analytics():
                 'timestamp': row[3],
                 'time_spent': row[4]
             }
-            if row[5]:  # has session_id
-                session_events[row[5]].append(event)
+            sid = row[5] if has_session_id and len(row) > 5 else None
+            if sid:  # has session_id
+                session_events[sid].append(event)
             elif row[0]:  # has fingerprint_hash only
                 fingerprint_events[row[0]].append(event)
 
