@@ -1817,7 +1817,7 @@
                 }
             }
 
-            const timeStr = journey.total_time ? `${journey.total_time}s` : '-';
+            const timeStr = journey.total_time ? `${journey.total_time}s` : '0s';
             return `<tr><td>${date}</td><td>${pathHtml}</td><td>${journey.page_count}</td><td>${timeStr}</td></tr>`;
         }
 
