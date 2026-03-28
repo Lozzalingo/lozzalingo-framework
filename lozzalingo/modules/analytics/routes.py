@@ -1037,7 +1037,14 @@ def get_route_analytics():
     if not is_admin:
         return jsonify({"error": message}), 403
 
-    days = request.args.get('days', 7, type=int)
+    days_param = request.args.get('days', '7')
+    if days_param == 'all':
+        days = 99999
+    else:
+        try:
+            days = int(days_param)
+        except (ValueError, TypeError):
+            days = 7
 
     conn = get_db_connection(get_analytics_db())
     if not conn:
@@ -1245,14 +1252,16 @@ def get_route_analytics():
 
         user_journeys = []
         for session in all_sessions:
-            # Build page sequence from page_view_client events only
+            # Build page sequence and collect timestamps for retrospective time calc
             pages = []
+            page_view_timestamps = []
             exit_page = None
             # Track max exit time per URL (beacons may re-send with updated time)
             exit_times_by_url = {}
             for event in session:
                 if event['event_type'] == 'page_view_client':
                     pages.append(normalize_page_url(event['url']))
+                    page_view_timestamps.append(event['timestamp'])
                 elif event['event_type'] == 'page_exit':
                     exit_page = normalize_page_url(event['url'])
                     try:
@@ -1262,8 +1271,24 @@ def get_route_analytics():
                             exit_times_by_url[url] = max(exit_times_by_url.get(url, 0), t)
                     except (ValueError, TypeError):
                         pass
-            # Total time = sum of max exit time per unique page URL
+
+            # Total time from explicit exit beacons
             total_time = sum(exit_times_by_url.values())
+
+            # Retrospective time: if no exit time data, calculate from gaps
+            # between consecutive page_view_client timestamps
+            if not total_time and len(page_view_timestamps) >= 2:
+                try:
+                    timestamps = [datetime.fromisoformat(t) for t in page_view_timestamps]
+                    retro_time = 0
+                    for i in range(1, len(timestamps)):
+                        gap = (timestamps[i] - timestamps[i-1]).total_seconds()
+                        # Cap individual page time at 15 min (ignore idle gaps)
+                        if gap <= 900:
+                            retro_time += gap
+                    total_time = retro_time
+                except (ValueError, TypeError):
+                    pass
 
             if pages:
                 # Deduplicate consecutive same-page views
