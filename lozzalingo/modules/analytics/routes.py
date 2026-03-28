@@ -1203,7 +1203,10 @@ def get_route_analytics():
         cursor.execute(f"""
             SELECT fingerprint_hash, url, event_type, timestamp, time_spent_seconds {session_id_select}
             FROM analytics_log
-            WHERE event_type IN ('page_view_client', 'page_exit')
+            WHERE (event_type IN ('page_view_client', 'page_exit')
+                   OR event_type LIKE 'button_click_%'
+                   OR event_type LIKE 'link_click_%'
+                   OR event_type = 'internal_link_click')
             AND identity != 'bot'
             AND ((fingerprint_hash IS NOT NULL AND fingerprint_hash != '') {session_id_filter})
             AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
@@ -1252,16 +1255,19 @@ def get_route_analytics():
 
         user_journeys = []
         for session in all_sessions:
-            # Build page sequence and collect timestamps for retrospective time calc
+            # Build page sequence and collect ALL timestamps for time calc
             pages = []
-            page_view_timestamps = []
+            all_timestamps = []  # timestamps from every event type
+            first_page_view_ts = None
             exit_page = None
             # Track max exit time per URL (beacons may re-send with updated time)
             exit_times_by_url = {}
             for event in session:
+                all_timestamps.append(event['timestamp'])
                 if event['event_type'] == 'page_view_client':
                     pages.append(normalize_page_url(event['url']))
-                    page_view_timestamps.append(event['timestamp'])
+                    if first_page_view_ts is None:
+                        first_page_view_ts = event['timestamp']
                 elif event['event_type'] == 'page_exit':
                     exit_page = normalize_page_url(event['url'])
                     try:
@@ -1271,22 +1277,20 @@ def get_route_analytics():
                             exit_times_by_url[url] = max(exit_times_by_url.get(url, 0), t)
                     except (ValueError, TypeError):
                         pass
+                # clicks/interactions just contribute timestamps (handled above)
 
             # Total time from explicit exit beacons
             total_time = sum(exit_times_by_url.values())
 
-            # Retrospective time: if no exit time data, calculate from gaps
-            # between consecutive page_view_client timestamps
-            if not total_time and len(page_view_timestamps) >= 2:
+            # Retrospective: if no exit beacon time, use span from first
+            # page_view to last event (click, link, page_view, anything)
+            if not total_time and first_page_view_ts and len(all_timestamps) >= 2:
                 try:
-                    timestamps = [datetime.fromisoformat(t) for t in page_view_timestamps]
-                    retro_time = 0
-                    for i in range(1, len(timestamps)):
-                        gap = (timestamps[i] - timestamps[i-1]).total_seconds()
-                        # Cap individual page time at 15 min (ignore idle gaps)
-                        if gap <= 900:
-                            retro_time += gap
-                    total_time = retro_time
+                    first_ts = datetime.fromisoformat(first_page_view_ts)
+                    last_ts = datetime.fromisoformat(all_timestamps[-1])
+                    gap = (last_ts - first_ts).total_seconds()
+                    if 0 < gap <= 900:
+                        total_time = gap
                 except (ValueError, TypeError):
                     pass
 
