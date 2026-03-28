@@ -435,6 +435,9 @@
                                 </tbody>
                                 </table>
                             </div>
+                            <div id="loadMoreJourneys" style="text-align: center; padding: 12px; display: none;">
+                                <button name="load_more_journeys" class="refresh-btn" onclick="loadMoreJourneys()">Load More</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1764,54 +1767,84 @@
             }
 
             // Update user journeys table
+            window._journeyOffset = 0;
             const journeysBody = document.getElementById('userJourneys');
             if (routeData && routeData.user_journeys && routeData.user_journeys.length > 0) {
-                journeysBody.innerHTML = routeData.user_journeys.map(journey => {
-                    const date = escapeHtml(new Date(journey.timestamp).toLocaleDateString());
-                    // Show path as arrow-separated page names, strip domain
-                    const pages = journey.pages.map(url => {
-                        try {
-                            const path = new URL(url).pathname;
-                            return path === '/' ? 'Home' : path.replace(/^\/|\/$/g, '').split('/').pop();
-                        } catch { return url; }
-                    });
-                    const exitPage = journey.exit_page ? (() => {
-                        try {
-                            const path = new URL(journey.exit_page).pathname;
-                            return path === '/' ? 'Home' : path.replace(/^\/|\/$/g, '').split('/').pop();
-                        } catch { return journey.exit_page; }
-                    })() : null;
-
-                    // If exit page matches the last visited page, mark it as exit instead of duplicating
-                    const lastPage = pages[pages.length - 1];
-                    const exitMatchesLast = exitPage && exitPage === lastPage;
-
-                    let pathHtml;
-                    if (exitMatchesLast) {
-                        // Mark the last page as the exit page
-                        pathHtml = pages.slice(0, -1).map(p => `<span class="journey-page">${escapeHtml(p)}</span>`).join(' → ');
-                        if (pathHtml) pathHtml += ' → ';
-                        pathHtml += `<span class="journey-exit">${escapeHtml(exitPage)} ✕</span>`;
-                    } else {
-                        pathHtml = pages.map(p => `<span class="journey-page">${escapeHtml(p)}</span>`).join(' → ');
-                        if (exitPage) {
-                            pathHtml += ` → <span class="journey-exit">${escapeHtml(exitPage)} ✕</span>`;
-                        }
-                    }
-
-                    const timeStr = journey.total_time ? `${journey.total_time}s` : '-';
-                    return `
-                        <tr>
-                            <td>${date}</td>
-                            <td>${pathHtml}</td>
-                            <td>${journey.page_count}</td>
-                            <td>${timeStr}</td>
-                        </tr>
-                    `;
-                }).join('');
+                journeysBody.innerHTML = routeData.user_journeys.map(renderJourneyRow).join('');
+                window._journeyOffset = routeData.user_journeys.length;
+                // Show/hide Load More button
+                const loadMoreBtn = document.getElementById('loadMoreJourneys');
+                if (routeData.total_journeys > (window._journeyOffset || 0) + routeData.user_journeys.length) {
+                    loadMoreBtn.style.display = 'block';
+                    window._journeyOffset = (window._journeyOffset || 0) + routeData.user_journeys.length;
+                } else {
+                    loadMoreBtn.style.display = 'none';
+                }
             } else {
                 journeysBody.innerHTML = '<tr><td colspan="4">No journey data</td></tr>';
+                document.getElementById('loadMoreJourneys').style.display = 'none';
             }
+        }
+
+        // Journey offset tracker
+        window._journeyOffset = 0;
+
+        function renderJourneyRow(journey) {
+            const date = escapeHtml(new Date(journey.timestamp).toLocaleDateString());
+            const pages = journey.pages.map(url => {
+                try {
+                    const path = new URL(url).pathname;
+                    return path === '/' ? 'Home' : path.replace(/^\/|\/$/g, '').split('/').pop();
+                } catch { return url; }
+            });
+            const exitPage = journey.exit_page ? (() => {
+                try {
+                    const path = new URL(journey.exit_page).pathname;
+                    return path === '/' ? 'Home' : path.replace(/^\/|\/$/g, '').split('/').pop();
+                } catch { return journey.exit_page; }
+            })() : null;
+
+            const lastPage = pages[pages.length - 1];
+            const exitMatchesLast = exitPage && exitPage === lastPage;
+            let pathHtml;
+            if (exitMatchesLast) {
+                pathHtml = pages.slice(0, -1).map(p => `<span class="journey-page">${escapeHtml(p)}</span>`).join(' → ');
+                if (pathHtml) pathHtml += ' → ';
+                pathHtml += `<span class="journey-exit">${escapeHtml(exitPage)} ✕</span>`;
+            } else {
+                pathHtml = pages.map(p => `<span class="journey-page">${escapeHtml(p)}</span>`).join(' → ');
+                if (exitPage) {
+                    pathHtml += ` → <span class="journey-exit">${escapeHtml(exitPage)} ✕</span>`;
+                }
+            }
+
+            const timeStr = journey.total_time ? `${journey.total_time}s` : '-';
+            return `<tr><td>${date}</td><td>${pathHtml}</td><td>${journey.page_count}</td><td>${timeStr}</td></tr>`;
+        }
+
+        async function loadMoreJourneys() {
+            const btn = document.querySelector('#loadMoreJourneys button');
+            btn.textContent = 'Loading...';
+            btn.disabled = true;
+            try {
+                const timestamp = Date.now();
+                const res = await fetch(`/admin/analytics/api/route-analytics?days=${currentTimeRange}&journey_offset=${window._journeyOffset}&_t=${timestamp}`);
+                const data = await res.json();
+                if (data.user_journeys && data.user_journeys.length > 0) {
+                    const journeysBody = document.getElementById('userJourneys');
+                    journeysBody.innerHTML += data.user_journeys.map(renderJourneyRow).join('');
+                    window._journeyOffset += data.user_journeys.length;
+                    if (window._journeyOffset >= data.total_journeys) {
+                        document.getElementById('loadMoreJourneys').style.display = 'none';
+                    }
+                } else {
+                    document.getElementById('loadMoreJourneys').style.display = 'none';
+                }
+            } catch (e) {
+                console.error('Error loading more journeys:', e);
+            }
+            btn.textContent = 'Load More';
+            btn.disabled = false;
         }
 
         function updateTopButtonsChart(buttonData) {

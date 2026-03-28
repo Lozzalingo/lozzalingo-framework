@@ -1244,9 +1244,12 @@ def get_route_analytics():
                         'total_time': round(total_time) if total_time else None
                     })
 
-        # Sort by most recent first
+        # Sort by most recent first, support pagination
         user_journeys.sort(key=lambda j: j['timestamp'], reverse=True)
-        user_journeys = user_journeys[:20]
+        journey_offset = request.args.get('journey_offset', 0, type=int)
+        journey_limit = request.args.get('journey_limit', 20, type=int)
+        total_journeys = len(user_journeys)
+        user_journeys = user_journeys[journey_offset:journey_offset + journey_limit]
 
         # Session analytics (exclude localhost)
         cursor.execute(f"""
@@ -1267,6 +1270,7 @@ def get_route_analytics():
         return jsonify({
             'top_pages': top_pages,
             'user_journeys': user_journeys,
+            'total_journeys': total_journeys,
             'session_stats': session_stats
         })
 

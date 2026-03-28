@@ -766,9 +766,13 @@ class AnalyticsClient {
             }
         });
 
-        // Track page exit — MUST be synchronous; async/await prevents sendBeacon from firing
-        // before the page unloads. deviceDetails is already cached on this.deviceDetails.
-        window.addEventListener('beforeunload', () => {
+        // Track page exit — send beacon on both beforeunload and visibilitychange
+        // (mobile browsers often skip beforeunload but fire visibilitychange to hidden)
+        this._exitBeaconSent = false;
+
+        const sendExitBeacon = () => {
+            if (this._exitBeaconSent) return;
+            this._exitBeaconSent = true;
             try {
                 const activeTimeMs = this.getActiveTimeMs();
                 const exitData = {
@@ -785,6 +789,13 @@ class AnalyticsClient {
                 navigator.sendBeacon('/admin/analytics/api/log-interaction', blob);
             } catch (e) {
                 console.warn('sendBeacon failed:', e);
+            }
+        };
+
+        window.addEventListener('beforeunload', sendExitBeacon);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                sendExitBeacon();
             }
         });
 
