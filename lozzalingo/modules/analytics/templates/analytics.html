@@ -1782,9 +1782,21 @@
                         } catch { return journey.exit_page; }
                     })() : null;
 
-                    let pathHtml = pages.map(p => `<span class="journey-page">${escapeHtml(p)}</span>`).join(' → ');
-                    if (exitPage) {
-                        pathHtml += ` → <span class="journey-exit">✕ ${escapeHtml(exitPage)}</span>`;
+                    // If exit page matches the last visited page, mark it as exit instead of duplicating
+                    const lastPage = pages[pages.length - 1];
+                    const exitMatchesLast = exitPage && exitPage === lastPage;
+
+                    let pathHtml;
+                    if (exitMatchesLast) {
+                        // Mark the last page as the exit page
+                        pathHtml = pages.slice(0, -1).map(p => `<span class="journey-page">${escapeHtml(p)}</span>`).join(' → ');
+                        if (pathHtml) pathHtml += ' → ';
+                        pathHtml += `<span class="journey-exit">${escapeHtml(exitPage)} ✕</span>`;
+                    } else {
+                        pathHtml = pages.map(p => `<span class="journey-page">${escapeHtml(p)}</span>`).join(' → ');
+                        if (exitPage) {
+                            pathHtml += ` → <span class="journey-exit">${escapeHtml(exitPage)} ✕</span>`;
+                        }
                     }
 
                     const timeStr = journey.total_time ? `${journey.total_time}s` : '-';
