@@ -14,6 +14,17 @@ class AnalyticsClient {
             this._sessionPageCount = 1;
         }
 
+        // Generate or retrieve a session ID (persists across page navigations within the same tab session)
+        try {
+            this._sessionId = sessionStorage.getItem('_lz_session_id');
+            if (!this._sessionId) {
+                this._sessionId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+                sessionStorage.setItem('_lz_session_id', this._sessionId);
+            }
+        } catch (e) {
+            this._sessionId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+        }
+
         // Store fingerprint promise
         this.rateLimiterByDevice = this.generateUltraStableFingerprint();
 
@@ -655,7 +666,8 @@ class AnalyticsClient {
             device_os: deviceInfo.device_os,
             device_brand: deviceInfo.device_brand,
             device_confidence: deviceInfo.device_confidence,
-            session_page_count: this._sessionPageCount || 1
+            session_page_count: this._sessionPageCount || 1,
+            session_id: this._sessionId || null
         };
     }
 
@@ -779,7 +791,8 @@ class AnalyticsClient {
                     type: 'page_exit',
                     deviceDetails: this.deviceDetails || null,
                     time_spent_seconds: Math.round(activeTimeMs / 1000),
-                    url: window.location.href
+                    url: window.location.href,
+                    session_id: this._sessionId || null
                 };
 
                 const blob = new Blob([JSON.stringify(exitData)], {

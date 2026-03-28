@@ -1173,29 +1173,36 @@ def get_route_analytics():
 
         # User journeys — reconstruct page sequences per visitor from page_view/page_exit events
         cursor.execute(f"""
-            SELECT fingerprint_hash, url, event_type, timestamp, time_spent_seconds
+            SELECT fingerprint_hash, url, event_type, timestamp, time_spent_seconds, session_id
             FROM analytics_log
             WHERE event_type IN ('page_view_client', 'page_exit')
             AND identity != 'bot'
-            AND fingerprint_hash IS NOT NULL AND fingerprint_hash != ''
+            AND ((fingerprint_hash IS NOT NULL AND fingerprint_hash != '') OR (session_id IS NOT NULL AND session_id != ''))
             AND datetime(timestamp) >= datetime('now', '-{days} days') {local_ip_filter}
-            ORDER BY fingerprint_hash, timestamp
+            ORDER BY COALESCE(session_id, fingerprint_hash), timestamp
         """)
 
-        # Group events by fingerprint into sessions (30min gap = new session)
+        # Group events: prefer session_id, fall back to fingerprint + 30min gap
         from collections import defaultdict
-        visitor_events = defaultdict(list)
+        session_events = defaultdict(list)  # session_id -> events
+        fingerprint_events = defaultdict(list)  # fingerprint_hash -> events (no session_id)
         for row in cursor.fetchall():
-            visitor_events[row[0]].append({
+            event = {
                 'url': row[1],
                 'event_type': row[2],
                 'timestamp': row[3],
                 'time_spent': row[4]
-            })
+            }
+            if row[5]:  # has session_id
+                session_events[row[5]].append(event)
+            elif row[0]:  # has fingerprint_hash only
+                fingerprint_events[row[0]].append(event)
 
-        user_journeys = []
-        for fp_hash, events in visitor_events.items():
-            # Split into sessions (30min gap between events = new session)
+        # Sessions from session_id are already grouped — no gap splitting needed
+        all_sessions = list(session_events.values())
+
+        # For fingerprint-only data, split into sessions by 30min gap
+        for fp_hash, events in fingerprint_events.items():
             sessions = []
             current_session = []
             for i, event in enumerate(events):
@@ -1212,37 +1219,40 @@ def get_route_analytics():
                 current_session.append(event)
             if current_session:
                 sessions.append(current_session)
+            all_sessions.extend(sessions)
 
-            for session in sessions:
-                # Build page sequence from page_view_client events only
-                pages = []
-                exit_page = None
-                total_time = 0
-                for event in session:
-                    if event['event_type'] == 'page_view_client':
-                        pages.append(normalize_page_url(event['url']))
-                    elif event['event_type'] == 'page_exit':
-                        exit_page = normalize_page_url(event['url'])
-                        try:
-                            if event['time_spent']:
-                                total_time += float(event['time_spent'])
-                        except (ValueError, TypeError):
-                            pass
+        user_journeys = []
+        for session in all_sessions:
+            # Build page sequence from page_view_client events only
+            pages = []
+            exit_page = None
+            total_time = 0
+            for event in session:
+                if event['event_type'] == 'page_view_client':
+                    pages.append(normalize_page_url(event['url']))
+                elif event['event_type'] == 'page_exit':
+                    exit_page = normalize_page_url(event['url'])
+                # Sum time from any event that has it (page_exit or page_view_client)
+                try:
+                    if event['time_spent']:
+                        total_time += float(event['time_spent'])
+                except (ValueError, TypeError):
+                    pass
 
-                if pages:
-                    # Deduplicate consecutive same-page views
-                    deduped = [pages[0]]
-                    for p in pages[1:]:
-                        if p != deduped[-1]:
-                            deduped.append(p)
+            if pages:
+                # Deduplicate consecutive same-page views
+                deduped = [pages[0]]
+                for p in pages[1:]:
+                    if p != deduped[-1]:
+                        deduped.append(p)
 
-                    user_journeys.append({
-                        'pages': deduped,
-                        'page_count': len(deduped),
-                        'exit_page': exit_page,
-                        'timestamp': session[0]['timestamp'],
-                        'total_time': round(total_time) if total_time else None
-                    })
+                user_journeys.append({
+                    'pages': deduped,
+                    'page_count': len(deduped),
+                    'exit_page': exit_page,
+                    'timestamp': session[0]['timestamp'],
+                    'total_time': round(total_time) if total_time else None
+                })
 
         # Sort by most recent first, support pagination
         user_journeys.sort(key=lambda j: j['timestamp'], reverse=True)

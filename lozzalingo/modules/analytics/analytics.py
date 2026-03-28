@@ -365,6 +365,7 @@ class Analytics:
             navigation_type = None
             time_spent_seconds = None
             session_page_count = None
+            session_id = None
 
             if additional_data:
                 device_confidence = additional_data.get('device_confidence')
@@ -385,6 +386,7 @@ class Analytics:
                     except (ValueError, TypeError):
                         pass
                 session_page_count = additional_data.get('session_page_count')
+                session_id = additional_data.get('session_id')
 
             analytics_db = get_analytics_db()
             analytics_table = get_analytics_table()
@@ -422,9 +424,16 @@ class Analytics:
                         to_route TEXT,
                         navigation_type TEXT,
                         time_spent_seconds TEXT,
-                        session_page_count TEXT
+                        session_page_count TEXT,
+                        session_id TEXT
                     )
                 """)
+
+                # Auto-add session_id column if missing (existing DBs)
+                cursor.execute(f"PRAGMA table_info({analytics_table})")
+                existing_cols = {col[1] for col in cursor.fetchall()}
+                if 'session_id' not in existing_cols:
+                    cursor.execute(f"ALTER TABLE {analytics_table} ADD COLUMN session_id TEXT")
 
                 # First, let's verify the table structure
                 cursor.execute(f"PRAGMA table_info({analytics_table})")
@@ -437,8 +446,8 @@ class Analytics:
                     (ip, country, region, city, timestamp, user_agent, referer, fingerprint,
                      event_type, interaction_type, additional_data, identity, fingerprint_hash,
                      device_type, device_confidence, device_os, device_brand, url, from_route,
-                     to_route, navigation_type, time_spent_seconds, session_page_count)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     to_route, navigation_type, time_spent_seconds, session_page_count, session_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
                 
                 # Convert fingerprint dict to JSON string for storage
@@ -449,7 +458,7 @@ class Analytics:
                     timestamp, user_agent, referer, fingerprint_str,
                     event_type, interaction_type, additional_data_json, identity, hashed_fingerprint,
                     device_type, device_confidence, device_os, device_brand, url, from_route,
-                    to_route, navigation_type, time_spent_seconds, session_page_count
+                    to_route, navigation_type, time_spent_seconds, session_page_count, session_id
                 )
                 
                 print(f"[DEBUG ANALYTICS] Executing insert with {len(values)} values")
@@ -509,9 +518,16 @@ class Analytics:
                         to_route TEXT,
                         navigation_type TEXT,
                         time_spent_seconds TEXT,
-                        session_page_count TEXT
+                        session_page_count TEXT,
+                        session_id TEXT
                     )
                 """)
+
+                # Auto-add session_id column if missing (existing DBs)
+                cursor.execute(f"PRAGMA table_info({analytics_table})")
+                existing_cols = {col[1] for col in cursor.fetchall()}
+                if 'session_id' not in existing_cols:
+                    cursor.execute(f"ALTER TABLE {analytics_table} ADD COLUMN session_id TEXT")
 
                 # Create indexes for better performance
                 cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_timestamp ON {analytics_table}(timestamp)")

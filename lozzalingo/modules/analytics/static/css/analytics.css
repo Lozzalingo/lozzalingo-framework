@@ -248,22 +248,7 @@
             grid-column: 1 / -1;
         }
 
-        .journey-page {
-            display: inline-block;
-            background: var(--bg-card, #1e293b);
-            border: 1px solid var(--border, #334155);
-            border-radius: 4px;
-            padding: 2px 6px;
-            font-size: 0.85em;
-        }
-
         .journey-exit {
-            display: inline-block;
-            background: rgba(239, 68, 68, 0.15);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 4px;
-            padding: 2px 6px;
-            font-size: 0.85em;
             color: #ef4444;
         }
 

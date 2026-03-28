@@ -1774,9 +1774,8 @@
                 window._journeyOffset = routeData.user_journeys.length;
                 // Show/hide Load More button
                 const loadMoreBtn = document.getElementById('loadMoreJourneys');
-                if (routeData.total_journeys > (window._journeyOffset || 0) + routeData.user_journeys.length) {
+                if (routeData.total_journeys > window._journeyOffset) {
                     loadMoreBtn.style.display = 'block';
-                    window._journeyOffset = (window._journeyOffset || 0) + routeData.user_journeys.length;
                 } else {
                     loadMoreBtn.style.display = 'none';
                 }
@@ -1808,11 +1807,11 @@
             const exitMatchesLast = exitPage && exitPage === lastPage;
             let pathHtml;
             if (exitMatchesLast) {
-                pathHtml = pages.slice(0, -1).map(p => `<span class="journey-page">${escapeHtml(p)}</span>`).join(' → ');
+                pathHtml = pages.slice(0, -1).map(p => escapeHtml(p)).join(' → ');
                 if (pathHtml) pathHtml += ' → ';
                 pathHtml += `<span class="journey-exit">${escapeHtml(exitPage)} ✕</span>`;
             } else {
-                pathHtml = pages.map(p => `<span class="journey-page">${escapeHtml(p)}</span>`).join(' → ');
+                pathHtml = pages.map(p => escapeHtml(p)).join(' → ');
                 if (exitPage) {
                     pathHtml += ` → <span class="journey-exit">${escapeHtml(exitPage)} ✕</span>`;
                 }
