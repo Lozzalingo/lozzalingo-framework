@@ -57,6 +57,7 @@ def api_orders():
 
         has_receipt_id = 'receipt_id' in available_columns
         has_product_id = 'product_id' in available_columns
+        has_shop = 'shop' in available_columns
 
         select_cols = ['id']
         if has_receipt_id:
@@ -67,6 +68,8 @@ def api_orders():
             'shipping_name', 'shipping_line1', 'shipping_line2', 'shipping_city',
             'shipping_state', 'shipping_postal_code', 'shipping_country'
         ]
+        if has_shop:
+            select_cols.append('shop')
 
         cursor.execute(f'''
             SELECT {', '.join(select_cols)}
@@ -95,6 +98,9 @@ def api_orders():
             ship_state = row[idx]; idx += 1
             ship_postal = row[idx]; idx += 1
             ship_country = row[idx]; idx += 1
+            order_shop = row[idx] if has_shop else None
+            if has_shop:
+                idx += 1
 
             # Format shipping address for display
             shipping_parts = [
@@ -110,7 +116,7 @@ def api_orders():
             # Get order items for this order
             order_items = OrderItem.get_by_order_id(order_id)
             product_names = []
-            shop_name = None
+            shop_name = order_shop  # Prefer shop from the order row (set by insert_order for Etsy)
 
             for item in order_items:
                 product = Product.get_by_id(item.product_id)
@@ -121,7 +127,7 @@ def api_orders():
                     if item.quantity > 1:
                         item_name += f" x{item.quantity}"
                     product_names.append(item_name)
-                    # Get shop_name from product if this is an Etsy order
+                    # Fall back to shop_name from product if order has no shop
                     if not shop_name and hasattr(product, 'shop_name'):
                         shop_name = product.shop_name
 
@@ -135,7 +141,8 @@ def api_orders():
                     product = Product.get_by_id(prod_row[0])
                     if product:
                         product_names.append(product.name)
-                        shop_name = getattr(product, 'shop_name', None)
+                        if not shop_name:
+                            shop_name = getattr(product, 'shop_name', None)
 
             orders.append({
                 'id': order_id,
@@ -956,22 +963,24 @@ def api_send_etsy_shipping_update():
         if not shipped_at:
             return jsonify({'success': False, 'error': 'Order has not been shipped yet'}), 400
 
-        # Get product data (sku, shop_name) from merchandise.db
-        sku = None
-        shop = None
-        if product_id:
-            product = Product.get_by_id(product_id)
-            if product:
-                sku = getattr(product, 'sku', None)
-                shop = getattr(product, 'shop_name', None)
+        # Get sku and shop - first from the order itself, then fall back to product
+        sku = getattr(order, 'sku', None)
+        shop = getattr(order, 'shop', None) or getattr(order, 'shop_name', None)
+        if not sku or not shop:
+            if product_id:
+                product = Product.get_by_id(product_id)
+                if product:
+                    sku = sku or getattr(product, 'sku', None)
+                    shop = shop or getattr(product, 'shop_name', None)
 
         # Get listing_id - first from order, then fall back to partners table
         listing_id = getattr(order, 'listing_id', None)
         if not listing_id:
             try:
-                partners_conn = sqlite3.connect(DB.DESIGN_ENGINE if hasattr(DB, 'DESIGN_ENGINE') else 'databases/design_engine.db')
+                partners_db = DB.MERCHANDISE if hasattr(DB, 'MERCHANDISE') else (DB.DESIGN_ENGINE if hasattr(DB, 'DESIGN_ENGINE') else 'databases/design_engine.db')
+                partners_conn = sqlite3.connect(partners_db)
                 partners_cursor = partners_conn.cursor()
-                partners_cursor.execute("SELECT listing_id FROM partners WHERE product_id = ?", (product_id,))
+                partners_cursor.execute("SELECT listing_id FROM partners WHERE id = ?", (product_id,))
                 partner_row = partners_cursor.fetchone()
                 partners_conn.close()
                 if partner_row:
