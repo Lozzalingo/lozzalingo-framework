@@ -67,9 +67,10 @@ def _get_category_maps():
 
 
 def _get_gallery_excludes():
-    """Returns list of category names where gallery=False."""
+    """Returns list of category names that should be excluded from listings.
+    Checks for hidden=True or gallery=False on each category."""
     categories = _get_categories_config()
-    return [c['name'] for c in categories if not c.get('gallery', True)]
+    return [c['name'] for c in categories if c.get('hidden', False) or not c.get('gallery', True)]
 
 
 def _get_default_category_slug():

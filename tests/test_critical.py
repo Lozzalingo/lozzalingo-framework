@@ -165,6 +165,7 @@ EXPECTED_MODULES = [
     "quick_links",
     "ops",
     "campaigns",
+    "client_error",
 ]
 
 
