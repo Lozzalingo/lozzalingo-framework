@@ -112,6 +112,82 @@ def _get_base_url():
         return ''
 
 
+def ensure_shop_name_column():
+    """Ensure every product has a correct shop_name.
+
+    - Adds the shop_name column if missing
+    - Adds a product_type column if missing (for sites that stored type data in shop_name)
+    - Migrates misused shop_name values to product_type
+    - Sets shop_name to EMAIL_BRAND_NAME on all rows that are empty/NULL
+    """
+    merch_db = _get_merchandise_db()
+    if not merch_db:
+        return
+
+    brand = (
+        current_app.config.get('EMAIL_BRAND_NAME')
+        or current_app.config.get('brand_name')
+        or ''
+    )
+    if not brand:
+        return
+
+    try:
+        conn = sqlite3.connect(merch_db)
+        cursor = conn.cursor()
+
+        cursor.execute("PRAGMA table_info(products)")
+        columns = {row[1] for row in cursor.fetchall()}
+
+        # Add shop_name column if missing
+        if 'shop_name' not in columns:
+            print(f"[MerchandisePublic] Adding shop_name column to products table")
+            cursor.execute('ALTER TABLE products ADD COLUMN shop_name TEXT')
+            columns.add('shop_name')
+
+        # Add product_type column if missing (used by sites that need type filtering)
+        if 'product_type' not in columns:
+            cursor.execute('ALTER TABLE products ADD COLUMN product_type TEXT')
+            columns.add('product_type')
+
+        # Migrate: if shop_name contains product type data (not the brand name),
+        # move it to product_type and clear shop_name so it gets set correctly below.
+        # Product type values are lowercase identifiers like 'blend', 'single_origin', 'decaf'.
+        # Real shop names contain spaces or capitals (e.g. 'Crowd Sauced', 'Mario Pinto MMA').
+        cursor.execute('''
+            UPDATE products
+            SET product_type = shop_name, shop_name = NULL
+            WHERE shop_name IS NOT NULL
+            AND shop_name != ''
+            AND shop_name != ?
+            AND shop_name = LOWER(shop_name)
+            AND shop_name NOT LIKE '% %'
+            AND product_type IS NULL
+        ''', (brand,))
+        if cursor.rowcount > 0:
+            print(f"[MerchandisePublic] Migrated {cursor.rowcount} product type value(s) from shop_name to product_type")
+
+        # Fill any empty/NULL shop_name rows with the brand name
+        cursor.execute(
+            "UPDATE products SET shop_name = ? WHERE shop_name IS NULL OR shop_name = ''",
+            (brand,)
+        )
+        if cursor.rowcount > 0:
+            print(f"[MerchandisePublic] Set shop_name='{brand}' on {cursor.rowcount} product(s)")
+
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[MerchandisePublic] Error ensuring shop_name: {e}")
+
+
+@merchandise_public_bp.record_once
+def on_register(state):
+    """Run shop_name migration when the blueprint is registered."""
+    with state.app.app_context():
+        ensure_shop_name_column()
+
+
 @merchandise_public_bp.route('/embed', methods=['GET', 'OPTIONS'])
 @cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=False)
 def products_embed():
@@ -204,17 +280,6 @@ def products_embed():
 
         base_url = _get_base_url()
 
-        # Fallback shop name when DB column is missing or empty
-        default_shop_name = ''
-        try:
-            default_shop_name = (
-                current_app.config.get('EMAIL_BRAND_NAME')
-                or current_app.config.get('brand_name')
-                or ''
-            )
-        except RuntimeError:
-            pass
-
         products = []
 
         for row in rows:
@@ -282,7 +347,7 @@ def products_embed():
                 'limited_edition': bool(_get(row, 'limited_edition', False)),
                 'is_preorder': bool(row['is_preorder']),
                 'category': _get(row, 'category', ''),
-                'shop_name': _get(row, 'shop_name', '') or default_shop_name,
+                'shop_name': _get(row, 'shop_name', ''),
                 'color_count': color_count,
             })
 
