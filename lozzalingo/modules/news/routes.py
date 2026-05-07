@@ -99,6 +99,8 @@ def init_news_db():
                 ('crossposted_twitter', 'BOOLEAN DEFAULT 0'),
                 ('crossposted_threads', 'BOOLEAN DEFAULT 0'),
                 ('image_position', 'TEXT DEFAULT "center"'),
+                ('ads_enabled', 'BOOLEAN DEFAULT 1'),
+                ('ads_shops', 'TEXT'),
             ]
             for col_name, col_type in new_columns:
                 if col_name not in columns:
@@ -183,7 +185,8 @@ def get_all_articles_db(status=None, category_name=None, exclude_categories=None
                        excerpt, meta_title, meta_description, author_name, author_email,
                        category_name, source_id, source_url,
                        crossposted_linkedin, crossposted_medium, crossposted_substack,
-                       crossposted_twitter, crossposted_threads, image_position
+                       crossposted_twitter, crossposted_threads, image_position,
+                       ads_enabled, ads_shops
                 FROM news_articles{where_clause}
                 ORDER BY created_at DESC
             ''', params)
@@ -216,6 +219,8 @@ def get_all_articles_db(status=None, category_name=None, exclude_categories=None
                 d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
                 d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
                 d['image_position'] = _normalize_pos(row[22] if len(row) > 22 else None)
+                d['ads_enabled'] = bool(row[23]) if len(row) > 23 and row[23] is not None else True
+                d['ads_shops'] = row[24] if len(row) > 24 else None
                 articles.append(d)
             return articles
     except Exception as e:
@@ -225,7 +230,8 @@ def get_all_articles_db(status=None, category_name=None, exclude_categories=None
 def create_article_db(title, content, image_url=None, status='draft',
                       excerpt=None, meta_title=None, meta_description=None,
                       author_name=None, author_email=None, category_name=None,
-                      source_id=None, source_url=None, image_position=None):
+                      source_id=None, source_url=None, image_position=None,
+                      ads_enabled=True, ads_shops=None):
     """Create new article in database"""
     news_db = get_db_config()
     db_connect = get_db_connection()
@@ -238,11 +244,13 @@ def create_article_db(title, content, image_url=None, status='draft',
             cursor.execute('''
                 INSERT INTO news_articles (title, slug, content, image_url, status,
                     excerpt, meta_title, meta_description, author_name, author_email,
-                    category_name, source_id, source_url, image_position)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    category_name, source_id, source_url, image_position,
+                    ads_enabled, ads_shops)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (title, slug, content, image_url, status,
                   excerpt, meta_title, meta_description, author_name, author_email,
-                  category_name, source_id, source_url, image_position or 'center'))
+                  category_name, source_id, source_url, image_position or 'center',
+                  1 if ads_enabled else 0, ads_shops))
             conn.commit()
             return cursor.lastrowid, slug
     except Exception as e:
@@ -252,7 +260,8 @@ def create_article_db(title, content, image_url=None, status='draft',
 def update_article_db(article_id, title, content, image_url=None, status=None,
                       excerpt=None, meta_title=None, meta_description=None,
                       author_name=None, author_email=None, category_name=None,
-                      source_id=None, source_url=None, image_position=None):
+                      source_id=None, source_url=None, image_position=None,
+                      ads_enabled=None, ads_shops=None):
     """Update existing article"""
     news_db = get_db_config()
     db_connect = get_db_connection()
@@ -292,12 +301,15 @@ def update_article_db(article_id, title, content, image_url=None, status=None,
                     excerpt = ?, meta_title = ?, meta_description = ?,
                     author_name = ?, author_email = ?, category_name = ?,
                     source_id = ?, source_url = ?, image_position = ?,
+                    ads_enabled = ?, ads_shops = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (title.strip(), slug, content.strip(), image_url, status,
                   excerpt, meta_title, meta_description,
                   author_name, author_email, category_name,
-                  source_id, source_url, image_position or 'center', article_id))
+                  source_id, source_url, image_position or 'center',
+                  1 if ads_enabled is None or ads_enabled else 0,
+                  ads_shops, article_id))
             conn.commit()
 
             return cursor.rowcount > 0
@@ -333,7 +345,8 @@ def get_article_db(article_id):
                        excerpt, meta_title, meta_description, author_name, author_email,
                        category_name, source_id, source_url,
                        crossposted_linkedin, crossposted_medium, crossposted_substack,
-                       crossposted_twitter, crossposted_threads, image_position
+                       crossposted_twitter, crossposted_threads, image_position,
+                       ads_enabled, ads_shops
                 FROM news_articles WHERE id = ?
             ''', (article_id,))
             row = cursor.fetchone()
@@ -364,6 +377,8 @@ def get_article_db(article_id):
                 d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
                 d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
                 d['image_position'] = _normalize_pos(row[22] if len(row) > 22 else None)
+                d['ads_enabled'] = bool(row[23]) if len(row) > 23 and row[23] is not None else True
+                d['ads_shops'] = row[24] if len(row) > 24 else None
                 return d
             return None
     except Exception as e:
@@ -383,7 +398,8 @@ def get_article_by_slug_db(slug):
                        excerpt, meta_title, meta_description, author_name, author_email,
                        category_name, source_id, source_url,
                        crossposted_linkedin, crossposted_medium, crossposted_substack,
-                       crossposted_twitter, crossposted_threads, image_position
+                       crossposted_twitter, crossposted_threads, image_position,
+                       ads_enabled, ads_shops
                 FROM news_articles WHERE slug = ?
             ''', (slug,))
             row = cursor.fetchone()
@@ -414,6 +430,8 @@ def get_article_by_slug_db(slug):
                 d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
                 d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
                 d['image_position'] = _normalize_pos(row[22] if len(row) > 22 else None)
+                d['ads_enabled'] = bool(row[23]) if len(row) > 23 and row[23] is not None else True
+                d['ads_shops'] = row[24] if len(row) > 24 else None
                 return d
             return None
     except Exception as e:
@@ -536,6 +554,8 @@ def create_article():
         source_id = data.get('source_id') or None
         source_url = data.get('source_url') or None
         image_position = data.get('image_position') or 'center'
+        ads_enabled = data.get('ads_enabled', True)
+        ads_shops = data.get('ads_shops') or None
 
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
@@ -544,7 +564,8 @@ def create_article():
             title, content, image_url, status,
             excerpt=excerpt, meta_title=meta_title, meta_description=meta_description,
             author_name=author_name, author_email=author_email, category_name=category_name,
-            source_id=source_id, source_url=source_url, image_position=image_position
+            source_id=source_id, source_url=source_url, image_position=image_position,
+            ads_enabled=ads_enabled, ads_shops=ads_shops
         )
 
         return jsonify({
@@ -580,6 +601,8 @@ def update_article(article_id):
         source_id = data.get('source_id') or None
         source_url = data.get('source_url') or None
         image_position = data.get('image_position') or 'center'
+        ads_enabled = data.get('ads_enabled', True)
+        ads_shops = data.get('ads_shops') or None
 
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
@@ -588,7 +611,8 @@ def update_article(article_id):
             article_id, title, content, image_url, status,
             excerpt=excerpt, meta_title=meta_title, meta_description=meta_description,
             author_name=author_name, author_email=author_email, category_name=category_name,
-            source_id=source_id, source_url=source_url, image_position=image_position
+            source_id=source_id, source_url=source_url, image_position=image_position,
+            ads_enabled=ads_enabled, ads_shops=ads_shops
         )
 
         if success:
@@ -627,6 +651,22 @@ def toggle_status(article_id):
     except Exception as e:
         print(f"Error toggling status: {e}")
         return jsonify({'error': str(e)}), 500
+
+@news_bp.route('/api/product-shops', methods=['GET'])
+def get_product_shops():
+    """Return configured product shops for the ad settings UI"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    from flask import current_app
+    enabled = current_app.config.get('NEWS_EMBED_PRODUCTS', False)
+    shops = current_app.config.get('NEWS_PRODUCT_SHOPS', [])
+
+    return jsonify({
+        'enabled': enabled,
+        'shops': [{'name': s['name'], 'url': s['url'], 'origin': s['origin']} for s in shops]
+    })
+
 
 @news_bp.route('/upload-image', methods=['POST'])
 def upload_image():

@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupGalleryFolderTabs();
     setupCoverBrowser();
     setupImageDragReposition();
+    setupAdSettings();
 });
 
 // ===== Quill Initialization =====
@@ -742,6 +743,20 @@ async function handleSubmit(status) {
 
     const imagePosition = (document.getElementById('imagePosition').value || '').trim() || 'center';
 
+    // Collect ad settings
+    const adsEnabledEl = document.getElementById('adsEnabled');
+    const adsEnabled = adsEnabledEl ? adsEnabledEl.checked : true;
+    const shopCheckboxes = document.querySelectorAll('#adsShopsList input[type="checkbox"]:checked');
+    let adsShops = null;
+    if (shopCheckboxes.length > 0) {
+        const names = Array.from(shopCheckboxes).map(cb => cb.value);
+        // Only store if not all shops are selected (null means "all")
+        const totalShops = document.querySelectorAll('#adsShopsList input[type="checkbox"]').length;
+        if (names.length < totalShops) {
+            adsShops = JSON.stringify(names);
+        }
+    }
+
     const data = {
         title,
         content,
@@ -755,7 +770,9 @@ async function handleSubmit(status) {
         author_name: authorName,
         author_email: authorEmail,
         source_id: sourceId,
-        source_url: sourceUrl
+        source_url: sourceUrl,
+        ads_enabled: adsEnabled,
+        ads_shops: adsShops
     };
 
     console.log('Submitting data:', data);
@@ -848,6 +865,31 @@ async function editArticle(id) {
 
         // Set image position
         applyImagePosition(article.image_position);
+
+        // Set ad settings
+        const adsEnabledEl = document.getElementById('adsEnabled');
+        if (adsEnabledEl) {
+            adsEnabledEl.checked = article.ads_enabled !== false;
+            // Toggle shop list visibility
+            const shopsGroup = document.getElementById('adsShopsGroup');
+            if (shopsGroup) shopsGroup.style.display = adsEnabledEl.checked ? '' : 'none';
+        }
+        // Set per-article shop selections
+        if (article.ads_shops) {
+            try {
+                const selectedShops = JSON.parse(article.ads_shops);
+                if (Array.isArray(selectedShops)) {
+                    document.querySelectorAll('#adsShopsList input[type="checkbox"]').forEach(cb => {
+                        cb.checked = selectedShops.includes(cb.value);
+                    });
+                }
+            } catch(e) { /* ignore parse errors */ }
+        } else {
+            // null means all shops - check them all
+            document.querySelectorAll('#adsShopsList input[type="checkbox"]').forEach(cb => {
+                cb.checked = true;
+            });
+        }
 
         // Trigger image preview
         if (article.image_url) {
@@ -1111,7 +1153,63 @@ function resetForm() {
     document.getElementById('sourceId').value = '';
     document.getElementById('sourceUrl').value = '';
 
+    // Reset ad settings
+    const adsEnabledEl = document.getElementById('adsEnabled');
+    if (adsEnabledEl) {
+        adsEnabledEl.checked = true;
+        const shopsGroup = document.getElementById('adsShopsGroup');
+        if (shopsGroup) shopsGroup.style.display = '';
+    }
+    document.querySelectorAll('#adsShopsList input[type="checkbox"]').forEach(cb => {
+        cb.checked = true;
+    });
+
     editingArticleId = null;
+}
+
+// ===== Product Ad Settings =====
+
+function setupAdSettings() {
+    // Fetch available product shops from the API
+    fetch('/admin/news-editor/api/product-shops')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+            if (!data || !data.enabled) {
+                // Product ads not enabled for this site, hide the section
+                console.log('[NewsEditor] Product ads not enabled');
+                return;
+            }
+
+            const section = document.getElementById('adsSection');
+            if (section) section.style.display = '';
+
+            const shopsList = document.getElementById('adsShopsList');
+            if (!shopsList || !data.shops || !data.shops.length) return;
+
+            let html = '';
+            data.shops.forEach(shop => {
+                const origin = shop.origin.replace(/^https?:\/\//, '');
+                html += '<label class="ads-shop-option">'
+                    + '<input type="checkbox" value="' + escapeHtml(shop.name) + '" checked>'
+                    + '<span class="ads-shop-name">' + escapeHtml(shop.name) + '</span>'
+                    + '<span class="ads-shop-origin">' + escapeHtml(origin) + '</span>'
+                    + '</label>';
+            });
+            shopsList.innerHTML = html;
+            console.log('[NewsEditor] Loaded ' + data.shops.length + ' product shop(s)');
+        })
+        .catch(err => {
+            console.log('[NewsEditor] Could not load product shops:', err.message);
+        });
+
+    // Toggle shop list visibility when ads enabled/disabled
+    const adsEnabledEl = document.getElementById('adsEnabled');
+    if (adsEnabledEl) {
+        adsEnabledEl.addEventListener('change', function() {
+            const shopsGroup = document.getElementById('adsShopsGroup');
+            if (shopsGroup) shopsGroup.style.display = this.checked ? '' : 'none';
+        });
+    }
 }
 
 // ===== Show message =====

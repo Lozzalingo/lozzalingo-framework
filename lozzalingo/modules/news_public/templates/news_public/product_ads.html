@@ -1,0 +1,215 @@
+{#
+  Product Ads Partial
+  ===================
+  Self-contained JS that fetches products from multiple shops and injects
+  ad cards between paragraphs in the blog post content.
+
+  Gated behind config.get('NEWS_EMBED_PRODUCTS', False).
+  Shops configured via NEWS_PRODUCT_SHOPS list or falls back to local /api/products/embed.
+  Per-article control via article.ads_enabled and article.ads_shops (JSON).
+
+  Usage: {% include 'news_public/product_ads.html' ignore missing %}
+#}
+{% set _ads_enabled = article.ads_enabled if article is defined and article.ads_enabled is defined else true %}
+{% if config.get('NEWS_EMBED_PRODUCTS', False) and _ads_enabled %}
+<script>
+(function() {
+    console.log('[ProductAds] Initialising product ad injection');
+    var WORDS_BETWEEN = 300;
+
+    // Full shop list from app config
+    var ALL_SHOPS = {{ config.get('NEWS_PRODUCT_SHOPS', []) | tojson }};
+
+    // Per-article shop filter (JSON string of shop names, or null for all)
+    var articleShopsRaw = {{ (article.ads_shops if article is defined and article.ads_shops else 'null') | tojson }};
+    var articleShopNames = null;
+    if (articleShopsRaw) {
+        try {
+            articleShopNames = JSON.parse(articleShopsRaw);
+            if (!Array.isArray(articleShopNames)) articleShopNames = null;
+        } catch(e) { articleShopNames = null; }
+    }
+
+    // Filter shops if article specifies which ones to show
+    var SHOPS = ALL_SHOPS;
+    if (articleShopNames && articleShopNames.length) {
+        SHOPS = ALL_SHOPS.filter(function(s) {
+            return articleShopNames.indexOf(s.name) !== -1;
+        });
+        console.log('[ProductAds] Filtered to ' + SHOPS.length + ' shop(s): ' + articleShopNames.join(', '));
+    }
+
+    if (!SHOPS.length) {
+        // No external shops configured, try local embed API
+        var origin = window.location.origin;
+        SHOPS = [{ url: origin + '/api/products/embed', name: '', origin: origin }];
+        console.log('[ProductAds] No NEWS_PRODUCT_SHOPS configured, using local /api/products/embed');
+    }
+
+    function shuffleArray(arr) {
+        for (var i = arr.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+        }
+        return arr;
+    }
+
+    function fixImageUrl(imageUrl, shopOrigin) {
+        if (!imageUrl) return '';
+        if (imageUrl.startsWith('http')) return imageUrl;
+        return shopOrigin + '/' + imageUrl.replace(/^\//, '');
+    }
+
+    function formatPrice(product) {
+        if (product.price_display) return product.price_display;
+        if (product.price_pence || product.price) {
+            var p = product.price_pence || product.price;
+            try { return '\u00a3' + (parseInt(p, 10) / 100).toFixed(2); }
+            catch(e) { return ''; }
+        }
+        return '';
+    }
+
+    function buildCard(product) {
+        var name = product.name || 'Product';
+        var desc = product.description || '';
+        if (desc.length > 120) desc = desc.substring(0, 117) + '...';
+        var price = formatPrice(product);
+        var imgUrl = product.image_url || '';
+        var shopName = product.shop_name || '';
+        var productUrl = product.product_url || '#';
+
+        var card = document.createElement('a');
+        card.href = productUrl;
+        card.target = '_blank';
+        card.rel = 'noopener noreferrer';
+        card.setAttribute('name', 'product_ad_' + (product.id || '0'));
+        card.setAttribute('data-product-ad', 'true');
+        card.style.cssText = 'display:flex;align-items:center;gap:16px;padding:16px;margin:28px 0;'
+            + 'border:1px solid rgba(128,128,128,0.25);border-radius:10px;'
+            + 'background:rgba(128,128,128,0.06);text-decoration:none;color:inherit;'
+            + 'transition:background 0.2s,box-shadow 0.2s;';
+
+        card.onmouseenter = function() {
+            this.style.background = 'rgba(128,128,128,0.12)';
+            this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+        };
+        card.onmouseleave = function() {
+            this.style.background = 'rgba(128,128,128,0.06)';
+            this.style.boxShadow = 'none';
+        };
+
+        var html = '';
+
+        // Image
+        if (imgUrl) {
+            html += '<div style="flex-shrink:0;width:80px;height:80px;border-radius:8px;overflow:hidden;">'
+                + '<img src="' + imgUrl + '" alt="' + name + '" '
+                + 'style="width:100%;height:100%;object-fit:cover;" loading="lazy">'
+                + '</div>';
+        }
+
+        // Text
+        html += '<div style="flex:1;min-width:0;">';
+        if (shopName) {
+            html += '<div style="font-size:0.7rem;opacity:0.5;margin-bottom:2px;">' + shopName + '</div>';
+        }
+        html += '<div style="font-weight:600;font-size:0.95rem;margin-bottom:2px;'
+            + 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + name + '</div>';
+        if (desc) {
+            html += '<div style="font-size:0.8rem;opacity:0.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + desc + '</div>';
+        }
+        html += '</div>';
+
+        // Price + CTA
+        html += '<div style="flex-shrink:0;text-align:right;">';
+        if (price) {
+            html += '<div style="font-weight:700;font-size:1.05rem;margin-bottom:2px;">' + price + '</div>';
+        }
+        html += '<div style="font-size:0.75rem;opacity:0.6;">View &rarr;</div>';
+        html += '</div>';
+
+        card.innerHTML = html;
+        return card;
+    }
+
+    function wordCount(el) {
+        var text = (el.textContent || '').trim();
+        return text ? text.split(/\s+/).length : 0;
+    }
+
+    // Fetch from all shops in parallel, merge and shuffle
+    Promise.all(
+        SHOPS.map(function(shop) {
+            return fetch(shop.url + '?limit=3')
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(data) {
+                    if (!data || !data.success || !data.products || !data.products.length) return [];
+                    return data.products.map(function(p) {
+                        p.image_url = fixImageUrl(p.image_url, shop.origin);
+                        if (!p.shop_name && shop.name) p.shop_name = shop.name;
+                        return p;
+                    });
+                })
+                .catch(function(err) {
+                    console.log('[ProductAds] Failed to fetch from ' + shop.url + ':', err.message);
+                    return [];
+                });
+        })
+    ).then(function(results) {
+        var allProducts = [];
+        results.forEach(function(products) {
+            if (products.length) allProducts = allProducts.concat(products);
+        });
+
+        if (!allProducts.length) {
+            console.log('[ProductAds] No products available from any shop');
+            return;
+        }
+
+        shuffleArray(allProducts);
+        console.log('[ProductAds] Loaded ' + allProducts.length + ' products from ' + SHOPS.length + ' shop(s)');
+
+        // Find the content container
+        var contentEl = document.querySelector('.blog-post-content') || document.querySelector('.content');
+        if (!contentEl) {
+            console.log('[ProductAds] No content container found');
+            return;
+        }
+
+        // Skip if article already has baked-in product cards
+        if (contentEl.querySelector('[data-product-ad]') || contentEl.querySelector('[data-product-card]')) {
+            console.log('[ProductAds] Article already has product cards, skipping');
+            return;
+        }
+
+        var paragraphs = contentEl.querySelectorAll('p');
+        if (paragraphs.length < 3) return;
+
+        // Find insertion points based on cumulative word count
+        var insertionPoints = [];
+        var cumWords = 0;
+        var nextThreshold = WORDS_BETWEEN;
+        for (var i = 0; i < paragraphs.length; i++) {
+            cumWords += wordCount(paragraphs[i]);
+            if (cumWords >= nextThreshold) {
+                insertionPoints.push(i);
+                nextThreshold = cumWords + WORDS_BETWEEN;
+            }
+        }
+
+        // Insert cards (from bottom up to preserve indices)
+        var productIdx = 0;
+        for (var j = insertionPoints.length - 1; j >= 0; j--) {
+            var para = paragraphs[insertionPoints[j]];
+            var product = allProducts[productIdx % allProducts.length];
+            productIdx++;
+            var card = buildCard(product);
+            para.parentNode.insertBefore(card, para.nextSibling);
+        }
+
+        console.log('[ProductAds] Injected ' + Math.min(insertionPoints.length, allProducts.length) + ' product card(s)');
+    });
+})();
+</script>
+{% endif %}
