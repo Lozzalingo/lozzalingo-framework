@@ -133,6 +133,9 @@
         return card;
     }
 
+    // H2 positions to insert ads before (matching Prompt News flow)
+    var AD_BEFORE_H2 = [3, 5, 7];
+
     function wordCount(el) {
         var text = (el.textContent || '').trim();
         return text ? text.split(/\s+/).length : 0;
@@ -183,32 +186,51 @@
             return;
         }
 
-        var paragraphs = contentEl.querySelectorAll('p');
-        if (paragraphs.length < 3) return;
+        // Primary strategy: insert before the 3rd, 5th, and 7th H2 headings
+        var h2s = contentEl.querySelectorAll('h2');
+        var insertionElements = [];
 
-        // Find insertion points based on cumulative word count
-        var insertionPoints = [];
-        var cumWords = 0;
-        var nextThreshold = WORDS_BETWEEN;
-        for (var i = 0; i < paragraphs.length; i++) {
-            cumWords += wordCount(paragraphs[i]);
-            if (cumWords >= nextThreshold) {
-                insertionPoints.push(i);
-                nextThreshold = cumWords + WORDS_BETWEEN;
+        if (h2s.length >= 3) {
+            for (var i = 0; i < AD_BEFORE_H2.length; i++) {
+                var h2Index = AD_BEFORE_H2[i] - 1; // Convert 1-based to 0-based
+                if (h2Index < h2s.length) {
+                    insertionElements.push(h2s[h2Index]);
+                }
+            }
+            console.log('[ProductAds] Using H2-based placement (' + h2s.length + ' H2s found, ' + insertionElements.length + ' ad slots)');
+        } else {
+            // Fallback: not enough H2s, use word-count based placement every 300 words
+            console.log('[ProductAds] Only ' + h2s.length + ' H2(s), falling back to word-count placement');
+            var paragraphs = contentEl.querySelectorAll('p');
+            if (paragraphs.length < 3) return;
+
+            var cumWords = 0;
+            var nextThreshold = 300;
+            for (var k = 0; k < paragraphs.length; k++) {
+                cumWords += wordCount(paragraphs[k]);
+                if (cumWords >= nextThreshold) {
+                    // Insert after this paragraph (use nextSibling as the "before" element)
+                    if (paragraphs[k].nextElementSibling) {
+                        insertionElements.push(paragraphs[k].nextElementSibling);
+                    }
+                    nextThreshold = cumWords + 300;
+                }
             }
         }
 
-        // Insert cards (from bottom up to preserve indices)
+        if (!insertionElements.length) return;
+
+        // Insert cards before each target element (from bottom up to preserve DOM order)
         var productIdx = 0;
-        for (var j = insertionPoints.length - 1; j >= 0; j--) {
-            var para = paragraphs[insertionPoints[j]];
+        for (var j = insertionElements.length - 1; j >= 0; j--) {
+            var target = insertionElements[j];
             var product = allProducts[productIdx % allProducts.length];
             productIdx++;
             var card = buildCard(product);
-            para.parentNode.insertBefore(card, para.nextSibling);
+            target.parentNode.insertBefore(card, target);
         }
 
-        console.log('[ProductAds] Injected ' + Math.min(insertionPoints.length, allProducts.length) + ' product card(s)');
+        console.log('[ProductAds] Injected ' + Math.min(insertionElements.length, allProducts.length) + ' product card(s)');
     });
 })();
 </script>
