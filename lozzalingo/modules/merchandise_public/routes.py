@@ -203,6 +203,18 @@ def products_embed():
                 pass
 
         base_url = _get_base_url()
+
+        # Fallback shop name when DB column is missing or empty
+        default_shop_name = ''
+        try:
+            default_shop_name = (
+                current_app.config.get('EMAIL_BRAND_NAME')
+                or current_app.config.get('brand_name')
+                or ''
+            )
+        except RuntimeError:
+            pass
+
         products = []
 
         for row in rows:
@@ -270,7 +282,7 @@ def products_embed():
                 'limited_edition': bool(_get(row, 'limited_edition', False)),
                 'is_preorder': bool(row['is_preorder']),
                 'category': _get(row, 'category', ''),
-                'shop_name': _get(row, 'shop_name', ''),
+                'shop_name': _get(row, 'shop_name', '') or default_shop_name,
                 'color_count': color_count,
             })
 

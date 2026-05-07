@@ -150,7 +150,7 @@
                     if (!data || !data.success || !data.products || !data.products.length) return [];
                     return data.products.map(function(p) {
                         p.image_url = fixImageUrl(p.image_url, shop.origin);
-                        if (shop.name) p.shop_name = shop.name;
+                        if (!p.shop_name && shop.name) p.shop_name = shop.name;
                         return p;
                     });
                 })
