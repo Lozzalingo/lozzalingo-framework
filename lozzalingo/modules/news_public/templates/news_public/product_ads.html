@@ -15,10 +15,11 @@
 <script>
 (function() {
     console.log('[ProductAds] Initialising product ad injection');
-    var WORDS_BETWEEN = 300;
 
-    // Full shop list from app config
-    var ALL_SHOPS = {{ config.get('NEWS_PRODUCT_SHOPS', []) | tojson }};
+    // Central API (laurence.computer/Prompt News use this to get all shops)
+    var SHOPS_API = {{ (config.get('NEWS_PRODUCT_SHOPS_API', '') or '') | tojson }};
+    // Local override (single-brand sites hardcode their own shop)
+    var LOCAL_SHOPS = {{ config.get('NEWS_PRODUCT_SHOPS', []) | tojson }};
 
     // Per-article shop filter (JSON string of shop names, or null for all)
     var articleShopsRaw = {{ (article.ads_shops if article is defined and article.ads_shops else 'null') | tojson }};
@@ -30,6 +31,29 @@
         } catch(e) { articleShopNames = null; }
     }
 
+    function resolveShops() {
+        // If a central API is configured, fetch the shop list from it
+        if (SHOPS_API) {
+            console.log('[ProductAds] Fetching shop list from central API: ' + SHOPS_API);
+            return fetch(SHOPS_API)
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(data) {
+                    if (data && data.success && data.shops && data.shops.length) {
+                        console.log('[ProductAds] Central API returned ' + data.shops.length + ' shop(s)');
+                        return data.shops;
+                    }
+                    console.log('[ProductAds] Central API returned no shops, using local config');
+                    return LOCAL_SHOPS;
+                })
+                .catch(function(err) {
+                    console.log('[ProductAds] Central API failed (' + err.message + '), using local config');
+                    return LOCAL_SHOPS;
+                });
+        }
+        return Promise.resolve(LOCAL_SHOPS);
+    }
+
+    resolveShops().then(function(ALL_SHOPS) {
     // Filter shops if article specifies which ones to show
     var SHOPS = ALL_SHOPS;
     if (articleShopNames && articleShopNames.length) {
@@ -40,10 +64,10 @@
     }
 
     if (!SHOPS.length) {
-        // No external shops configured, try local embed API
+        // No shops configured, try local embed API
         var origin = window.location.origin;
         SHOPS = [{ url: origin + '/api/products/embed', name: '', origin: origin }];
-        console.log('[ProductAds] No NEWS_PRODUCT_SHOPS configured, using local /api/products/embed');
+        console.log('[ProductAds] No shops available, using local /api/products/embed');
     }
 
     function shuffleArray(arr) {
@@ -232,6 +256,7 @@
 
         console.log('[ProductAds] Injected ' + Math.min(insertionElements.length, allProducts.length) + ' product card(s)');
     });
+    }); // end resolveShops().then()
 })();
 </script>
 {% endif %}
