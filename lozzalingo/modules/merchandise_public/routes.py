@@ -313,7 +313,9 @@ def products_embed():
             # Build product URL — uses configurable shop path
             # Set SHOP_URL_PATH in app config (e.g. '/aightclothing' or '/merchandise')
             shop_path = current_app.config.get('SHOP_URL_PATH', '/merchandise')
-            product_url = f"{base_url}{shop_path}#product-{row['id']}"
+            # Strip any trailing hash fragment from shop_path before appending product anchor
+            shop_base = shop_path.split('#')[0] if '#' in shop_path else shop_path
+            product_url = f"{base_url}{shop_base}#product-{row['id']}"
 
             # Parse color options count
             color_count = 0
