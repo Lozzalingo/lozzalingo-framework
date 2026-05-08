@@ -195,13 +195,13 @@ def products_embed():
     Public products endpoint for cross-site embedding.
 
     Query params:
-        limit: Max products to return (default 6, max 20)
+        limit: Max products to return (default 6, max 50)
         shop: Filter by shop name (e.g. "Crowd Sauced")
 
     Returns JSON:
         { "success": true, "products": [...], "count": N }
     """
-    limit = min(request.args.get('limit', 6, type=int), 20)
+    limit = min(request.args.get('limit', 6, type=int), 50)
     shop_filter = request.args.get('shop')
 
     merch_db = _get_merchandise_db()
