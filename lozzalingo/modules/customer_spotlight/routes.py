@@ -5,6 +5,7 @@ Customer Spotlight Routes
 Provides:
 - Public API to get spotlight entries
 - Admin routes for managing spotlight entries
+- Automatic image optimisation on upload (resize + WebP conversion)
 """
 
 import os
@@ -14,6 +15,11 @@ from datetime import datetime
 from flask import render_template, request, jsonify, session, redirect, url_for, current_app
 from werkzeug.utils import secure_filename
 from . import customer_spotlight_bp
+
+# Spotlight images are displayed at 200px wide, so 600px gives 3x retina
+# coverage without shipping multi-megabyte originals.
+SPOTLIGHT_MAX_WIDTH = 600
+SPOTLIGHT_QUALITY = 82
 
 
 def get_db_path():
@@ -225,6 +231,20 @@ def admin_api_get_spotlights():
     })
 
 
+def _optimise_spotlight_image(file_bytes, filename):
+    """Optimise a spotlight image: resize to SPOTLIGHT_MAX_WIDTH and convert to WebP.
+
+    Keeps the original aspect ratio. Returns (optimised_bytes, new_filename)
+    or falls back to the original if Pillow is unavailable.
+    """
+    from ...core.storage import _compress_image
+    return _compress_image(
+        file_bytes, filename,
+        max_width=SPOTLIGHT_MAX_WIDTH,
+        quality=SPOTLIGHT_QUALITY,
+    )
+
+
 @customer_spotlight_bp.route('/admin/customer-spotlight-editor/upload', methods=['POST'])
 def admin_api_add_spotlight():
     """Admin API to add a new spotlight entry"""
@@ -246,21 +266,55 @@ def admin_api_add_spotlight():
 
         # Secure the filename and generate unique name
         original_filename = secure_filename(file.filename)
-        unique_filename = f"{uuid.uuid4().hex}_{original_filename}"
+        unique_id = uuid.uuid4().hex
+        unique_filename = f"{unique_id}_{original_filename}"
 
         # Ensure images directory exists
         images_path = get_spotlight_images_path()
         os.makedirs(images_path, exist_ok=True)
 
-        # Save the file
+        # Save the original file
         file_path = os.path.join(images_path, unique_filename)
         file.save(file_path)
-
-        # Get file size
         file_size = os.path.getsize(file_path)
-
-        # Create image URL path (relative to static)
         image_url = f"/customer-spotlight/static/images/{unique_filename}"
+
+        # Generate optimised version (resized + WebP)
+        optimized_filename = None
+        optimized_url = None
+        optimized_size = None
+        optimized_width = None
+        optimized_height = None
+
+        try:
+            with open(file_path, 'rb') as f:
+                raw_bytes = f.read()
+
+            opt_bytes, opt_name = _optimise_spotlight_image(raw_bytes, unique_filename)
+
+            if opt_name != unique_filename:
+                # Compression produced a different (smaller) file
+                optimized_filename = opt_name
+                opt_path = os.path.join(images_path, opt_name)
+                with open(opt_path, 'wb') as f:
+                    f.write(opt_bytes)
+                optimized_size = len(opt_bytes)
+                optimized_url = f"/customer-spotlight/static/images/{opt_name}"
+
+                # Read dimensions from the optimised file
+                try:
+                    from PIL import Image
+                    with Image.open(opt_path) as img:
+                        optimized_width = img.width
+                        optimized_height = img.height
+                except Exception:
+                    pass
+
+                print(f"[SPOTLIGHT] Optimised {original_filename}: "
+                      f"{file_size:,}B -> {optimized_size:,}B "
+                      f"({100 - (optimized_size / file_size * 100):.0f}% smaller)")
+        except Exception as opt_err:
+            print(f"[SPOTLIGHT] Optimisation failed, using original: {opt_err}")
 
         # Insert into database
         init_table()
@@ -275,9 +329,13 @@ def admin_api_add_spotlight():
 
         cursor.execute('''
             INSERT INTO customer_spotlight
-            (instagram_handle, original_filename, image_path, file_size, sort_order)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (instagram_handle, original_filename, image_url, file_size, next_order))
+            (instagram_handle, original_filename, optimized_filename,
+             image_path, optimized_image_path, file_size, optimized_file_size,
+             width, height, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (instagram_handle, original_filename, optimized_filename,
+              image_url, optimized_url, file_size, optimized_size,
+              optimized_width, optimized_height, next_order))
 
         spotlight_id = cursor.lastrowid
         conn.commit()
@@ -290,7 +348,7 @@ def admin_api_add_spotlight():
         })
 
     except Exception as e:
-        print(f"Error adding spotlight: {e}")
+        print(f"[SPOTLIGHT] Error adding spotlight: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -419,4 +477,125 @@ def admin_api_reorder_spotlights():
 
     except Exception as e:
         print(f"Error reordering spotlights: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@customer_spotlight_bp.route('/admin/customer-spotlight-editor/optimise-all', methods=['POST'])
+def admin_api_optimise_all():
+    """Admin API to generate optimised versions for all existing spotlight images.
+
+    Skips entries that already have an optimised file. Safe to run multiple times.
+    """
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    try:
+        init_table()
+        db_path = get_db_path()
+        images_path = get_spotlight_images_path()
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT id, image_path, original_filename
+            FROM customer_spotlight
+            WHERE optimized_image_path IS NULL OR optimized_image_path = ''
+        ''')
+        rows = cursor.fetchall()
+
+        if not rows:
+            conn.close()
+            return jsonify({
+                'success': True,
+                'message': 'All images already optimised',
+                'optimised': 0,
+                'skipped': 0,
+                'failed': 0,
+            })
+
+        optimised = 0
+        skipped = 0
+        failed = 0
+        total_saved = 0
+
+        for row in rows:
+            spotlight_id, image_path, original_filename = row
+
+            try:
+                # Derive the on-disk filename from the URL path
+                disk_filename = image_path.rsplit('/', 1)[-1] if image_path else None
+                if not disk_filename:
+                    skipped += 1
+                    continue
+
+                full_path = os.path.join(images_path, disk_filename)
+                if not os.path.isfile(full_path):
+                    print(f"[SPOTLIGHT] File not found for id={spotlight_id}: {full_path}")
+                    skipped += 1
+                    continue
+
+                with open(full_path, 'rb') as f:
+                    raw_bytes = f.read()
+
+                original_size = len(raw_bytes)
+                opt_bytes, opt_name = _optimise_spotlight_image(raw_bytes, disk_filename)
+
+                if opt_name == disk_filename:
+                    # No improvement (already small or unsupported format)
+                    skipped += 1
+                    continue
+
+                opt_path = os.path.join(images_path, opt_name)
+                with open(opt_path, 'wb') as f:
+                    f.write(opt_bytes)
+
+                opt_size = len(opt_bytes)
+                opt_url = f"/customer-spotlight/static/images/{opt_name}"
+
+                # Read dimensions
+                opt_width = None
+                opt_height = None
+                try:
+                    from PIL import Image
+                    with Image.open(opt_path) as img:
+                        opt_width = img.width
+                        opt_height = img.height
+                except Exception:
+                    pass
+
+                cursor.execute('''
+                    UPDATE customer_spotlight
+                    SET optimized_filename = ?,
+                        optimized_image_path = ?,
+                        optimized_file_size = ?,
+                        width = ?,
+                        height = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (opt_name, opt_url, opt_size, opt_width, opt_height, spotlight_id))
+
+                saved = original_size - opt_size
+                total_saved += saved
+                optimised += 1
+                print(f"[SPOTLIGHT] Optimised id={spotlight_id}: "
+                      f"{original_size:,}B -> {opt_size:,}B (saved {saved:,}B)")
+
+            except Exception as item_err:
+                print(f"[SPOTLIGHT] Failed to optimise id={spotlight_id}: {item_err}")
+                failed += 1
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': f'Optimised {optimised} images, saved {total_saved:,} bytes total',
+            'optimised': optimised,
+            'skipped': skipped,
+            'failed': failed,
+            'bytes_saved': total_saved,
+        })
+
+    except Exception as e:
+        print(f"[SPOTLIGHT] Error in optimise-all: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
