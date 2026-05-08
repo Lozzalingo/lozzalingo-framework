@@ -206,17 +206,43 @@
         state.styleInjected = true;
     }
 
-    // === Hash Detection ===
-    function getProductIdFromHash() {
+    // === Deep-link Detection ===
+    // Supports both ?product=ID and legacy #product-ID
+    function getProductIdFromUrl() {
+        // Check query param first: ?product=ID or ?product=Name
+        var params = new URLSearchParams(window.location.search);
+        var productParam = params.get('product');
+        if (productParam) {
+            // Try numeric ID first
+            var numId = parseInt(productParam, 10);
+            if (!isNaN(numId) && String(numId) === productParam.trim()) {
+                return { type: 'id', value: numId };
+            }
+            // Otherwise treat as product name
+            return { type: 'name', value: decodeURIComponent(productParam) };
+        }
+        // Legacy hash: #product-ID
         var hash = window.location.hash;
         var match = hash.match(/^#product-(\d+)$/);
-        return match ? parseInt(match[1], 10) : null;
+        if (match) {
+            return { type: 'id', value: parseInt(match[1], 10) };
+        }
+        return null;
+    }
+
+    function getProductIdFromHash() {
+        var result = getProductIdFromUrl();
+        return (result && result.type === 'id') ? result.value : null;
     }
 
     function removeHash() {
-        if (window.location.hash) {
-            history.replaceState(null, '', window.location.pathname + window.location.search);
-        }
+        // Clean both query param and hash
+        var url = window.location.pathname;
+        var params = new URLSearchParams(window.location.search);
+        params.delete('product');
+        var remaining = params.toString();
+        if (remaining) url += '?' + remaining;
+        history.replaceState(null, '', url);
     }
 
     // === Overlay Creation ===
@@ -566,10 +592,31 @@
         window.removeEventListener('hashchange', onHashChange);
         window.addEventListener('hashchange', onHashChange);
 
-        // Check current hash
-        var id = getProductIdFromHash();
-        if (id) {
-            openProduct(id);
+        // Check current URL for deep-link (query param or hash)
+        var deepLink = getProductIdFromUrl();
+        if (deepLink) {
+            if (deepLink.type === 'id') {
+                openProduct(deepLink.value);
+            } else if (deepLink.type === 'name' && config.getProduct) {
+                // Name-based lookup: search all products for a matching name
+                console.log('[ProductDetail] Looking up product by name:', deepLink.value);
+                var found = null;
+                if (typeof config.getAllProducts === 'function') {
+                    var allProducts = config.getAllProducts();
+                    for (var i = 0; i < allProducts.length; i++) {
+                        if (allProducts[i].name === deepLink.value) {
+                            found = allProducts[i];
+                            break;
+                        }
+                    }
+                }
+                if (found) {
+                    openProduct(found.id);
+                } else if (typeof config.fetchProduct === 'function') {
+                    // Fallback: let the host app handle name-based lookup
+                    console.log('[ProductDetail] Name lookup failed locally, trying fetch');
+                }
+            }
         }
     }
 
