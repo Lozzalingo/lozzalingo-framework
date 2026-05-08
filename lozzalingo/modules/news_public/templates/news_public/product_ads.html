@@ -168,7 +168,7 @@
     // Fetch from all shops in parallel, merge and shuffle
     Promise.all(
         SHOPS.map(function(shop) {
-            return fetch(shop.url + '?limit=50')
+            return fetch(shop.url + '?limit=6')
                 .then(function(r) { return r.ok ? r.json() : null; })
                 .then(function(data) {
                     if (!data || !data.success || !data.products || !data.products.length) return [];
