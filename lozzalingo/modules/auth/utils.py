@@ -81,11 +81,21 @@ def configure_oauth(app):
 
 # Helper function to check if user is authenticated
 def login_required(f):
-    """Decorator to require authentication"""
+    """Decorator to require authentication.
+
+    Accepts either auth module sessions (user_id) or dashboard admin
+    sessions (admin_id) so that admin users authenticated via the
+    dashboard login are also recognised.
+    """
+    from functools import wraps
+    @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
+        if 'user_id' not in session and 'admin_id' not in session:
             flash('Please sign in to access this page.', 'error')
-            return redirect(url_for('auth.signin'))
+            # Prefer the dashboard login when it exists, fall back to auth signin
+            try:
+                return redirect(url_for('admin.login'))
+            except Exception:
+                return redirect(url_for('auth.signin'))
         return f(*args, **kwargs)
-    decorated_function.__name__ = f.__name__
     return decorated_function

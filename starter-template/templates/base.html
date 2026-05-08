@@ -44,6 +44,12 @@
 
     {% block extra_js %}{% endblock %}
 
+    <!-- Client error logging -->
+    <script>
+    window.onerror=function(m,s,l,c,e){fetch('/api/client-error',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:m,stack:e&&e.stack,source:s,line:l,column:c,url:location.href,userAgent:navigator.userAgent,project:'{{ brand_name }}'})}).catch(function(){})};
+    window.onunhandledrejection=function(e){var r=e.reason;fetch('/api/client-error',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'Unhandled rejection: '+(r&&r.message||String(r)),stack:r&&r.stack,url:location.href,userAgent:navigator.userAgent,project:'{{ brand_name }}'})}).catch(function(){})};
+    </script>
+
     <!-- Analytics scripts are auto-injected by Lozzalingo -->
 </body>
 </html>

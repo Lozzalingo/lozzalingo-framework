@@ -57,6 +57,7 @@ lozzalingo/modules/campaigns/routes.py
 lozzalingo/modules/campaigns/static/css/campaigns.css
 lozzalingo/modules/campaigns/static/js/campaigns.js
 lozzalingo/modules/campaigns/templates/campaigns/editor.html
+lozzalingo/modules/client_error/__init__.py
 lozzalingo/modules/crosspost/__init__.py
 lozzalingo/modules/crosspost/content_transform.py
 lozzalingo/modules/crosspost/crosspost_service.py
@@ -133,6 +134,7 @@ lozzalingo/modules/news_public/routes.py
 lozzalingo/modules/news_public/templates/news_public/blog.html
 lozzalingo/modules/news_public/templates/news_public/blog_post.html
 lozzalingo/modules/news_public/templates/news_public/news.html
+lozzalingo/modules/news_public/templates/news_public/product_ads.html
 lozzalingo/modules/ops/__init__.py
 lozzalingo/modules/ops/alerts.py
 lozzalingo/modules/ops/routes.py

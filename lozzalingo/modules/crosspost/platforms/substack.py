@@ -54,7 +54,9 @@ def publish_article(cookie, substack_url, title, html_content, canonical_url=Non
 
         # Append canonical link footer
         if canonical_url:
-            markdown += f"\n\n---\n\n*Originally published at [{canonical_url}]({canonical_url})*"
+            from urllib.parse import urlparse
+            domain = urlparse(canonical_url).netloc
+            markdown += f"\n\n---\n\n*This post first appeared on my personal site:* [{domain}]({canonical_url})"
 
         # Build draft using the Post class
         user_id = api.get_user_id()

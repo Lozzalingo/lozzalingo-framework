@@ -6,6 +6,7 @@ Public-facing project portfolio pages and API.
 """
 
 from flask import Blueprint, render_template, jsonify, redirect, url_for, flash, request, make_response, abort
+import hashlib
 import json
 import re
 
@@ -293,3 +294,48 @@ def check_upvote_batch():
     except Exception as e:
         print(f"Error checking upvote batch: {e}")
         return jsonify({'voted': []})
+
+
+@projects_public_bp.route('/api/projects/<int:project_id>/watch', methods=['POST'])
+def watch_project(project_id):
+    """Register interest in a building project (public, deduped by phone hash)."""
+    from lozzalingo.modules.projects.routes import get_db_config, get_db_connection, init_projects_db
+
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    phone = (data.get('phone') or '').strip()
+
+    if not name or not phone:
+        return jsonify({'error': 'Name and phone are required'}), 400
+
+    # Basic phone validation: digits, spaces, +, -, parens, min 7 chars
+    cleaned = re.sub(r'[\s\-\(\)]', '', phone)
+    if len(cleaned) < 7 or not re.match(r'^\+?\d+$', cleaned):
+        return jsonify({'error': 'Please enter a valid phone number'}), 400
+
+    phone_hash = hashlib.sha256(cleaned.encode('utf-8')).hexdigest()
+
+    init_projects_db()
+    projects_db = get_db_config()
+    db_connect = get_db_connection()
+
+    try:
+        with db_connect(projects_db) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT id, project_status FROM projects WHERE id = ?', (project_id,))
+            row = cursor.fetchone()
+            if not row:
+                return jsonify({'error': 'Project not found'}), 404
+
+            cursor.execute(
+                'INSERT OR IGNORE INTO project_watchers (project_id, name, phone, phone_hash) VALUES (?, ?, ?, ?)',
+                (project_id, name, phone, phone_hash)
+            )
+            already = cursor.rowcount == 0
+            conn.commit()
+
+            print(f"[WATCHERS] {'Duplicate' if already else 'New'} watcher for project {project_id}: {name}")
+            return jsonify({'success': True, 'already_watching': already})
+    except Exception as e:
+        print(f"[WATCHERS] Error watching project: {e}")
+        return jsonify({'error': 'Something went wrong'}), 500

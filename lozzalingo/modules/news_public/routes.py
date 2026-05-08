@@ -2,8 +2,16 @@ from flask import Blueprint, render_template, jsonify, redirect, url_for, flash,
 import json
 import re
 from datetime import datetime, timedelta
+from lozzalingo.modules.news.routes import init_news_db
 
 news_public_bp = Blueprint('news', __name__, url_prefix='/news', template_folder='templates')
+
+
+@news_public_bp.record_once
+def on_register(state):
+    """Ensure news DB table exists when the public blueprint is registered."""
+    with state.app.app_context():
+        init_news_db()
 
 def format_content(content):
     """Format content by converting line breaks to HTML and handling basic formatting.

@@ -18,7 +18,7 @@
             <h1>Projects Editor</h1>
             <div class="header-actions">
                 <button class="lz-theme-toggle" name="theme_toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
-                <a href="{{ url_for('admin.dashboard') }}" class="back-link">Back to Dashboard</a>
+                <a href="{{ url_for('admin.dashboard') }}" class="back-link" name="back_to_dashboard">Back to Dashboard</a>
             </div>
         </header>
 
@@ -71,6 +71,11 @@
                                 <option value="academic">Academic</option>
                             </select>
                             <small class="form-hint">Shown as a label on the public page</small>
+                        </div>
+                        <div class="form-group" id="releaseDateGroup" style="display:none;">
+                            <label for="expectedReleaseDate">Expected Release Date</label>
+                            <input type="date" id="expectedReleaseDate" name="expected_release_date">
+                            <small class="form-hint">Shown publicly on building projects</small>
                         </div>
                         <div class="form-group">
                             <label for="grossEarnings">Gross Earnings (est.)</label>
@@ -133,7 +138,7 @@
                             </div>
                         </div>
                         <input type="hidden" id="technologies" name="technologies">
-                        <small class="form-hint">Type to search & add — <a href="{{ url_for('projects_admin.tech_registry') }}" style="color: var(--lz-accent, #c4788a);">Manage Tech Registry</a></small>
+                        <small class="form-hint">Type to search & add — <a href="{{ url_for('projects_admin.tech_registry') }}" style="color: var(--lz-accent, #c4788a);" name="manage_tech_registry">Manage Tech Registry</a></small>
                     </div>
 
                     <div class="form-group">
@@ -259,6 +264,11 @@
                     </div>
                     <div id="statusIndicator" class="status-indicator" style="display: none;">
                         Visibility: <span id="currentStatus"></span> &nbsp;|&nbsp; Activity: <span id="currentProjectStatus"></span>
+                    </div>
+
+                    <div id="watchersPanel" class="form-section" style="display:none; margin-top:20px;">
+                        <h3 class="form-section-title">Notify Me Watchers <span id="watchersCount" style="font-weight:normal; color:var(--lz-muted);">(0)</span></h3>
+                        <div id="watchersList" style="max-height:300px; overflow-y:auto;"></div>
                     </div>
                 </form>
             </div>
@@ -1557,7 +1567,8 @@
                 external_url: document.getElementById('externalUrl').value.trim() || null,
                 external_url_label: document.getElementById('externalUrlLabel').value.trim() || null,
                 fetched_content: document.getElementById('fetchedExternalContent').value || null,
-                parent_id: document.getElementById('parentProject').value || null
+                parent_id: document.getElementById('parentProject').value || null,
+                expected_release_date: document.getElementById('expectedReleaseDate').value || null
             };
 
             try {
@@ -1643,6 +1654,9 @@
                 setInsightsFromJSON(p.insights || '');
                 document.getElementById('externalUrl').value = p.external_url || '';
                 document.getElementById('externalUrlLabel').value = p.external_url_label || '';
+                document.getElementById('expectedReleaseDate').value = p.expected_release_date || '';
+                toggleReleaseDateField(p.project_status);
+                loadWatchers(id, p.project_status);
                 populateParentDropdown(id);
                 document.getElementById('parentProject').value = p.parent_id || '';
                 if (p.external_url && p.fetched_content) {
@@ -2260,6 +2274,38 @@
             sel.value = currentVal;
         }
 
+        // Show/hide expected release date based on project_status
+        function toggleReleaseDateField(status) {
+            document.getElementById('releaseDateGroup').style.display = status === 'building' ? '' : 'none';
+        }
+        document.getElementById('projectStatus').addEventListener('change', function() {
+            toggleReleaseDateField(this.value);
+        });
+
+        // Load watchers for a building project
+        async function loadWatchers(projectId, projectStatus) {
+            const panel = document.getElementById('watchersPanel');
+            if (projectStatus !== 'building') { panel.style.display = 'none'; return; }
+            panel.style.display = '';
+            try {
+                const res = await fetch(API_BASE + '/' + projectId + '/watchers');
+                const watchers = await res.json();
+                document.getElementById('watchersCount').textContent = '(' + watchers.length + ')';
+                const list = document.getElementById('watchersList');
+                if (!watchers.length) {
+                    list.innerHTML = '<p style="color:var(--lz-muted);font-size:0.85rem;">No watchers yet.</p>';
+                } else {
+                    list.innerHTML = '<table style="width:100%;font-size:0.85rem;border-collapse:collapse;">' +
+                        '<tr style="border-bottom:1px solid var(--lz-border);"><th style="text-align:left;padding:4px 8px;">Name</th><th style="text-align:left;padding:4px 8px;">Phone</th><th style="text-align:left;padding:4px 8px;">Date</th></tr>' +
+                        watchers.map(w => '<tr style="border-bottom:1px solid var(--lz-border);">' +
+                            '<td style="padding:4px 8px;">' + (w.name || '') + '</td>' +
+                            '<td style="padding:4px 8px;">' + (w.phone || '') + '</td>' +
+                            '<td style="padding:4px 8px;">' + new Date(w.created_at).toLocaleDateString() + '</td>' +
+                        '</tr>').join('') + '</table>';
+                }
+            } catch (e) { console.error('[WATCHERS] Error loading:', e); }
+        }
+
         function resetForm() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
             editingId = null;
@@ -2294,6 +2340,9 @@
             document.getElementById('fetchedExternalContent').value = '';
             document.getElementById('fetchStatus').textContent = '';
             document.getElementById('clearFetchBtn').style.display = 'none';
+            document.getElementById('expectedReleaseDate').value = '';
+            toggleReleaseDateField('active');
+            document.getElementById('watchersPanel').style.display = 'none';
             quill.root.innerHTML = '';
             document.getElementById('formTitle').textContent = 'Create New Project';
             document.querySelectorAll('.save-mode-select').forEach(sel => { sel.value = 'published'; });

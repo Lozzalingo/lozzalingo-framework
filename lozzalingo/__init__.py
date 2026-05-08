@@ -51,6 +51,8 @@ class Lozzalingo:
     DEFAULT_CONFIG = {
         'brand_name': 'Lozzalingo Site',
         'brand_tagline': '',
+        'brand_logo': None,       # Path relative to host app static folder, e.g. 'img/logo.png'
+        'brand_home_label': None,  # e.g. 'Back to Home' — if None, uses '← Back to {brand_name}'
         'secret_key': None,  # Will use app.secret_key or generate one
 
         # Database settings
@@ -154,9 +156,12 @@ class Lozzalingo:
         # Add template context processor
         @app.context_processor
         def inject_lozzalingo():
+            brand = self.config.get('brand_name', 'Lozzalingo Site')
             return {
                 'lozzalingo_config': self.config,
-                'brand_name': self.config.get('brand_name', 'Lozzalingo Site'),
+                'brand_name': brand,
+                'brand_logo': self.config.get('brand_logo'),
+                'brand_home_label': self.config.get('brand_home_label') or f'\u2190 Back to {brand}',
             }
 
         # Add template global functions
@@ -243,6 +248,10 @@ class Lozzalingo:
                 result['brand_name'] = site['name']
             if 'tagline' in site:
                 result['brand_tagline'] = site['tagline']
+            if 'logo' in site:
+                result['brand_logo'] = site['logo']
+            if 'home_label' in site:
+                result['brand_home_label'] = site['home_label']
 
         # Map features section
         if 'features' in yaml_config:
@@ -408,6 +417,9 @@ class Lozzalingo:
         # Campaigns (email campaign editor + blast sending)
         if features.get('campaigns', False):
             self._register_campaigns()
+
+        # Client error logging (always on - receives browser JS errors)
+        self._register_client_error()
 
     def _register_dashboard(self):
         """Register the admin dashboard module."""
@@ -593,6 +605,16 @@ class Lozzalingo:
             self.app.logger.debug("Registered ops module")
         except Exception as e:
             self.app.logger.error(f"Failed to register ops module: {e}")
+
+    def _register_client_error(self):
+        """Register the client-side error logging endpoint."""
+        try:
+            from .modules.client_error import client_error_bp
+            self.app.register_blueprint(client_error_bp)
+            self._registered_blueprints.append('client_error')
+            self.app.logger.debug("Registered client error module")
+        except Exception as e:
+            self.app.logger.error(f"Failed to register client error module: {e}")
 
     def _setup_error_logging(self):
         """Auto-log all 5xx responses to the persistent LoggingService."""

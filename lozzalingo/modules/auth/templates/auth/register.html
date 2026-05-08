@@ -3,43 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Create your Crowd Sauced account to start designing and earning with AI t-shirt designs.">
-    <meta name="keywords" content="sign up, register, Crowd Sauced, AI t-shirt design">
-    <meta name="author" content="Crowd Sauced">
+    <meta name="description" content="Create your {{ brand_name }} account.">
+    <meta name="author" content="{{ brand_name }}">
 
-    <!-- CRITICAL: Preload fonts FIRST to prevent layout shifts -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    
-    <!-- Load fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <title>Sign Up - Crowd Sauced</title>
-    <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
+    <title>Sign Up - {{ brand_name }}</title>
+    {% if brand_logo %}
+    <link rel="icon" href="{{ url_for('static', filename=brand_logo) }}" type="image/png">
+    {% endif %}
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/form.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/error_handling.css') }}">
-    <link rel="stylesheet" href="{{ url_for('auth.static', filename='register.css') }}">
     <link rel="stylesheet" href="{{ url_for('auth.static', filename='auth-shared.css') }}">
-    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
-
+    <link rel="stylesheet" href="{{ url_for('auth.static', filename='register.css') }}">
 </head>
 <body>
     <div class="auth-container">
         <div class="auth-card">
             <div class="auth-header">
+                {% if brand_logo %}
                 <div class="logo">
-                    <img 
-                        src="{{ url_for('static', filename='Crowd Sourced Logo.png') }}" 
-                        alt="Crowd Sauced Logo" 
+                    <img
+                        src="{{ url_for('static', filename=brand_logo) }}"
+                        alt="{{ brand_name }} Logo"
                         class="logo-img"
                     >
                 </div>
-                <h1 class="auth-title">Join Crowd Sauced</h1>
-                <p class="auth-subtitle">Create your designer account</p>
+                {% endif %}
+                <h1 class="auth-title">Join {{ brand_name }}</h1>
+                <p class="auth-subtitle">Create your account</p>
             </div>
 
             <!-- Messages -->
@@ -57,7 +51,7 @@
 
             <!-- OAuth Buttons -->
             <div class="oauth-buttons">
-                <a href="{{ url_for('auth.oauth_login', provider='google') }}" class="oauth-btn google">
+                <a href="{{ url_for('auth.oauth_login', provider='google') }}" class="oauth-btn google" name="oauth_google">
                     <svg class="oauth-icon" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31l-.1.07 3.18 2.47c.18-.13 2.05-2.06 2.05-5.06z"/>
                         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -66,13 +60,6 @@
                     </svg>
                     Continue with Google
                 </a>
-                
-                <!-- <a href="{{ url_for('auth.oauth_login', provider='github') }}" class="oauth-btn github">
-                    <svg class="oauth-icon" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                    </svg>
-                    Continue with GitHub
-                </a> -->
             </div>
 
             <div class="divider">
@@ -85,7 +72,7 @@
                         <label for="first_name">First Name</label>
                         <input type="text" id="first_name" name="first_name" required placeholder="John">
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="last_name">Last Name</label>
                         <input type="text" id="last_name" name="last_name" required placeholder="Smith">
@@ -111,7 +98,7 @@
                         <span class="password-requirement" id="lower-req">• Contains lowercase letters</span>
                         <span class="password-requirement" id="number-req">• Contains numbers</span>
                     </div>
-                    <div class="password-strength" id="password-strength"></div>    
+                    <div class="password-strength" id="password-strength"></div>
                 </div>
 
                 <div class="form-group">
@@ -123,11 +110,11 @@
                     <label class="checkbox-label" style="display: flex; align-items: flex-start; font-size: 14px; text-transform: none; letter-spacing: normal;">
                         <input type="checkbox" id="terms" name="terms" style="width: auto; margin-right: 10px;" required>
                         <span>
-                            I agree to the 
-                            <a href="/terms" target="_blank" style="color: #8b7355;">Terms of Service</a>
+                            I agree to the
+                            <a href="/terms" target="_blank" style="color: var(--lz-accent, #8b7355);">Terms of Service</a>
                             <br>
-                            and 
-                            <a href="/privacy" target="_blank" style="color: #8b7355;">Privacy Policy</a>
+                            and
+                            <a href="/privacy" target="_blank" style="color: var(--lz-accent, #8b7355);">Privacy Policy</a>
                         </span>
                     </label>
                 </div>
@@ -139,9 +126,9 @@
             </form>
 
             <div class="auth-links">
-                <a href="/sign-in">Already have an account? Sign in</a>
+                <a href="/sign-in" name="sign_in">Already have an account? Sign in</a>
                 <div class="link-divider">———————————</div>
-                <a href="/">← Back to Design Studio</a>
+                <a href="/" name="back_home">{{ brand_home_label }}</a>
             </div>
         </div>
     </div>

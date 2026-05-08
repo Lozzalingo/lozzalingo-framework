@@ -29,10 +29,10 @@
             </div>
             <div class="admin-actions">
                 <button class="lz-theme-toggle" name="theme_toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
-                <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="admin-btn admin-btn-secondary">
+                <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="admin-btn admin-btn-secondary" name="change_password">
                     Change Password
                 </a>
-                <a href="{{ url_for(auth_bp_name ~ '.logout') }}" class="admin-btn admin-btn-danger">
+                <a href="{{ url_for(auth_bp_name ~ '.logout') }}" class="admin-btn admin-btn-danger" name="logout">
                     Logout
                 </a>
             </div>
@@ -56,7 +56,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="/admin/analytics" class="admin-btn admin-btn-primary">
+                    <a href="/admin/analytics" class="admin-btn admin-btn-primary" name="view_analytics">
                         View Analytics
                     </a>
                 </div>
@@ -79,7 +79,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="/admin/news-editor" class="admin-btn admin-btn-primary">
+                    <a href="/admin/news-editor" class="admin-btn admin-btn-primary" name="news_editor">
                         News Editor
                     </a>
                 </div>
@@ -102,7 +102,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="/admin/merchandise-editor" class="admin-btn admin-btn-primary">
+                    <a href="/admin/merchandise-editor" class="admin-btn admin-btn-primary" name="merchandise_editor">
                         Merchandise Editor
                     </a>
                 </div>
@@ -125,7 +125,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="/admin/orders-manager" class="admin-btn admin-btn-primary">
+                    <a href="/admin/orders-manager" class="admin-btn admin-btn-primary" name="manage_orders">
                         Manage Orders
                     </a>
                 </div>
@@ -148,7 +148,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="/admin/customer-spotlight-editor" class="admin-btn admin-btn-primary">
+                    <a href="/admin/customer-spotlight-editor" class="admin-btn admin-btn-primary" name="spotlight_editor">
                         Spotlight Editor
                     </a>
                 </div>
@@ -171,7 +171,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="{{ url_for(auth_bp_name ~ '.create_admin') }}" class="admin-btn admin-btn-primary">
+                    <a href="{{ url_for(auth_bp_name ~ '.create_admin') }}" class="admin-btn admin-btn-primary" name="create_admin">
                         Create Admin
                     </a>
                 </div>
@@ -194,7 +194,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="{{ url_for(auth_bp_name ~ '.email_logs') }}" class="admin-btn admin-btn-primary">
+                    <a href="{{ url_for(auth_bp_name ~ '.email_logs') }}" class="admin-btn admin-btn-primary" name="view_email_logs">
                         View Email Logs
                     </a>
                 </div>
@@ -217,7 +217,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="/admin/email-preview/" class="admin-btn admin-btn-primary">
+                    <a href="/admin/email-preview/" class="admin-btn admin-btn-primary" name="view_email_previews">
                         View Previews
                     </a>
                 </div>
@@ -240,7 +240,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="{{ url_for(auth_bp_name ~ '.template_previews') }}" class="admin-btn admin-btn-primary">
+                    <a href="{{ url_for(auth_bp_name ~ '.template_previews') }}" class="admin-btn admin-btn-primary" name="view_templates">
                         View Templates
                     </a>
                 </div>
@@ -263,7 +263,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="{{ url_for(auth_bp_name ~ '.logs') }}" class="admin-btn admin-btn-primary">
+                    <a href="{{ url_for(auth_bp_name ~ '.logs') }}" class="admin-btn admin-btn-primary" name="view_logs">
                         View Logs
                     </a>
                 </div>
@@ -299,28 +299,28 @@
                     <p>Common admin tasks and shortcuts.</p>
                 </div>
                 <div class="quick-actions">
-                    <a href="/admin/news-editor" class="quick-action">
+                    <a href="/admin/news-editor" class="quick-action" name="quick_new_article">
                         <span>New Article</span>
                     </a>
-                    <a href="/admin/merchandise-editor" class="quick-action">
+                    <a href="/admin/merchandise-editor" class="quick-action" name="quick_new_product">
                         <span>New Product</span>
                     </a>
-                    <a href="/admin/orders-manager" class="quick-action">
+                    <a href="/admin/orders-manager" class="quick-action" name="quick_manage_orders">
                         <span>Manage Orders</span>
                     </a>
-                    <a href="/admin/customer-spotlight-editor" class="quick-action">
+                    <a href="/admin/customer-spotlight-editor" class="quick-action" name="quick_add_spotlight">
                         <span>Add Spotlight</span>
                     </a>
-                    <a href="/admin/analytics" class="quick-action">
+                    <a href="/admin/analytics" class="quick-action" name="quick_view_stats">
                         <span>View Stats</span>
                     </a>
-                    <a href="/admin/email-preview/" class="quick-action">
+                    <a href="/admin/email-preview/" class="quick-action" name="quick_email_preview">
                         <span>Email Preview</span>
                     </a>
-                    <a href="{{ url_for(auth_bp_name ~ '.template_previews') }}" class="quick-action">
+                    <a href="{{ url_for(auth_bp_name ~ '.template_previews') }}" class="quick-action" name="quick_templates">
                         <span>Templates</span>
                     </a>
-                    <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="quick-action">
+                    <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="quick-action" name="quick_security">
                         <span>Security</span>
                     </a>
                 </div>

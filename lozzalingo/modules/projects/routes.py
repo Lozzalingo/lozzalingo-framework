@@ -105,6 +105,7 @@ def init_projects_db():
                 ('parent_id', 'INTEGER'),
                 ('card_image_url', 'TEXT'),
                 ('external_url_label', 'TEXT'),
+                ('expected_release_date', 'TEXT'),
             ]
             for col_name, col_type in new_columns:
                 if col_name not in columns:
@@ -126,6 +127,9 @@ def init_projects_db():
 
             # Upvotes table
             _init_project_upvotes(conn)
+
+            # Watchers table (notify-me for building projects)
+            _init_project_watchers(conn)
 
     except Exception as e:
         print(f"Error initializing projects database: {e}")
@@ -165,6 +169,26 @@ def _init_project_upvotes(conn):
         print(f"Error initializing project_upvotes table: {e}")
 
 
+def _init_project_watchers(conn):
+    """Create project_watchers table if it doesn't exist."""
+    try:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS project_watchers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                phone TEXT NOT NULL,
+                phone_hash TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(project_id, phone_hash)
+            )
+        ''')
+        conn.commit()
+    except Exception as e:
+        print(f"Error initializing project_watchers table: {e}")
+
+
 def get_all_tech_categories():
     """Return {name: category} dict from the tech_registry table."""
     projects_db = get_db_config()
@@ -190,7 +214,7 @@ _SELECT_COLS = '''id, title, slug, content, image_url, year, status, project_sta
                   crossposted_linkedin, crossposted_medium, crossposted_substack,
                   crossposted_twitter, crossposted_threads,
                   upvote_count, external_url, parent_id, card_image_url,
-                  external_url_label'''
+                  external_url_label, expected_release_date'''
 
 def _row_to_dict(row):
     """Convert a DB row to a project dict"""
@@ -220,6 +244,7 @@ def _row_to_dict(row):
     d['parent_id'] = row[29] if len(row) > 29 else None
     d['card_image_url'] = row[30] if len(row) > 30 else None
     d['external_url_label'] = row[31] if len(row) > 31 else None
+    d['expected_release_date'] = row[32] if len(row) > 32 else None
     return d
 
 def create_slug(title):
@@ -289,7 +314,8 @@ def create_project_db(title, content, image_url=None, year=None,
                       gallery_images=None, gallery_layout=None,
                       hero_image_align=None, earnings_label=None, insights=None,
                       external_url=None, fetched_content=None, parent_id=None,
-                      card_image_url=None, external_url_label=None):
+                      card_image_url=None, external_url_label=None,
+                      expected_release_date=None):
     """Create new project in database"""
     projects_db = get_db_config()
     db_connect = get_db_connection()
@@ -305,14 +331,14 @@ def create_project_db(title, content, image_url=None, year=None,
                     year_end, gross_earnings, earnings_currency,
                     gallery_images, gallery_layout, hero_image_align, earnings_label,
                     insights, external_url, fetched_content, parent_id, card_image_url,
-                    external_url_label)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    external_url_label, expected_release_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (title, slug, content, image_url, year,
                   status, project_status, excerpt, meta_description, technologies,
                   year_end, gross_earnings, earnings_currency,
                   gallery_images, gallery_layout, hero_image_align, earnings_label,
                   insights, external_url, fetched_content, parent_id, card_image_url,
-                  external_url_label))
+                  external_url_label, expected_release_date))
             conn.commit()
             return cursor.lastrowid, slug
     except Exception as e:
@@ -326,7 +352,8 @@ def update_project_db(project_id, title, content, image_url=None, year=None,
                       gallery_images=None, gallery_layout=None,
                       hero_image_align=None, earnings_label=None, insights=None,
                       external_url=None, fetched_content=None, parent_id=None,
-                      card_image_url=None, external_url_label=None):
+                      card_image_url=None, external_url_label=None,
+                      expected_release_date=None):
     """Update existing project"""
     projects_db = get_db_config()
     db_connect = get_db_connection()
@@ -365,6 +392,7 @@ def update_project_db(project_id, title, content, image_url=None, year=None,
                     hero_image_align = ?, earnings_label = ?, insights = ?,
                     external_url = ?, fetched_content = ?, parent_id = ?,
                     card_image_url = ?, external_url_label = ?,
+                    expected_release_date = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (title.strip(), slug, content.strip(), image_url, year,
@@ -372,7 +400,8 @@ def update_project_db(project_id, title, content, image_url=None, year=None,
                   technologies, year_end, gross_earnings, earnings_currency,
                   gallery_images, gallery_layout, hero_image_align, earnings_label,
                   insights, external_url, fetched_content, parent_id,
-                  card_image_url, external_url_label, project_id))
+                  card_image_url, external_url_label, expected_release_date,
+                  project_id))
             conn.commit()
 
             return cursor.rowcount > 0
@@ -408,7 +437,7 @@ def get_project_db(project_id):
             if not row:
                 return None
             d = _row_to_dict(row)
-            d['fetched_content'] = row[32] if len(row) > 32 else None
+            d['fetched_content'] = row[33] if len(row) > 33 else None
             return d
     except Exception as e:
         print(f"Error getting project: {e}")
@@ -653,6 +682,7 @@ def create_project():
         parent_id = data.get('parent_id') or None
         card_image_url = data.get('card_image_url') or None
         external_url_label = data.get('external_url_label') or None
+        expected_release_date = data.get('expected_release_date') or None
 
         if not title:
             return jsonify({'error': 'Title is required'}), 400
@@ -697,7 +727,8 @@ def create_project():
             hero_image_align=hero_image_align, earnings_label=earnings_label,
             insights=insights, external_url=external_url,
             fetched_content=fetched_content, parent_id=parent_id,
-            card_image_url=card_image_url, external_url_label=external_url_label
+            card_image_url=card_image_url, external_url_label=external_url_label,
+            expected_release_date=expected_release_date
         )
 
         return jsonify({
@@ -751,6 +782,7 @@ def update_project(project_id):
                 parent_id = None
         card_image_url = data.get('card_image_url') or None
         external_url_label = data.get('external_url_label') or None
+        expected_release_date = data.get('expected_release_date') or None
 
         if not title:
             return jsonify({'error': 'Title is required'}), 400
@@ -789,7 +821,8 @@ def update_project(project_id):
             hero_image_align=hero_image_align, earnings_label=earnings_label,
             insights=insights, external_url=external_url,
             fetched_content=fetched_content, parent_id=parent_id,
-            card_image_url=card_image_url, external_url_label=external_url_label
+            card_image_url=card_image_url, external_url_label=external_url_label,
+            expected_release_date=expected_release_date
         )
 
         if success:
@@ -1406,4 +1439,32 @@ def fetch_external():
         return jsonify({'error': f'Failed to fetch URL: {e}'}), 502
     except Exception as e:
         print(f"Error fetching external content: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ================================
+# PROJECT WATCHERS (admin)
+# ================================
+
+@projects_bp.route('/api/projects/<int:project_id>/watchers', methods=['GET'])
+def get_project_watchers(project_id):
+    """Get watchers for a project (admin only)."""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    try:
+        init_projects_db()
+        projects_db = get_db_config()
+        db_connect = get_db_connection()
+
+        with db_connect(projects_db) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT id, name, phone, created_at FROM project_watchers WHERE project_id = ? ORDER BY created_at DESC',
+                (project_id,)
+            )
+            watchers = [{'id': r[0], 'name': r[1], 'phone': r[2], 'created_at': r[3]} for r in cursor.fetchall()]
+        return jsonify(watchers)
+    except Exception as e:
+        print(f"[WATCHERS] Error getting watchers: {e}")
         return jsonify({'error': str(e)}), 500

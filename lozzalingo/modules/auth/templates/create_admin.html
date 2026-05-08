@@ -72,9 +72,9 @@
             </div>
 
             <div class="navigation-links">
-                <a href="{{ url_for(auth_bp_name ~ '.dashboard') }}" class="admin-btn admin-btn-secondary">Back to Dashboard</a>
-                <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="admin-btn admin-btn-primary">Change Password</a>
-                <a href="{{ url_for(auth_bp_name ~ '.logout') }}" class="admin-btn admin-btn-danger">Logout</a>
+                <a href="{{ url_for(auth_bp_name ~ '.dashboard') }}" class="admin-btn admin-btn-secondary" name="back_to_dashboard">Back to Dashboard</a>
+                <a href="{{ url_for(auth_bp_name ~ '.change_password') }}" class="admin-btn admin-btn-primary" name="change_password">Change Password</a>
+                <a href="{{ url_for(auth_bp_name ~ '.logout') }}" class="admin-btn admin-btn-danger" name="logout">Logout</a>
             </div>
         </form>
     </div>

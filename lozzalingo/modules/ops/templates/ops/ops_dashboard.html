@@ -7,6 +7,22 @@
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin.min.css') }}">
     <style>
+        /* Constrain any host-app header included via header.html */
+        .site-header { position: relative; z-index: 100; }
+        .site-header .header-logo { max-height: 48px; width: auto; }
+        .site-header .header-inner {
+            display: flex; align-items: center; justify-content: space-between;
+            max-width: 1200px; margin: 0 auto; padding: 12px 20px;
+        }
+        .site-header .header-nav { display: flex; gap: 16px; align-items: center; }
+        .site-header .header-nav a { text-decoration: none; color: inherit; font-size: 14px; }
+        .site-header .header-brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; }
+        .site-header .header-wordmark { font-size: 18px; font-weight: 600; }
+        .site-header .header-right-mobile { display: none; }
+        .site-header .cart-icon-btn { background: none; border: none; cursor: pointer; }
+        .site-header .cart-icon-btn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; }
+        .mobile-nav-overlay, .mobile-nav-drawer { display: none; }
+
         .ops-status-banner {
             padding: 12px 20px;
             border-radius: 8px;
