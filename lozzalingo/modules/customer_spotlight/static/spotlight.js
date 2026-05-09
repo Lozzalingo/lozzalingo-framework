@@ -208,9 +208,8 @@ class CustomerSpotlightGallery {
         customerDiv.style.transform = 'translateY(-50%)';
         customerDiv.style.width = `${this.customerWidth}px`;
 
-        // Analytics tracking for button click
+        // Only link to Instagram if the handle looks real
         customerDiv.addEventListener('click', () => {
-            // Track the Instagram click for analytics
             if (window.analyticsClient) {
                 window.analyticsClient.logInteraction('customer_spotlight_click', {
                     instagram_handle: customer.instagram_handle,
@@ -220,7 +219,14 @@ class CustomerSpotlightGallery {
                 });
             }
 
-            this.openInstagram(customer.instagram_handle);
+            const h = (customer.instagram_handle || '').trim();
+            const isHandle = h.startsWith('@') ||
+                (/^[a-zA-Z0-9_.]+$/.test(h) && !h.includes('WhatsApp') &&
+                 !h.includes('IMG_') && h.length < 30 &&
+                 !/\d{4}[-_]\d{2}[-_]\d{2}/.test(h));
+            if (isHandle && h.length > 0) {
+                this.openInstagram(h);
+            }
         });
 
         // Use preloaded image or create new one
@@ -236,20 +242,30 @@ class CustomerSpotlightGallery {
             this.src = '/static/placeholder-customer.jpg';
         };
 
-        // Create overlay
-        const overlay = document.createElement('div');
-        overlay.className = 'customer-overlay';
-        overlay.innerHTML = `
-            <div class="customer-handle">
-                ${customer.instagram_handle}
-                <svg class="instagram-icon" viewBox="0 0 24 24">
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                </svg>
-            </div>
-        `;
+        // Only show the overlay if the handle looks like a real Instagram username
+        // (starts with @ or is a simple word), not a filename like "WhatsApp_Image_2025..."
+        const handle = (customer.instagram_handle || '').trim();
+        const looksLikeHandle = handle.startsWith('@') ||
+            (/^[a-zA-Z0-9_.]+$/.test(handle) && !handle.includes('WhatsApp') &&
+             !handle.includes('IMG_') && handle.length < 30 &&
+             !/\d{4}[-_]\d{2}[-_]\d{2}/.test(handle));
+
+        if (looksLikeHandle && handle.length > 0) {
+            const overlay = document.createElement('div');
+            overlay.className = 'customer-overlay';
+            const displayHandle = handle.startsWith('@') ? handle : `@${handle}`;
+            overlay.innerHTML = `
+                <div class="customer-handle">
+                    ${displayHandle}
+                    <svg class="instagram-icon" viewBox="0 0 24 24">
+                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                    </svg>
+                </div>
+            `;
+            customerDiv.appendChild(overlay);
+        }
 
         customerDiv.appendChild(img);
-        customerDiv.appendChild(overlay);
 
         return customerDiv;
     }
