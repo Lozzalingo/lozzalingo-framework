@@ -269,6 +269,14 @@ def require_api_key(f):
 # ===== News/Articles Helper Functions =====
 # These reuse the news module's database functions
 
+def _ensure_news_table():
+    """Ensure the news_articles table exists before querying."""
+    try:
+        from lozzalingo.modules.news.routes import init_news_db
+        init_news_db()
+    except Exception as e:
+        print(f"[ExternalAPI] Could not init news DB: {e}")
+
 def get_news_article_db(article_id):
     """Get single article by ID from news database"""
     news_db = get_news_db_config()
@@ -497,8 +505,9 @@ def delete_news_article_db(article_id):
 # ===== Public External API Routes (API Key Auth) =====
 
 @external_api_bp.before_request
-def ensure_api_keys_db():
-    """Ensure API keys table exists before any request"""
+def ensure_tables():
+    """Ensure API keys and news tables exist before any request"""
+    _ensure_news_table()
     init_api_keys_db()
 
 @external_api_bp.route('/articles', methods=['GET'])
