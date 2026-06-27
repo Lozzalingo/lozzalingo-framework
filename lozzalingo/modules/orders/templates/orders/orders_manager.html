@@ -383,6 +383,15 @@
             color: #721c24;
         }
 
+        .badge-abandoned {
+            background: #e2e3e5;
+            color: #6c757d;
+        }
+
+        .order-row-abandoned {
+            opacity: 0.55;
+        }
+
         /* Order Detail Modal */
         .modal-overlay {
             position: fixed;
@@ -666,7 +675,7 @@
                 <button name="create_new_order" class="admin-btn admin-btn-primary" onclick="createNewOrder()" style="margin-right: 10px;">
                     ➕ Create New Order
                 </button>
-                <a href="{{ url_for('admin.dashboard') }}" class="admin-btn admin-btn-secondary">← Back to Dashboard</a>
+                <a href="{{ url_for('admin.dashboard') }}" name="back_to_dashboard" class="admin-btn admin-btn-secondary">← Back to Dashboard</a>
             </div>
         </header>
 
@@ -751,6 +760,7 @@
                 <div class="filter-group">
                     <label>Status</label>
                     <select id="statusFilter">
+                        <option value="active" selected>Active Orders</option>
                         <option value="">All Statuses</option>
                         <option value="paid">Paid</option>
                         <option value="pending">Pending</option>
@@ -758,6 +768,7 @@
                         <option value="delivered">Delivered</option>
                         <option value="cancelled">Cancelled</option>
                         <option value="failed">Failed</option>
+                        <option value="abandoned">Abandoned</option>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -846,8 +857,7 @@
 
                 if (data.success) {
                     currentOrders = data.orders;
-                    displayOrders(currentOrders);
-                    updatePagination();
+                    applyFilters();
                 } else {
                     showAlert('Error loading orders: ' + data.error, 'error');
                 }
@@ -861,15 +871,17 @@
 
         async function loadStats() {
             try {
-                const totalOrders = currentOrders.length;
+                // Exclude abandoned checkouts from stats
+                const realOrders = currentOrders.filter(order => !isAbandoned(order));
+                const totalOrders = realOrders.length;
                 const oneWeekAgo = new Date();
                 oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-                const recentOrders = currentOrders.filter(order =>
+                const recentOrders = realOrders.filter(order =>
                     new Date(order.created_at) >= oneWeekAgo
                 ).length;
 
-                const totalRevenue = currentOrders.reduce((sum, order) =>
+                const totalRevenue = realOrders.reduce((sum, order) =>
                     sum + (order.total_amount || 0), 0
                 );
 
@@ -899,20 +911,24 @@
             const endIndex = startIndex + ordersPerPage;
             const paginatedOrders = orders.slice(startIndex, endIndex);
 
-            tbody.innerHTML = paginatedOrders.map(order => `
-                <tr>
+            tbody.innerHTML = paginatedOrders.map(order => {
+                const isAbandoned = order.status === 'pending' && !order.customer_email;
+                const displayStatus = isAbandoned ? 'abandoned' : order.status;
+                const rowClass = isAbandoned ? 'order-row-abandoned' : '';
+                return `
+                <tr class="${rowClass}">
                     <td>
                         <span class="order-number">${order.order_number}</span>
                     </td>
                     <td class="order-customer">
-                        <div>${order.customer_name || 'N/A'}</div>
-                        <div class="customer-email">${order.customer_email}</div>
+                        <div>${order.customer_name || (isAbandoned ? 'Abandoned checkout' : 'N/A')}</div>
+                        <div class="customer-email">${order.customer_email || ''}</div>
                     </td>
                     <td class="order-products">${order.products}</td>
                     <td class="order-amount">${order.amount_display}</td>
                     <td class="order-date">${formatDate(order.created_at)}</td>
                     <td>
-                        <span class="badge badge-${order.status}">${order.status}</span>
+                        <span class="badge badge-${displayStatus}">${displayStatus}</span>
                     </td>
                     <td class="order-actions">
                         <button name="resend_order_confirmation" class="btn-small btn-resend"
@@ -945,7 +961,7 @@
                         ` : ''}
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
 
             loadStats();
         }
@@ -1393,6 +1409,10 @@
             }
         }
 
+        function isAbandoned(order) {
+            return order.status === 'pending' && !order.customer_email;
+        }
+
         function applyFilters() {
             const searchTerm = document.getElementById('searchFilter').value.toLowerCase();
             const statusFilter = document.getElementById('statusFilter').value;
@@ -1401,10 +1421,23 @@
 
             let filteredOrders = currentOrders.filter(order => {
                 const searchMatch = !searchTerm ||
-                    order.customer_email.toLowerCase().includes(searchTerm) ||
+                    (order.customer_email && order.customer_email.toLowerCase().includes(searchTerm)) ||
                     order.order_number.toLowerCase().includes(searchTerm) ||
                     (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm));
-                const statusMatch = !statusFilter || order.status === statusFilter;
+
+                let statusMatch;
+                if (statusFilter === 'active') {
+                    // Hide abandoned checkouts
+                    statusMatch = !isAbandoned(order);
+                } else if (statusFilter === 'abandoned') {
+                    statusMatch = isAbandoned(order);
+                } else if (statusFilter) {
+                    statusMatch = order.status === statusFilter;
+                } else {
+                    // "All Statuses" - show everything
+                    statusMatch = true;
+                }
+
                 const orderDate = new Date(order.created_at).toISOString().split('T')[0];
                 const dateFromMatch = !dateFromFilter || orderDate >= dateFromFilter;
                 const dateToMatch = !dateToFilter || orderDate <= dateToFilter;
