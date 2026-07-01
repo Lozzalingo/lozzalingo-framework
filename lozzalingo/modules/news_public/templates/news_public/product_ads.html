@@ -12,6 +12,14 @@
 #}
 {% set _ads_enabled = article.ads_enabled if article is defined and article.ads_enabled is defined else true %}
 {% if config.get('NEWS_EMBED_PRODUCTS', False) and _ads_enabled %}
+<style>
+@media (max-width: 600px) {
+    [data-product-ad] img {
+        object-fit: contain !important;
+        object-position: center center !important;
+    }
+}
+</style>
 <script>
 (function() {
     console.log('[ProductAds] Initialising product ad injection');
