@@ -25,7 +25,7 @@ Ask the user these questions before writing any code. Present them conversationa
 ### 1.2 Domain & Hosting
 - **Do you have a domain?** If yes, what is it?
 - **Where will this run?**
-  - A) Existing DigitalOcean droplet (143.110.152.203) — add alongside existing sites
+  - A) Existing DigitalOcean droplet (146.190.54.52) — add alongside existing sites
   - B) New server — we'll provision one
   - C) Local only for now — deploy later
 
@@ -640,7 +640,7 @@ The config includes:
 Create `scripts/deploy.sh` using the template from `starter-template/scripts/deploy.sh`.
 
 Replace all `<PLACEHOLDER>` values:
-- `<SERVER_IP>` → server IP (default: 143.110.152.203)
+- `<SERVER_IP>` → server IP (default: 146.190.54.52)
 - `<SITE_SLUG>` → the site slug
 - `<SITE_NAME>` → the site name
 - `<DOMAIN>` → the site's domain
@@ -719,11 +719,11 @@ For each enabled feature, check its admin route:
 
 Only proceed if the user wants to deploy. Reference `./DEPLOY.md` for detailed steps.
 
-### Option A: Existing DigitalOcean Droplet (143.110.152.203)
+### Option A: Existing DigitalOcean Droplet (146.190.54.52)
 
 **Prerequisites:**
 - SSH key added: `ssh-add ~/.ssh/id_ed25519_droplet`
-- Test connection: `ssh -i ~/.ssh/id_ed25519_droplet root@143.110.152.203`
+- Test connection: `ssh -i ~/.ssh/id_ed25519_droplet root@146.190.54.52`
 
 **Steps:**
 
@@ -735,7 +735,7 @@ Only proceed if the user wants to deploy. Reference `./DEPLOY.md` for detailed s
 
 2. **Create production `.env` on server** (if first deploy):
    ```bash
-   ssh root@143.110.152.203 "cat > /var/www/<site_slug>/.env << 'EOF'
+   ssh root@146.190.54.52 "cat > /var/www/<site_slug>/.env << 'EOF'
    FLASK_ENV=production
    ENVIRONMENT=production
    FLASK_SECRET_KEY=<generated-secret>
@@ -746,18 +746,18 @@ Only proceed if the user wants to deploy. Reference `./DEPLOY.md` for detailed s
 
 3. **Install Nginx config** (using generated config from Phase 2.13):
    ```bash
-   scp -i ~/.ssh/id_ed25519_droplet scripts/<site_slug>.nginx.conf root@143.110.152.203:/etc/nginx/sites-available/<site_slug>
-   ssh root@143.110.152.203 "ln -sf /etc/nginx/sites-available/<site_slug> /etc/nginx/sites-enabled/ && nginx -t && systemctl reload nginx"
+   scp -i ~/.ssh/id_ed25519_droplet scripts/<site_slug>.nginx.conf root@146.190.54.52:/etc/nginx/sites-available/<site_slug>
+   ssh root@146.190.54.52 "ln -sf /etc/nginx/sites-available/<site_slug> /etc/nginx/sites-enabled/ && nginx -t && systemctl reload nginx"
    ```
 
 4. **Set up SSL:**
    ```bash
-   ssh root@143.110.152.203 "certbot --nginx -d <domain> --non-interactive --agree-tos -m <email>"
+   ssh root@146.190.54.52 "certbot --nginx -d <domain> --non-interactive --agree-tos -m <email>"
    ```
 
 5. **Configure DNS:**
-   - For `*.laurence.computer` subdomains: A record already points to 143.110.152.203 (wildcard)
-   - For external domains: Add A record pointing to 143.110.152.203
+   - For `*.laurence.computer` subdomains: A record already points to 146.190.54.52 (wildcard)
+   - For external domains: Add A record pointing to 146.190.54.52
 
 6. **Verify deployment:**
    ```bash
@@ -803,7 +803,7 @@ Print a launch card summarizing everything:
   Quick Commands:
     Local:  cd <path> && python main.py
     Docker: cd <path> && docker compose up -d --build
-    Deploy: ssh root@143.110.152.203 "cd /var/www/<site_slug> && git pull && docker compose up -d --build"
+    Deploy: ssh root@146.190.54.52 "cd /var/www/<site_slug> && git pull && docker compose up -d --build"
 
 ============================================================
 ```

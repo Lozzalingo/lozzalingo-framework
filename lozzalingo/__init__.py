@@ -77,6 +77,7 @@ class Lozzalingo:
             'quick_links': False,
             'ops': True,
             'campaigns': False,
+            'crm': False,
         },
 
         # Analytics settings
@@ -275,6 +276,10 @@ class Lozzalingo:
         if 'auth' in yaml_config:
             result['auth'] = yaml_config['auth']
 
+        # Map CRM section (customer_prefix, scoring weights)
+        if 'crm' in yaml_config:
+            result['crm'] = yaml_config['crm']
+
         return result
 
     def _configure_flask_app(self):
@@ -417,6 +422,10 @@ class Lozzalingo:
         # Campaigns (email campaign editor + blast sending)
         if features.get('campaigns', False):
             self._register_campaigns()
+
+        # CRM (customer relationship management)
+        if features.get('crm', False):
+            self._register_crm()
 
         # Client error logging (always on - receives browser JS errors)
         self._register_client_error()
@@ -605,6 +614,16 @@ class Lozzalingo:
             self.app.logger.debug("Registered ops module")
         except Exception as e:
             self.app.logger.error(f"Failed to register ops module: {e}")
+
+    def _register_crm(self):
+        """Register the CRM (customer relationship management) module."""
+        try:
+            from .modules.crm import crm_bp
+            self.app.register_blueprint(crm_bp)
+            self._registered_blueprints.append('crm')
+            self.app.logger.debug("Registered crm module")
+        except Exception as e:
+            self.app.logger.error(f"Failed to register crm module: {e}")
 
     def _register_client_error(self):
         """Register the client-side error logging endpoint."""

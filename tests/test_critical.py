@@ -51,6 +51,7 @@ def app(tmp_db_dir):
             'projects_public': True,
             'quick_links': True,
             'campaigns': True,
+            'crm': True,
         }
     })
     return app
@@ -165,6 +166,7 @@ EXPECTED_MODULES = [
     "quick_links",
     "ops",
     "campaigns",
+    "crm",
     "client_error",
 ]
 

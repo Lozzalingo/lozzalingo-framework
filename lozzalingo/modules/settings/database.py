@@ -400,7 +400,7 @@ SETTINGS_SCHEMA = {
         'label': 'Deployment',
         'icon': '🚀',
         'settings': [
-            {'key': 'SERVER_IP', 'label': 'Server IP', 'type': 'text', 'is_secret': False, 'description': 'e.g., 143.110.152.203'},
+            {'key': 'SERVER_IP', 'label': 'Server IP', 'type': 'text', 'is_secret': False, 'description': 'e.g., 146.190.54.52'},
             {'key': 'DOMAIN', 'label': 'Domain', 'type': 'text', 'is_secret': False, 'description': 'e.g., mysite.laurence.computer'},
             {'key': 'DOCKER_PORT', 'label': 'Docker Port', 'type': 'text', 'is_secret': False, 'description': 'e.g., 5003'},
             {'key': 'SSH_KEY_PATH', 'label': 'SSH Key Path', 'type': 'text', 'default': '~/.ssh/id_ed25519_droplet', 'is_secret': False, 'description': 'Path to SSH key for deployment'},

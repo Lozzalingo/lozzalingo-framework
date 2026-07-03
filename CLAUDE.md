@@ -47,8 +47,8 @@ When creating a new host app:
 ## Host Apps
 | App | Install Method | Registration | Server |
 |-----|---------------|-------------|--------|
-| laurence.computer | Symlink (`lozzalingo -> ../lozzalingo-framework/lozzalingo`) | `Lozzalingo(app)` auto | DigitalOcean 143.110.152.203 |
-| Crowd Sauced | Symlink (`lozzalingo -> lozzalingo-repo/lozzalingo`) | Manual imports in `main.py` | DigitalOcean 143.110.152.203 |
+| laurence.computer | Symlink (`lozzalingo -> ../lozzalingo-framework/lozzalingo`) | `Lozzalingo(app)` auto | DigitalOcean 146.190.54.52 |
+| Crowd Sauced | Symlink (`lozzalingo -> lozzalingo-repo/lozzalingo`) | Manual imports in `main.py` | DigitalOcean 146.190.54.52 |
 | Mario Pinto | `pip install` from git | Manual imports in `app/__init__.py` | AWS EC2 eu-north-1 |
 
 ### Updating Framework on Servers

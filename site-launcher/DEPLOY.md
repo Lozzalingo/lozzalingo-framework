@@ -58,7 +58,7 @@ Production deployment reference for Lozzalingo-powered sites. Written for both h
 | Basic $12/mo | 1 | 2GB | 50GB | $12/mo | 2-3 sites |
 | Basic $24/mo | 2 | 4GB | 80GB | $24/mo | 4+ sites |
 
-**Current server:** 143.110.152.203 (hosts laurencedotcomputer, crowd_sauced, product-gap)
+**Current server:** 146.190.54.52 (hosts laurencedotcomputer, crowd_sauced, product-gap)
 
 ### Creating a New Droplet
 1. Go to cloud.digitalocean.com → Create → Droplets
@@ -203,7 +203,7 @@ systemctl reload nginx
 ### Nginx for Multiple Sites
 Each site gets its own config file in `/etc/nginx/sites-available/`. They can all coexist — Nginx routes by `server_name`.
 
-**Current Nginx configs on 143.110.152.203:**
+**Current Nginx configs on 146.190.54.52:**
 ```
 /etc/nginx/sites-available/
 ├── crowdsauced           # crowdsauced.laurence.computer → 127.0.0.1:5001
@@ -339,11 +339,11 @@ ssh root@<SERVER_IP> "curl -s http://localhost:<PORT>/health | python3 -m json.t
 ## 8. DNS Configuration
 
 ### For *.laurence.computer Subdomains
-A wildcard A record `*.laurence.computer` already points to `143.110.152.203`. Just pick a subdomain and configure Nginx — no DNS changes needed.
+A wildcard A record `*.laurence.computer` already points to `146.190.54.52`. Just pick a subdomain and configure Nginx — no DNS changes needed.
 
 To add a specific subdomain (if no wildcard exists):
 1. Go to DigitalOcean → Networking → Domains → laurence.computer
-2. Add A record: hostname = `<subdomain>`, value = `143.110.152.203`, TTL = 3600
+2. Add A record: hostname = `<subdomain>`, value = `146.190.54.52`, TTL = 3600
 
 ### For External Domains
 1. At your domain registrar, add an A record:
@@ -623,7 +623,7 @@ docker system prune -af
 ### SSH
 ```bash
 ssh-add ~/.ssh/id_ed25519_droplet
-ssh root@143.110.152.203
+ssh root@146.190.54.52
 ```
 
 ### Deploy New Code
