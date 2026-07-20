@@ -533,10 +533,11 @@ class Lozzalingo:
             self.app.logger.error(f"Failed to register merchandise_public module: {e}")
 
     def _register_orders(self):
-        """Register the orders module."""
+        """Register the orders module (admin + public recent-sales API)."""
         try:
-            from .modules.orders import orders_bp
+            from .modules.orders import orders_bp, orders_public_bp
             self.app.register_blueprint(orders_bp)
+            self.app.register_blueprint(orders_public_bp)
             self._registered_blueprints.append('orders')
             self.app.logger.debug("Registered orders module")
         except Exception as e:

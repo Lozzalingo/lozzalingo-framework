@@ -660,6 +660,7 @@
         }
     </style>
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
+    {% block orders_extra_head %}{% endblock %}
 </head>
 <body>
     <div class="orders-container">
@@ -691,8 +692,17 @@
             </div>
             <div class="stat-card">
                 <span class="stat-number" id="totalRevenueCount">-</span>
-                <span class="stat-label">Total Revenue</span>
+                <span class="stat-label">Gross Revenue</span>
             </div>
+            <div class="stat-card" id="shippingStatCard" style="display:none;">
+                <span class="stat-number" id="totalShippingCount">-</span>
+                <span class="stat-label">Shipping Costs</span>
+            </div>
+            <div class="stat-card" id="netRevenueStatCard" style="display:none; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                <span class="stat-number" id="netRevenueCount">-</span>
+                <span class="stat-label">Net Revenue</span>
+            </div>
+            {% block orders_extra_stats %}{% endblock %}
         </div>
 
         {% if etsy_shops %}
@@ -750,6 +760,7 @@
         </script>
         {% endif %}
 
+        {% block orders_before_filters %}{% endblock %}
         <!-- Filters -->
         <div class="orders-filters">
             <div class="filter-row">
@@ -759,11 +770,13 @@
                 </div>
                 <div class="filter-group">
                     <label>Status</label>
-                    <select id="statusFilter">
+                    <select id="statusFilter" onchange="applyFilters()">
                         <option value="active" selected>Active Orders</option>
                         <option value="">All Statuses</option>
+                        <option value="completed">Completed</option>
                         <option value="paid">Paid</option>
                         <option value="pending">Pending</option>
+                        <option value="expired">Expired</option>
                         <option value="shipped">Shipped</option>
                         <option value="delivered">Delivered</option>
                         <option value="cancelled">Cancelled</option>
@@ -802,6 +815,7 @@
                         <th>Amount</th>
                         <th>Date</th>
                         <th>Status</th>
+                        {% block orders_extra_table_headers %}{% endblock %}
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -839,9 +853,33 @@
         // API base path - uses lozzalingo orders module routes
         const API_BASE = '/admin/orders-manager';
 
+        // Per-app fulfilment config (set by host app via ORDERS_FULFILMENT_CONFIG)
+        {% if fulfilment_config %}
+        window._fulfilmentFields = {{ fulfilment_config.fields | default([]) | tojson }};
+        window._rowActions = {{ fulfilment_config.row_actions | default([]) | tojson }};
+        window._modalActions = {{ fulfilment_config.modal_actions | default([]) | tojson }};
+        window._fulfilmentProvider = {{ fulfilment_config.provider_name | default('') | tojson }};
+        {% else %}
+        window._fulfilmentFields = null;
+        window._rowActions = null;
+        window._modalActions = null;
+        window._fulfilmentProvider = null;
+        {% endif %}
+
         let currentOrders = [];
         let currentPage = 1;
         let ordersPerPage = 20;
+
+        // Extension points for host apps.
+        // Apps can override these functions to add custom columns, detail sections, etc.
+        // renderExtraTableCells(order) - return HTML string for extra <td> cells in the order row
+        // renderExtraDetailSections(order) - return HTML string for extra sections in the detail modal
+        // renderExtraEditSections(order) - return HTML string for extra sections in the edit modal
+        // onOrdersLoaded(orders, summary) - called after orders are loaded from the API
+        window.renderExtraTableCells = window.renderExtraTableCells || function(order) { return ''; };
+        window.renderExtraDetailSections = window.renderExtraDetailSections || function(order) { return ''; };
+        window.renderExtraEditSections = window.renderExtraEditSections || function(order) { return ''; };
+        window.onOrdersLoaded = window.onOrdersLoaded || function(orders, summary) {};
 
         // Load orders when page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -857,7 +895,9 @@
 
                 if (data.success) {
                     currentOrders = data.orders;
+                    window._ordersSummary = data.summary || null;
                     applyFilters();
+                    window.onOrdersLoaded(data.orders, data.summary);
                 } else {
                     showAlert('Error loading orders: ' + data.error, 'error');
                 }
@@ -885,9 +925,21 @@
                     sum + (order.total_amount || 0), 0
                 );
 
+                const totalShipping = realOrders.reduce((sum, order) =>
+                    sum + (order.shipping_cost || 0), 0
+                );
+
                 document.getElementById('totalOrdersCount').textContent = totalOrders;
                 document.getElementById('recentOrdersCount').textContent = recentOrders;
                 document.getElementById('totalRevenueCount').textContent = `£${(totalRevenue / 100).toFixed(2)}`;
+
+                // Show shipping and net revenue cards only if any order has shipping_cost
+                if (totalShipping > 0) {
+                    document.getElementById('shippingStatCard').style.display = '';
+                    document.getElementById('netRevenueStatCard').style.display = '';
+                    document.getElementById('totalShippingCount').textContent = `£${(totalShipping / 100).toFixed(2)}`;
+                    document.getElementById('netRevenueCount').textContent = `£${((totalRevenue - totalShipping) / 100).toFixed(2)}`;
+                }
             } catch (error) {
                 console.error('Error loading stats:', error);
             }
@@ -912,40 +964,63 @@
             const paginatedOrders = orders.slice(startIndex, endIndex);
 
             tbody.innerHTML = paginatedOrders.map(order => {
-                const isAbandoned = order.status === 'pending' && !order.customer_email;
-                const displayStatus = isAbandoned ? 'abandoned' : order.status;
-                const rowClass = isAbandoned ? 'order-row-abandoned' : '';
+                const abandoned = isAbandoned(order);
+                const displayStatus = abandoned ? 'abandoned' : order.status;
+                const rowClass = abandoned ? 'order-row-abandoned' : '';
                 return `
                 <tr class="${rowClass}">
                     <td>
-                        <span class="order-number">${order.order_number}</span>
+                        <span class="order-number">${abandoned ? '<span style="color: var(--lz-text-secondary, #999); font-style: italic;">-</span>' : order.order_number}</span>
                     </td>
                     <td class="order-customer">
-                        <div>${order.customer_name || (isAbandoned ? 'Abandoned checkout' : 'N/A')}</div>
-                        <div class="customer-email">${order.customer_email || ''}</div>
+                        <div>${abandoned
+                            ? '<span style="color: var(--lz-text-secondary, #999); font-style: italic;">Abandoned cart</span>'
+                            : (order.customer_name || 'N/A')}</div>
+                        <div class="customer-email">${(order.customer_email && order.customer_email !== 'pending')
+                            ? order.customer_email
+                            : (abandoned && order.visitor_ip
+                                ? '<span style="font-size: 0.8em; color: var(--lz-text-secondary, #888);">' + order.visitor_ip + (order.visitor_city ? ' (' + order.visitor_city + ')' : '') + '</span>'
+                                : '')}</div>
                     </td>
-                    <td class="order-products">${order.products}</td>
-                    <td class="order-amount">${order.amount_display}</td>
-                    <td class="order-date">${formatDate(order.created_at)}</td>
+                    <td class="order-products">
+                        ${order.products}
+                        ${order.grind_types && order.grind_types.length ? '<div style="margin-top:4px;">' + order.grind_types.map(g => '<span class="badge" style="background:#e8d5b7;color:#3d2b1f;font-size:0.75rem;margin-right:4px;">' + g + '</span>').join('') + '</div>' : ''}
+                        ${order.subscription_id ? '<div style="margin-top:4px;"><span class="badge" style="background:#d4edda;color:#155724;font-size:0.75rem;">subscription</span></div>' : ''}
+                    </td>
+                    <td class="order-amount">
+                        ${order.amount_display}
+                        ${order.shipping_cost ? '<div style="font-size:0.75rem;color:var(--lz-text-secondary,#666);font-weight:normal;">Shipping: £' + (order.shipping_cost / 100).toFixed(2) + '</div>' : ''}
+                        ${'vegan_discovery_pack' in order ? (order.vegan_discovery_pack ? '<div style="margin-top:3px;"><span class="badge" style="background:#e8f5e9;color:#2e7d32;font-size:0.7rem;">Vegan DP</span></div>' : '<div style="margin-top:3px;"><span class="badge" style="background:#fff3e0;color:#e65100;font-size:0.7rem;">Std DP</span></div>') : ''}
+                    </td>
+                    <td class="order-date">
+                        ${formatDate(order.created_at)}
+                        ${order.scheduled_delivery_date ? '<div style="font-size:0.8rem;color:#856404;margin-top:2px;">Ship: ' + order.scheduled_delivery_date + '</div>' : ''}
+                    </td>
                     <td>
                         <span class="badge badge-${displayStatus}">${displayStatus}</span>
+                        ${order.order_type ? `<div style="margin-top:4px;"><span class="badge" style="background:${order.order_type === 'subscription' ? '#d4edda;color:#155724' : '#e3f2fd;color:#1565c0'};font-size:0.7rem;">${order.order_type}</span></div>` : ''}
                     </td>
+                    ${window.renderExtraTableCells(order)}
                     <td class="order-actions">
+                        ${!abandoned ? `
                         <button name="resend_order_confirmation" class="btn-small btn-resend"
                                 onclick="resendConfirmation(${order.id}, this)"
                                 title="Resend confirmation email">
                             📧 Resend
                         </button>
+                        ` : ''}
                         <button name="view_order_details" class="btn-small btn-view"
                                 onclick="viewOrderDetails(${order.id})"
                                 title="View order details">
                             👁️ View
                         </button>
+                        ${!abandoned ? `
                         <button name="edit_order_details" class="btn-small btn-edit"
                                 onclick="editOrderDetails(${order.id})"
                                 title="Edit order details">
                             ✏️ Edit
                         </button>
+                        ` : ''}
                         <button name="delete_order" class="btn-small btn-delete"
                                 onclick="deleteOrder(${order.id}, '${order.order_number}', this)"
                                 title="Delete order">
@@ -959,6 +1034,9 @@
                             📦 Etsy Ship
                         </button>
                         ` : ''}
+                        ${window._rowActions ? window._rowActions.filter(a => !a.condition || eval(a.condition)).map(a =>
+                            `<button name="${a.label.replace(/[^a-z0-9]/gi, '_').toLowerCase()}" class="btn-small" onclick="${a.onclick.replace(/\{order_id\}/g, order.id).replace(/\{order_number\}/g, order.order_number)}" style="${a.style || ''}" title="${a.title || ''}">${a.label}</button>`
+                        ).join('') : ''}
                     </td>
                 </tr>
             `}).join('');
@@ -1085,10 +1163,47 @@
                             <div class="info-label">Total Amount</div>
                             <div class="info-value">${order.amount_display}</div>
                         </div>
+                        ${order.shipping_cost ? `
+                        <div class="info-item">
+                            <div class="info-label">Shipping Cost</div>
+                            <div class="info-value">£${(order.shipping_cost / 100).toFixed(2)}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Product Subtotal</div>
+                            <div class="info-value">£${((order.total_amount - order.shipping_cost) / 100).toFixed(2)}</div>
+                        </div>` : ''}
                         <div class="info-item">
                             <div class="info-label">Order Date</div>
                             <div class="info-value">${formatDate(order.created_at)}</div>
                         </div>
+                        ${order.subscription_id ? `
+                        <div class="info-item">
+                            <div class="info-label">Order Type</div>
+                            <div class="info-value"><span class="badge" style="background:#d4edda;color:#155724">Subscription</span></div>
+                        </div>` : `
+                        <div class="info-item">
+                            <div class="info-label">Order Type</div>
+                            <div class="info-value"><span class="badge" style="background:#e3f2fd;color:#1565c0">One-off</span></div>
+                        </div>`}
+                        ${order.scheduled_delivery_date ? `
+                        <div class="info-item">
+                            <div class="info-label">Scheduled Delivery</div>
+                            <div class="info-value">${order.scheduled_delivery_date}</div>
+                        </div>` : ''}
+                        ${order.subscription_id ? `
+                        <div class="info-item">
+                            <div class="info-label">Subscription ID</div>
+                            <div class="info-value" style="font-family:monospace;font-size:0.8rem;">${order.subscription_id}</div>
+                        </div>` : ''}
+                        ${'vegan_discovery_pack' in order ? (order.vegan_discovery_pack ? `
+                        <div class="info-item">
+                            <div class="info-label">Discovery Pack</div>
+                            <div class="info-value"><span class="badge" style="background:#e8f5e9;color:#2e7d32">Vegan</span></div>
+                        </div>` : `
+                        <div class="info-item">
+                            <div class="info-label">Discovery Pack</div>
+                            <div class="info-value"><span class="badge" style="background:#fff3e0;color:#e65100">Standard</span></div>
+                        </div>`) : ''}
                     </div>
                 </div>
 
@@ -1150,6 +1265,7 @@
                                     <div class="item-meta">
                                         Quantity: ${item.quantity}
                                         ${item.size ? ` | Size: ${item.size}` : ''}
+                                        ${item.grind_type ? ` | Grind: <span style="background:#e8d5b7;color:#3d2b1f;padding:2px 6px;border-radius:3px;font-size:0.8rem;">${item.grind_type}</span>` : ''}
                                         | Unit Price: £${(item.price_at_time / 100).toFixed(2)}
                                     </div>
                                 </div>
@@ -1170,31 +1286,21 @@
                     </div>
                 </div>
 
+                ${window._fulfilmentFields ? `
                 <div class="order-detail-section">
-                    <h3>🚚 Fulfillment & Shipping</h3>
+                    <h3>🚚 Fulfilment & Shipping</h3>
                     <div class="order-info-grid">
+                        ${window._fulfilmentFields.map(f => `
                         <div class="info-item">
-                            <div class="info-label">InkThreadable Order ID</div>
-                            <input type="text" class="edit-input" id="edit-inkthreadable-id" value="${order.inkthreadable_id || ''}" placeholder="Enter InkThreadable ID" readonly />
+                            <div class="info-label">${f.label}</div>
+                            <input type="text" class="edit-input" id="edit-${f.id}" value="${order[f.key] || ''}" placeholder="${f.placeholder || ''}" readonly />
                         </div>
-                        <div class="info-item">
-                            <div class="info-label">Fulfillment Status</div>
-                            <input type="text" class="edit-input" id="edit-inkthreadable-status" value="${order.inkthreadable_status || ''}" placeholder="e.g., Received, Processing, Shipped" readonly />
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Carrier</div>
-                            <input type="text" class="edit-input" id="edit-carrier" value="${order.carrier || ''}" placeholder="e.g., UK Royal Mail 24 Tracked" readonly />
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Tracking Number</div>
-                            <input type="text" class="edit-input" id="edit-tracking-number" value="${order.tracking_number || ''}" placeholder="Enter tracking number" readonly />
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Shipped Date</div>
-                            <input type="datetime-local" class="edit-input" id="edit-shipped-at" value="${order.shipped_at ? order.shipped_at.substring(0, 16) : ''}" readonly />
-                        </div>
+                        `).join('')}
                     </div>
                 </div>
+                ` : ''}
+
+                ${window.renderExtraDetailSections(order)}
 
                 <div class="order-detail-section">
                     <h3>⚡ Quick Actions</h3>
@@ -1218,16 +1324,9 @@
                                 onclick="resendConfirmationFromModal(${order.id}, this)">
                             📧 Resend Confirmation Email
                         </button>
-                        <button name="resend_inkthreadable" class="admin-btn admin-btn-success"
-                                onclick="resendToInkThreadable(${order.id}, this)"
-                                style="background: #28a745;">
-                            📦 Resend to InkThreadable
-                        </button>
-                        <button name="check_shipping_status" class="admin-btn admin-btn-warning"
-                                onclick="checkShippingStatus(${order.id}, this)"
-                                style="background: #ffc107; color: #000;">
-                            🚚 Check Shipping Status
-                        </button>
+                        ${window._modalActions ? window._modalActions.map(a =>
+                            `<button name="${a.label.replace(/[^a-z0-9]/gi, '_').toLowerCase()}" class="admin-btn" onclick="${a.onclick.replace(/\{order_id\}/g, order.id)}" style="${a.style || ''}">${a.label}</button>`
+                        ).join('') : ''}
                         <button name="close_order_modal_footer" class="admin-btn admin-btn-secondary"
                                 onclick="closeOrderModal()">
                             🔙 Close
@@ -1377,12 +1476,15 @@
                     shipping_state: document.getElementById('edit-shipping-state').value,
                     shipping_postal_code: document.getElementById('edit-shipping-postal-code').value,
                     shipping_country: document.getElementById('edit-shipping-country').value,
-                    inkthreadable_id: document.getElementById('edit-inkthreadable-id').value,
-                    inkthreadable_status: document.getElementById('edit-inkthreadable-status').value,
-                    carrier: document.getElementById('edit-carrier').value,
-                    tracking_number: document.getElementById('edit-tracking-number').value,
-                    shipped_at: document.getElementById('edit-shipped-at').value || null
                 };
+
+                // Add dynamic fulfilment fields
+                if (window._fulfilmentFields) {
+                    window._fulfilmentFields.forEach(f => {
+                        const el = document.getElementById('edit-' + f.id);
+                        if (el) updateData[f.key] = el.value || null;
+                    });
+                }
 
                 const response = await fetch(`${API_BASE}/api/update-order`, {
                     method: 'POST',
@@ -1410,7 +1512,12 @@
         }
 
         function isAbandoned(order) {
-            return order.status === 'pending' && !order.customer_email;
+            // Mario Pinto pattern: status=pending, no email
+            if (order.status === 'pending' && !order.customer_email) return true;
+            // Coffee Goblin pattern: status=expired, or email is "pending" (never completed checkout)
+            if (order.status === 'expired') return true;
+            if (order.customer_email === 'pending') return true;
+            return false;
         }
 
         function applyFilters() {
@@ -1529,16 +1636,17 @@
                         <div class="info-item"><label class="info-label">Country</label><input type="text" id="edit-shipping-country" value="${order.shipping_country || ''}" class="edit-input" /></div>
                     </div>
                 </div>
+                ${window._fulfilmentFields ? `
                 <div class="order-detail-section">
-                    <h3>🚚 Fulfillment & Shipping</h3>
+                    <h3>🚚 Fulfilment & Shipping</h3>
                     <div class="order-info-grid">
-                        <div class="info-item"><label class="info-label">InkThreadable Order ID</label><input type="text" id="edit-inkthreadable-id" value="${order.inkthreadable_id || ''}" class="edit-input" placeholder="Enter InkThreadable ID" /></div>
-                        <div class="info-item"><label class="info-label">Fulfillment Status</label><input type="text" id="edit-inkthreadable-status" value="${order.inkthreadable_status || ''}" class="edit-input" placeholder="e.g., Received, Processing, Shipped" /></div>
-                        <div class="info-item"><label class="info-label">Carrier</label><input type="text" id="edit-carrier" value="${order.carrier || ''}" class="edit-input" placeholder="e.g., UK Royal Mail 24 Tracked" /></div>
-                        <div class="info-item"><label class="info-label">Tracking Number</label><input type="text" id="edit-tracking-number" value="${order.tracking_number || ''}" class="edit-input" placeholder="Enter tracking number" /></div>
-                        <div class="info-item"><label class="info-label">Shipped Date</label><input type="datetime-local" id="edit-shipped-at" value="${order.shipped_at ? order.shipped_at.substring(0, 16) : ''}" class="edit-input" /></div>
+                        ${window._fulfilmentFields.map(f => `
+                        <div class="info-item"><label class="info-label">${f.label}</label><input type="${f.type || 'text'}" id="edit-${f.id}" value="${order[f.key] || ''}" class="edit-input" placeholder="${f.placeholder || ''}" /></div>
+                        `).join('')}
                     </div>
                 </div>
+                ` : ''}
+                ${window.renderExtraEditSections(order)}
                 <div class="order-detail-section">
                     <div style="margin-top: 20px;">
                         <button name="save_all_order_changes" type="button" class="admin-btn admin-btn-primary" onclick="saveAllOrderChanges(${order.id}, this)">💾 Save All Changes</button>
@@ -1592,12 +1700,16 @@
                     shipping_state: document.getElementById('edit-shipping-state').value,
                     shipping_postal_code: document.getElementById('edit-shipping-postal-code').value,
                     shipping_country: document.getElementById('edit-shipping-country').value,
-                    inkthreadable_id: document.getElementById('edit-inkthreadable-id').value,
-                    inkthreadable_status: document.getElementById('edit-inkthreadable-status').value,
-                    carrier: document.getElementById('edit-carrier').value,
-                    tracking_number: document.getElementById('edit-tracking-number').value,
-                    shipped_at: document.getElementById('edit-shipped-at').value || null
                 };
+
+                // Add dynamic fulfilment fields
+                if (window._fulfilmentFields) {
+                    window._fulfilmentFields.forEach(f => {
+                        const el = document.getElementById('edit-' + f.id);
+                        if (el) updateData[f.key] = el.value || null;
+                    });
+                }
+
                 const response = await fetch(`${API_BASE}/api/update-order`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updateData) });
                 const data = await response.json();
                 if (data.success) { showAlert('✅ Order updated successfully!', 'success'); button.innerHTML = '✅ Saved'; setTimeout(() => { loadOrders(); closeOrderModal(); }, 1500); }
@@ -1678,6 +1790,9 @@
 
         // Make functions globally accessible
         window.viewOrderDetails = viewOrderDetails; window.editOrderDetails = editOrderDetails; window.deleteOrder = deleteOrder; window.createNewOrder = createNewOrder; window.addOrderItem = addOrderItem; window.editOrderItem = editOrderItem; window.deleteOrderItem = deleteOrderItem; window.saveOrderItem = saveOrderItem; window.updateOrderItem = updateOrderItem; window.saveAllOrderChanges = saveAllOrderChanges; window.addNewOrderProduct = addNewOrderProduct; window.closeProductSelectModal = closeProductSelectModal; window.updateProductPrice = updateProductPrice; window.addProductToNewOrder = addProductToNewOrder; window.removeNewOrderItem = removeNewOrderItem; window.finalizeNewOrder = finalizeNewOrder; window.toggleEditMode = toggleEditMode; window.cancelEditMode = cancelEditMode; window.saveOrderChanges = saveOrderChanges; window.changePage = changePage; window.applyFilters = applyFilters; window.closeOrderModal = closeOrderModal; window.resendConfirmation = resendConfirmation; window.resendConfirmationFromModal = resendConfirmationFromModal; window.resendToInkThreadable = resendToInkThreadable; window.checkShippingStatus = checkShippingStatus; window.sendEtsyShippingUpdate = sendEtsyShippingUpdate;
+        // Also expose loadOrders and loadStats for host app use
+        window.loadOrders = loadOrders; window.loadStats = loadStats;
     </script>
+    {% block orders_extra_scripts %}{% endblock %}
 </body>
 </html>
