@@ -1351,3 +1351,91 @@ def recent_sales():
         except Exception:
             pass
         return jsonify({'sales': [], 'error': 'Internal error'}), 500
+
+
+@orders_public_bp.route('/sales-summary')
+def sales_summary():
+    """Return total revenue and order stats for leaderboard.
+
+    Protected by X-Ticker-Key header matching TICKER_API_KEY env var.
+    Response: {brand, total_revenue_pence, total_orders, first_sale_date, currency}
+    """
+    expected_key = os.getenv('TICKER_API_KEY')
+    if not expected_key:
+        return jsonify({'error': 'Ticker API not configured'}), 503
+
+    provided_key = request.headers.get('X-Ticker-Key', '')
+    if provided_key != expected_key:
+        return jsonify({'error': 'Unauthorised'}), 401
+
+    brand_name = (
+        current_app.config.get('TICKER_BRAND_NAME')
+        or current_app.config.get('EMAIL_BRAND_NAME')
+        or current_app.config.get('brand_name', 'Unknown')
+    )
+
+    exclude_emails = current_app.config.get('TICKER_EXCLUDE_EMAILS', _DEFAULT_EXCLUDE_EMAILS)
+
+    try:
+        conn = _get_merchandise_conn()
+        if not conn:
+            return jsonify({
+                'brand': brand_name,
+                'total_revenue_pence': 0,
+                'total_orders': 0,
+                'first_sale_date': None,
+                'currency': 'GBP',
+            })
+
+        cursor = conn.cursor()
+
+        # Build exclusion filter for test emails
+        if exclude_emails:
+            placeholders = ', '.join('?' for _ in exclude_emails)
+            email_filter = f"AND customer_email NOT IN ({placeholders})"
+            params = list(exclude_emails)
+        else:
+            email_filter = ''
+            params = []
+
+        status_filter = "status IN ('paid', 'succeeded', 'completed')"
+
+        cursor.execute(f'''
+            SELECT
+                COALESCE(SUM(total_amount), 0) as total_revenue,
+                COUNT(*) as total_orders,
+                MIN(created_at) as first_sale
+            FROM orders
+            WHERE {status_filter}
+            {email_filter}
+        ''', params)
+
+        row = cursor.fetchone()
+        total_revenue = row[0] if row else 0
+        total_orders = row[1] if row else 0
+        first_sale_raw = row[2] if row else None
+
+        first_sale_date = None
+        if first_sale_raw:
+            try:
+                first_sale_date = str(first_sale_raw)[:10]
+            except Exception:
+                pass
+
+        conn.close()
+
+        return jsonify({
+            'brand': brand_name,
+            'total_revenue_pence': total_revenue,
+            'total_orders': total_orders,
+            'first_sale_date': first_sale_date,
+            'currency': 'GBP',
+        })
+
+    except Exception as e:
+        try:
+            from lozzalingo.core import db_log
+            db_log('error', 'orders', 'Error in sales-summary API', {'error': str(e)})
+        except Exception:
+            pass
+        return jsonify({'error': 'Internal error'}), 500

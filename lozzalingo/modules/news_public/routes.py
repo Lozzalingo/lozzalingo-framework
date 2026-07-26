@@ -215,6 +215,7 @@ def _generate_sitemap():
 
     Requires SITE_URL in app config. Optional configs:
     - SITEMAP_STATIC_PAGES: list of {'path': '/', 'changefreq': 'weekly', 'priority': '1.0'}
+    - SITEMAP_DYNAMIC_PAGES: callable returning list of {'path': '/...', 'changefreq': '...', 'priority': '...'}
     - NEWS_CATEGORIES: used for category-based article URLs
     """
     from lozzalingo.modules.news.routes import get_all_articles_db
@@ -238,6 +239,26 @@ def _generate_sitemap():
         xml += f'        <changefreq>{changefreq}</changefreq>\n'
         xml += f'        <priority>{priority}</priority>\n'
         xml += f'    </url>\n'
+
+    # Dynamic pages from callable (e.g. audiobook detail pages)
+    dynamic_pages_fn = current_app.config.get('SITEMAP_DYNAMIC_PAGES')
+    if callable(dynamic_pages_fn):
+        try:
+            dynamic_pages = dynamic_pages_fn()
+            for page in dynamic_pages:
+                path = page.get('path', '')
+                changefreq = page.get('changefreq', 'monthly')
+                priority = page.get('priority', '0.6')
+                lastmod = page.get('lastmod', '')
+                xml += f'    <url>\n'
+                xml += f'        <loc>{site_url}{path}</loc>\n'
+                if lastmod:
+                    xml += f'        <lastmod>{lastmod}</lastmod>\n'
+                xml += f'        <changefreq>{changefreq}</changefreq>\n'
+                xml += f'        <priority>{priority}</priority>\n'
+                xml += f'    </url>\n'
+        except Exception as e:
+            print(f"[Sitemap] Error generating dynamic pages: {e}")
 
     # Published news articles
     articles = get_all_articles_db(status='published')
