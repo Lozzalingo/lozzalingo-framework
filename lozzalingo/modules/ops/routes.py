@@ -168,10 +168,35 @@ def _get_load_average():
         return {'1min': 0, '5min': 0, '15min': 0}
 
 
+def _is_local_dev():
+    """Check if we are running locally (not on the production server).
+
+    On macOS (Darwin) or when Flask DEBUG is enabled, the metrics reflect
+    the dev machine rather than the server, so alerts are meaningless.
+    """
+    if platform.system() == 'Darwin':
+        return True
+    try:
+        if current_app.debug:
+            return True
+    except RuntimeError:
+        pass
+    return False
+
+
 def _compute_status(disk, memory):
-    """Compute overall status and issues list from disk/memory metrics."""
+    """Compute overall status and issues list from disk/memory metrics.
+
+    When running locally, metrics reflect the dev machine, not the server.
+    We still report metrics but skip alerting thresholds.
+    """
     issues = []
     status = 'ok'
+
+    # On local dev, metrics are for the dev machine, not the server.
+    # Show the numbers but do not flag issues or trigger alerts.
+    if _is_local_dev():
+        return status, issues
 
     # Disk checks
     disk_pct = disk.get('percent', 0)
@@ -317,11 +342,13 @@ def _build_health_response(include_errors=False):
     memory = _get_memory_info()
     uptime = _get_uptime()
     load = _get_load_average()
+    local_dev = _is_local_dev()
     status, issues = _compute_status(disk, memory)
 
     result = {
         'status': status,
         'timestamp': datetime.now().isoformat(),
+        'local_dev': local_dev,
         'checks': {
             'disk': disk,
             'memory': memory,

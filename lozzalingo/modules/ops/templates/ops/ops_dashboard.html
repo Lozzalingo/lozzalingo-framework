@@ -147,14 +147,21 @@
             </div>
         </header>
 
+        {% if health.local_dev %}
+        <!-- Local dev notice -->
+        <div class="ops-status-banner" style="background: #e2e8f0; color: #475569; border: 1px solid #cbd5e1;">
+            Running locally ({{ health.platform.system }}) - metrics below are for your dev machine, not the production server. Alerts are disabled.
+        </div>
+        {% endif %}
+
         <!-- Status Banner -->
         <div class="ops-status-banner ops-status-{{ status }}" id="statusBanner">
             {% if status == 'ok' %}
                 All systems operational
             {% elif status == 'warning' %}
-                {{ health.issues|length }} issue{{ 's' if health.issues|length != 1 }} detected — review below
+                {{ health.issues|length }} issue{{ 's' if health.issues|length != 1 }} detected - review below
             {% else %}
-                CRITICAL — {{ health.issues|length }} issue{{ 's' if health.issues|length != 1 }} require attention
+                CRITICAL - {{ health.issues|length }} issue{{ 's' if health.issues|length != 1 }} require attention
             {% endif %}
         </div>
 

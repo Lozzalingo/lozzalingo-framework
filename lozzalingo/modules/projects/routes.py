@@ -678,6 +678,9 @@ def create_project():
         earnings_label = data.get('earnings_label') or None
         insights = data.get('insights') or None
         external_url = data.get('external_url') or None
+        # Reject obviously broken external URLs (e.g. JS "undefined" leaking through)
+        if external_url and not external_url.startswith(('http://', 'https://')):
+            return jsonify({'error': 'External URL must start with http:// or https://'}), 400
         fetched_content = data.get('fetched_content') or None
         parent_id = data.get('parent_id') or None
         card_image_url = data.get('card_image_url') or None
@@ -771,6 +774,9 @@ def update_project(project_id):
         earnings_label = data.get('earnings_label') or None
         insights = data.get('insights') or None
         external_url = data.get('external_url') or None
+        # Reject obviously broken external URLs (e.g. JS "undefined" leaking through)
+        if external_url and not external_url.startswith(('http://', 'https://')):
+            return jsonify({'error': 'External URL must start with http:// or https://'}), 400
         fetched_content = data.get('fetched_content') or None
         parent_id = data.get('parent_id')
         if parent_id == '' or parent_id == 0:
