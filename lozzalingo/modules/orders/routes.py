@@ -1265,7 +1265,7 @@ def recent_sales():
 
         # Query for recent paid/completed orders
         # Accept common status values across different host app schemas
-        status_filter = "status IN ('paid', 'succeeded', 'completed')"
+        status_filter = "status IN ('paid', 'succeeded', 'completed', 'shipped')"
 
         # Check for order_type column (coffee-goblin uses 'subscription', 'coffee' etc.)
         has_order_type = 'order_type' in available_cols
@@ -1358,7 +1358,7 @@ def sales_summary():
     """Return total revenue and order stats for leaderboard.
 
     Protected by X-Ticker-Key header matching TICKER_API_KEY env var.
-    Response: {brand, total_revenue_pence, total_orders, first_sale_date, currency}
+    Response: {brand, total_revenue_pence, total_orders, total_customers, first_sale_date, currency}
     """
     expected_key = os.getenv('TICKER_API_KEY')
     if not expected_key:
@@ -1383,6 +1383,7 @@ def sales_summary():
                 'brand': brand_name,
                 'total_revenue_pence': 0,
                 'total_orders': 0,
+                'total_customers': 0,
                 'first_sale_date': None,
                 'currency': 'GBP',
             })
@@ -1398,12 +1399,13 @@ def sales_summary():
             email_filter = ''
             params = []
 
-        status_filter = "status IN ('paid', 'succeeded', 'completed')"
+        status_filter = "status IN ('paid', 'succeeded', 'completed', 'shipped')"
 
         cursor.execute(f'''
             SELECT
                 COALESCE(SUM(total_amount), 0) as total_revenue,
                 COUNT(*) as total_orders,
+                COUNT(DISTINCT customer_email) as total_customers,
                 MIN(created_at) as first_sale
             FROM orders
             WHERE {status_filter}
@@ -1413,7 +1415,8 @@ def sales_summary():
         row = cursor.fetchone()
         total_revenue = row[0] if row else 0
         total_orders = row[1] if row else 0
-        first_sale_raw = row[2] if row else None
+        total_customers = row[2] if row else 0
+        first_sale_raw = row[3] if row else None
 
         first_sale_date = None
         if first_sale_raw:
@@ -1428,6 +1431,7 @@ def sales_summary():
             'brand': brand_name,
             'total_revenue_pence': total_revenue,
             'total_orders': total_orders,
+            'total_customers': total_customers,
             'first_sale_date': first_sale_date,
             'currency': 'GBP',
         })
