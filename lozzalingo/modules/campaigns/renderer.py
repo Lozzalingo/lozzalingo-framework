@@ -194,13 +194,66 @@ def _add_utm_params(html, campaign_name):
     return re.sub(r'href="([^"]+)"', _tag_url, html)
 
 
-def render_campaign(blocks, variables=None, campaign_name=None):
+def _inject_tracking_pixel(html, tracking_id):
+    """Inject a 1x1 transparent tracking pixel before the closing </body> tag.
+
+    The pixel URL is unique per campaign + recipient, enabling open tracking.
+    """
+    try:
+        base_url = current_app.config.get('EMAIL_WEBSITE_URL', '')
+        if not base_url:
+            return html
+        pixel_url = f'{base_url}/api/campaigns/track/open/{tracking_id}'
+        pixel_tag = f'<img src="{pixel_url}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />'
+        # Insert just before </body>
+        return html.replace('</body>', f'{pixel_tag}\n</body>')
+    except RuntimeError:
+        return html
+
+
+def _rewrite_links_for_click_tracking(html, tracking_id):
+    """Rewrite all href URLs to pass through the click tracking redirect.
+
+    Excludes:
+    - Unsubscribe links (must go direct per email regulations)
+    - mailto: and tel: links
+    - Anchor-only links (#)
+    - The tracking pixel URL itself
+    """
+    try:
+        base_url = current_app.config.get('EMAIL_WEBSITE_URL', '')
+        if not base_url:
+            return html
+    except RuntimeError:
+        return html
+
+    from urllib.parse import quote
+
+    def _wrap_link(match):
+        url = match.group(1)
+        # Skip unsubscribe, mailto, tel, anchors, and tracking URLs
+        if any(url.startswith(prefix) for prefix in ('mailto:', 'tel:', '#')):
+            return match.group(0)
+        if 'unsubscribe' in url.lower():
+            return match.group(0)
+        if '/api/campaigns/track/' in url:
+            return match.group(0)
+
+        encoded_url = quote(url, safe='')
+        redirect_url = f'{base_url}/api/campaigns/track/click/{tracking_id}?url={encoded_url}'
+        return f'href="{redirect_url}"'
+
+    return re.sub(r'href="([^"]+)"', _wrap_link, html)
+
+
+def render_campaign(blocks, variables=None, campaign_name=None, tracking_id=None):
     """Render a full campaign (list of blocks) into a complete HTML email.
 
     Args:
         blocks: list of block dicts
         variables: dict of variable substitutions (e.g. {'CODE': 'GOLD-1-AB12'})
         campaign_name: campaign name for UTM tagging (optional)
+        tracking_id: unique tracking ID for this campaign + recipient (optional)
 
     Returns:
         Complete HTML email string with all inline CSS
@@ -249,5 +302,10 @@ def render_campaign(blocks, variables=None, campaign_name=None):
 
     if campaign_name:
         html = _add_utm_params(html, campaign_name)
+
+    # Apply engagement tracking (after UTM so tracked URLs include UTM params)
+    if tracking_id:
+        html = _rewrite_links_for_click_tracking(html, tracking_id)
+        html = _inject_tracking_pixel(html, tracking_id)
 
     return html

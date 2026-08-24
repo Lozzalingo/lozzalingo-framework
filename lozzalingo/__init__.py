@@ -596,12 +596,13 @@ class Lozzalingo:
             self.app.logger.error(f"Failed to register quick_links module: {e}")
 
     def _register_campaigns(self):
-        """Register the campaigns (email campaign editor) module."""
+        """Register the campaigns (email campaign editor) module and tracking routes."""
         try:
-            from .modules.campaigns import campaigns_bp
+            from .modules.campaigns import campaigns_bp, campaigns_tracking_bp
             self.app.register_blueprint(campaigns_bp)
+            self.app.register_blueprint(campaigns_tracking_bp)
             self._registered_blueprints.append('campaigns')
-            self.app.logger.debug("Registered campaigns module")
+            self.app.logger.debug("Registered campaigns module (with engagement tracking)")
         except Exception as e:
             self.app.logger.error(f"Failed to register campaigns module: {e}")
 

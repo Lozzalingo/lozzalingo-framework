@@ -15,7 +15,9 @@ from . import campaigns_bp
 from .models import (
     init_campaigns_db, get_campaign, get_all_campaigns, save_campaign,
     delete_campaign, duplicate_campaign, record_send, increment_send_count,
-    get_triggered_campaigns, get_sent_emails
+    get_triggered_campaigns, get_sent_emails,
+    generate_tracking_id, get_campaign_engagement,
+    get_inactive_subscribers, bulk_deactivate_subscribers
 )
 from .renderer import render_campaign, resolve_variables
 
@@ -208,7 +210,12 @@ def send_campaign(campaign_id):
             continue
         try:
             variables = resolve_variables(email_addr)
-            html = render_campaign(campaign['blocks'], variables, campaign_name=campaign['name'])
+            tracking_id = generate_tracking_id(campaign_id, email_addr)
+            html = render_campaign(
+                campaign['blocks'], variables,
+                campaign_name=campaign['name'],
+                tracking_id=tracking_id
+            )
             success = svc.send_email([email_addr], campaign['subject'], html)
 
             if success:
@@ -371,7 +378,12 @@ def send_triggered_campaigns(email, trigger_type):
         for campaign in campaigns:
             try:
                 variables = resolve_variables(email)
-                html = render_campaign(campaign['blocks'], variables, campaign_name=campaign['name'])
+                tracking_id = generate_tracking_id(campaign['id'], email)
+                html = render_campaign(
+                    campaign['blocks'], variables,
+                    campaign_name=campaign['name'],
+                    tracking_id=tracking_id
+                )
                 success = svc.send_email([email], campaign['subject'], html)
 
                 if success:
@@ -397,6 +409,72 @@ def send_triggered_campaigns(email, trigger_type):
     except Exception as e:
         logger.error(f"Error in send_triggered_campaigns: {e}")
         _db_log('error', 'Error in send_triggered_campaigns', {'error': str(e)})
+
+
+# ===================
+# ENGAGEMENT STATS
+# ===================
+
+@campaigns_bp.route('/<int:campaign_id>/stats')
+def campaign_stats(campaign_id):
+    """Return engagement breakdown for a campaign (open rate, clicks, etc.)"""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    init_campaigns_db()
+    campaign = get_campaign(campaign_id)
+    if not campaign:
+        return jsonify({'error': 'Campaign not found'}), 404
+
+    engagement = get_campaign_engagement(campaign_id)
+    if engagement is None:
+        return jsonify({'error': 'Failed to fetch engagement data'}), 500
+
+    engagement['campaign_id'] = campaign_id
+    engagement['campaign_name'] = campaign['name']
+    return jsonify(engagement), 200
+
+
+@campaigns_bp.route('/inactive-subscribers')
+def inactive_subscribers():
+    """List subscribers who have never opened any campaign email."""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    init_campaigns_db()
+    min_campaigns = request.args.get('min_campaigns', 1, type=int)
+    subscribers = get_inactive_subscribers(min_campaigns)
+    return jsonify({
+        'inactive_subscribers': subscribers,
+        'count': len(subscribers),
+        'min_campaigns_threshold': min_campaigns,
+    }), 200
+
+
+@campaigns_bp.route('/deactivate-inactive', methods=['POST'])
+def deactivate_inactive():
+    """Bulk deactivate subscribers with zero engagement."""
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    init_campaigns_db()
+    data = request.get_json(silent=True) or {}
+    min_campaigns = data.get('min_campaigns', 3)
+
+    inactive = get_inactive_subscribers(min_campaigns)
+    if not inactive:
+        return jsonify({'message': 'No inactive subscribers found', 'deactivated': 0}), 200
+
+    emails = [s['email'] for s in inactive]
+    count = bulk_deactivate_subscribers(emails)
+
+    _db_log('info', f'Bulk deactivated inactive subscribers', {
+        'count': count, 'min_campaigns': min_campaigns
+    })
+    return jsonify({
+        'message': f'Deactivated {count} subscribers with zero engagement after {min_campaigns}+ campaigns',
+        'deactivated': count,
+    }), 200
 
 
 # ===================

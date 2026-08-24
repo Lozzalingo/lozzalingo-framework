@@ -7,6 +7,7 @@ Provides:
 - Manual blast sending to all active subscribers
 - Auto-triggered campaigns (e.g. new_subscriber)
 - Variable substitution per recipient (e.g. {{CODE}}, {{EMAIL}})
+- Email engagement tracking (opens, clicks, bounces)
 """
 
 from flask import Blueprint
@@ -21,3 +22,4 @@ campaigns_bp = Blueprint(
 )
 
 from . import routes
+from .tracking import campaigns_tracking_bp

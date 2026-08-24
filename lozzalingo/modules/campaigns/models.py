@@ -4,12 +4,16 @@ Campaigns Models
 
 Database schema and CRUD operations for email campaigns.
 Tables live in USER_DB alongside subscribers.
+Includes engagement tracking (opens, clicks, bounces).
 """
 
 import json
 import sqlite3
 import os
 import logging
+import hashlib
+import hmac
+import base64
 from datetime import datetime
 from flask import current_app
 
@@ -79,6 +83,50 @@ def init_campaigns_db():
             cursor.execute('''
                 CREATE INDEX IF NOT EXISTS idx_campaign_sends_campaign
                 ON campaign_sends(campaign_id)
+            ''')
+
+            # --- Engagement tracking tables ---
+
+            # Add engagement columns to campaign_sends if missing
+            cursor.execute('PRAGMA table_info(campaign_sends)')
+            existing_cols = {row[1] for row in cursor.fetchall()}
+
+            if 'opened_at' not in existing_cols:
+                cursor.execute('ALTER TABLE campaign_sends ADD COLUMN opened_at TIMESTAMP')
+            if 'open_count' not in existing_cols:
+                cursor.execute('ALTER TABLE campaign_sends ADD COLUMN open_count INTEGER DEFAULT 0')
+
+            # Click tracking table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS campaign_clicks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    campaign_id INTEGER NOT NULL,
+                    recipient_email TEXT NOT NULL,
+                    url TEXT NOT NULL,
+                    clicked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (campaign_id) REFERENCES campaigns(id)
+                )
+            ''')
+
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_campaign_clicks_campaign
+                ON campaign_clicks(campaign_id)
+            ''')
+
+            # Email events table (bounces, complaints from SES)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS email_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    details_json TEXT,
+                    received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_email_events_email
+                ON email_events(email)
             ''')
 
             conn.commit()
@@ -297,3 +345,262 @@ def _row_to_dict(row):
         except (json.JSONDecodeError, TypeError):
             d['blocks'] = []
     return d
+
+
+# ===================
+# TRACKING ID ENCODING
+# ===================
+
+def _get_tracking_secret():
+    """Get or generate a secret key for tracking ID signatures"""
+    try:
+        secret = current_app.config.get('SECRET_KEY', '')
+        if secret:
+            return secret.encode() if isinstance(secret, str) else secret
+    except RuntimeError:
+        pass
+    return b'lozzalingo-tracking-default-key'
+
+
+def generate_tracking_id(campaign_id, email):
+    """Generate a signed tracking ID encoding campaign_id and recipient email.
+
+    Format: base64(campaign_id:email):signature
+    The signature prevents forging tracking IDs.
+    """
+    payload = f'{campaign_id}:{email}'
+    payload_b64 = base64.urlsafe_b64encode(payload.encode()).decode()
+    secret = _get_tracking_secret()
+    sig = hmac.new(secret, payload.encode(), hashlib.sha256).hexdigest()[:16]
+    return f'{payload_b64}.{sig}'
+
+
+def decode_tracking_id(tracking_id):
+    """Decode and verify a tracking ID. Returns (campaign_id, email) or (None, None)."""
+    try:
+        parts = tracking_id.rsplit('.', 1)
+        if len(parts) != 2:
+            return None, None
+
+        payload_b64, sig = parts
+        payload = base64.urlsafe_b64decode(payload_b64.encode()).decode()
+
+        # Verify signature
+        secret = _get_tracking_secret()
+        expected_sig = hmac.new(secret, payload.encode(), hashlib.sha256).hexdigest()[:16]
+        if not hmac.compare_digest(sig, expected_sig):
+            logger.warning(f"[CAMPAIGNS_TRACKING] Invalid tracking signature")
+            return None, None
+
+        campaign_id_str, email = payload.split(':', 1)
+        return int(campaign_id_str), email
+
+    except Exception as e:
+        logger.warning(f"[CAMPAIGNS_TRACKING] Error decoding tracking ID: {e}")
+        return None, None
+
+
+# ===================
+# ENGAGEMENT RECORDING
+# ===================
+
+def record_open(campaign_id, email):
+    """Record an email open event. Updates opened_at on first open, increments open_count."""
+    try:
+        db_path = get_db_config()
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            # Update the send record for this campaign + recipient
+            cursor.execute('''
+                UPDATE campaign_sends
+                SET open_count = COALESCE(open_count, 0) + 1,
+                    opened_at = COALESCE(opened_at, CURRENT_TIMESTAMP)
+                WHERE campaign_id = ? AND recipient_email = ? AND status = 'sent'
+            ''', (campaign_id, email))
+            conn.commit()
+            logger.info(f"[CAMPAIGNS_TRACKING] Open recorded: campaign={campaign_id}, email={email}")
+    except Exception as e:
+        logger.error(f"[CAMPAIGNS_TRACKING] Error recording open: {e}")
+        _db_log('error', 'Error recording email open', {'error': str(e)})
+
+
+def record_click(campaign_id, email, url):
+    """Record a link click event."""
+    try:
+        db_path = get_db_config()
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO campaign_clicks (campaign_id, recipient_email, url)
+                VALUES (?, ?, ?)
+            ''', (campaign_id, email, url))
+            conn.commit()
+            logger.info(f"[CAMPAIGNS_TRACKING] Click recorded: campaign={campaign_id}, url={url}")
+    except Exception as e:
+        logger.error(f"[CAMPAIGNS_TRACKING] Error recording click: {e}")
+        _db_log('error', 'Error recording click', {'error': str(e)})
+
+
+def record_email_event(email, event_type, details=None):
+    """Record a bounce, complaint, or other email event from SES."""
+    try:
+        db_path = get_db_config()
+        details_json = json.dumps(details) if details else None
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO email_events (email, event_type, details_json)
+                VALUES (?, ?, ?)
+            ''', (email, event_type, details_json))
+            conn.commit()
+            logger.info(f"[CAMPAIGNS_TRACKING] Email event recorded: {event_type} for {email}")
+    except Exception as e:
+        logger.error(f"[CAMPAIGNS_TRACKING] Error recording email event: {e}")
+        _db_log('error', 'Error recording email event', {'error': str(e)})
+
+
+def deactivate_subscriber(email):
+    """Set a subscriber's is_active to 0 (used for bounces/complaints)."""
+    try:
+        db_path = get_db_config()
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'UPDATE subscribers SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE email = ?',
+                (email,)
+            )
+            conn.commit()
+            if cursor.rowcount > 0:
+                logger.info(f"[CAMPAIGNS_TRACKING] Subscriber deactivated: {email}")
+                _db_log('warning', f'Subscriber auto-deactivated', {'email': email})
+            return cursor.rowcount > 0
+    except Exception as e:
+        logger.error(f"[CAMPAIGNS_TRACKING] Error deactivating subscriber: {e}")
+        _db_log('error', 'Error deactivating subscriber', {'error': str(e)})
+        return False
+
+
+# ===================
+# ENGAGEMENT QUERIES
+# ===================
+
+def get_campaign_engagement(campaign_id):
+    """Get engagement stats for a single campaign."""
+    try:
+        db_path = get_db_config()
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+
+            # Send totals
+            cursor.execute(
+                "SELECT COUNT(*) FROM campaign_sends WHERE campaign_id = ? AND status = 'sent'",
+                (campaign_id,)
+            )
+            total_sent = cursor.fetchone()[0]
+
+            # Open stats
+            cursor.execute(
+                "SELECT COUNT(*) FROM campaign_sends WHERE campaign_id = ? AND opened_at IS NOT NULL",
+                (campaign_id,)
+            )
+            unique_opens = cursor.fetchone()[0]
+
+            cursor.execute(
+                "SELECT COALESCE(SUM(open_count), 0) FROM campaign_sends WHERE campaign_id = ?",
+                (campaign_id,)
+            )
+            total_opens = cursor.fetchone()[0]
+
+            # Click stats
+            cursor.execute(
+                "SELECT COUNT(*) FROM campaign_clicks WHERE campaign_id = ?",
+                (campaign_id,)
+            )
+            total_clicks = cursor.fetchone()[0]
+
+            cursor.execute(
+                "SELECT COUNT(DISTINCT recipient_email) FROM campaign_clicks WHERE campaign_id = ?",
+                (campaign_id,)
+            )
+            unique_clickers = cursor.fetchone()[0]
+
+            # Top clicked links
+            cursor.execute('''
+                SELECT url, COUNT(*) as click_count
+                FROM campaign_clicks WHERE campaign_id = ?
+                GROUP BY url ORDER BY click_count DESC LIMIT 10
+            ''', (campaign_id,))
+            top_links = [{'url': row[0], 'clicks': row[1]} for row in cursor.fetchall()]
+
+            open_rate = round((unique_opens / total_sent * 100), 1) if total_sent > 0 else 0
+            click_rate = round((unique_clickers / total_sent * 100), 1) if total_sent > 0 else 0
+
+            return {
+                'total_sent': total_sent,
+                'unique_opens': unique_opens,
+                'total_opens': total_opens,
+                'open_rate': open_rate,
+                'total_clicks': total_clicks,
+                'unique_clickers': unique_clickers,
+                'click_rate': click_rate,
+                'top_links': top_links,
+            }
+    except Exception as e:
+        logger.error(f"[CAMPAIGNS_TRACKING] Error getting engagement stats: {e}")
+        _db_log('error', 'Error getting engagement stats', {'error': str(e)})
+        return None
+
+
+def get_inactive_subscribers(min_campaigns=1):
+    """Get subscribers who have never opened any campaign email.
+
+    Args:
+        min_campaigns: minimum number of campaigns sent to qualify (default 1)
+    """
+    try:
+        db_path = get_db_config()
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT
+                    s.id, s.email, s.subscribed_at, s.is_active,
+                    COUNT(cs.id) as campaigns_received,
+                    MAX(cs.sent_at) as last_sent_at
+                FROM subscribers s
+                INNER JOIN campaign_sends cs ON cs.recipient_email = s.email AND cs.status = 'sent'
+                LEFT JOIN campaign_sends cs_opened ON cs_opened.recipient_email = s.email AND cs_opened.opened_at IS NOT NULL
+                WHERE s.is_active = 1
+                AND cs_opened.id IS NULL
+                GROUP BY s.email
+                HAVING campaigns_received >= ?
+                ORDER BY campaigns_received DESC
+            ''', (min_campaigns,))
+            return [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        logger.error(f"[CAMPAIGNS_TRACKING] Error getting inactive subscribers: {e}")
+        _db_log('error', 'Error getting inactive subscribers', {'error': str(e)})
+        return []
+
+
+def bulk_deactivate_subscribers(email_list):
+    """Deactivate a list of subscriber emails. Returns count of deactivated."""
+    try:
+        db_path = get_db_config()
+        count = 0
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            for email in email_list:
+                cursor.execute(
+                    'UPDATE subscribers SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE email = ? AND is_active = 1',
+                    (email,)
+                )
+                count += cursor.rowcount
+            conn.commit()
+            logger.info(f"[CAMPAIGNS_TRACKING] Bulk deactivated {count} subscribers")
+            _db_log('info', f'Bulk deactivated {count} subscribers', {'count': count})
+            return count
+    except Exception as e:
+        logger.error(f"[CAMPAIGNS_TRACKING] Error bulk deactivating subscribers: {e}")
+        _db_log('error', 'Error bulk deactivating subscribers', {'error': str(e)})
+        return 0
