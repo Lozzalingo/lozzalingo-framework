@@ -429,11 +429,13 @@ class Analytics:
                     )
                 """)
 
-                # Auto-add session_id column if missing (existing DBs)
+                # Auto-add columns if missing (existing DBs)
                 cursor.execute(f"PRAGMA table_info({analytics_table})")
                 existing_cols = {col[1] for col in cursor.fetchall()}
                 if 'session_id' not in existing_cols:
                     cursor.execute(f"ALTER TABLE {analytics_table} ADD COLUMN session_id TEXT")
+                if 'user_id' not in existing_cols:
+                    cursor.execute(f"ALTER TABLE {analytics_table} ADD COLUMN user_id TEXT")
 
                 # First, let's verify the table structure
                 cursor.execute(f"PRAGMA table_info({analytics_table})")
@@ -446,19 +448,24 @@ class Analytics:
                     (ip, country, region, city, timestamp, user_agent, referer, fingerprint,
                      event_type, interaction_type, additional_data, identity, fingerprint_hash,
                      device_type, device_confidence, device_os, device_brand, url, from_route,
-                     to_route, navigation_type, time_spent_seconds, session_page_count, session_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     to_route, navigation_type, time_spent_seconds, session_page_count, session_id,
+                     user_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
-                
+
                 # Convert fingerprint dict to JSON string for storage
                 fingerprint_str = json.dumps(fingerprint) if isinstance(fingerprint, dict) else fingerprint
+
+                # Extract user_id if provided in additional_data
+                user_id = additional_data.get('user_id') if additional_data else None
 
                 values = (
                     ip, geo_data['country'], geo_data['region'], geo_data['city'],
                     timestamp, user_agent, referer, fingerprint_str,
                     event_type, interaction_type, additional_data_json, identity, hashed_fingerprint,
                     device_type, device_confidence, device_os, device_brand, url, from_route,
-                    to_route, navigation_type, time_spent_seconds, session_page_count, session_id
+                    to_route, navigation_type, time_spent_seconds, session_page_count, session_id,
+                    user_id
                 )
                 
                 print(f"[DEBUG ANALYTICS] Executing insert with {len(values)} values")
@@ -519,15 +526,18 @@ class Analytics:
                         navigation_type TEXT,
                         time_spent_seconds TEXT,
                         session_page_count TEXT,
-                        session_id TEXT
+                        session_id TEXT,
+                        user_id TEXT
                     )
                 """)
 
-                # Auto-add session_id column if missing (existing DBs)
+                # Auto-add columns if missing (existing DBs)
                 cursor.execute(f"PRAGMA table_info({analytics_table})")
                 existing_cols = {col[1] for col in cursor.fetchall()}
                 if 'session_id' not in existing_cols:
                     cursor.execute(f"ALTER TABLE {analytics_table} ADD COLUMN session_id TEXT")
+                if 'user_id' not in existing_cols:
+                    cursor.execute(f"ALTER TABLE {analytics_table} ADD COLUMN user_id TEXT")
 
                 # Create indexes for better performance
                 cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_timestamp ON {analytics_table}(timestamp)")
@@ -535,6 +545,8 @@ class Analytics:
                 cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_identity ON {analytics_table}(identity)")
                 cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_country ON {analytics_table}(country)")
                 cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_fingerprint ON {analytics_table}(fingerprint)")
+                cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_user_id ON {analytics_table}(user_id)")
+                cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_fingerprint_hash ON {analytics_table}(fingerprint_hash)")
 
                 conn.commit()
 
@@ -803,3 +815,477 @@ class Analytics:
             print(f"[TEST] Database test failed: {e}")
             print(f"[TEST] Traceback: {traceback.format_exc()}")
             return False
+
+    # =========================================================================
+    # Conversion Tracking
+    # =========================================================================
+    # Call these from Stripe webhook handlers to log purchase conversions.
+    # The fingerprint_hash links conversions back to visitor page views
+    # for attribution analysis.
+    #
+    # Usage in a webhook handler:
+    #   Analytics.log_conversion(
+    #       order_id=order['id'],
+    #       order_value=session_data['amount_total'],
+    #       customer_email=customer_email,
+    #       fingerprint_hash=session_data.get('metadata', {}).get('fingerprint_hash'),
+    #       order_type='purchase',
+    #       additional_data={'products': ['Product A', 'Product B']}
+    #   )
+    # =========================================================================
+
+    @staticmethod
+    def log_conversion(order_id, order_value, customer_email=None,
+                       fingerprint_hash=None, user_id=None,
+                       order_type='purchase', currency='GBP',
+                       additional_data=None):
+        """Log a purchase conversion event to the analytics table.
+
+        Called from Stripe webhook handlers when a checkout completes.
+        Links back to the visitor's page views via fingerprint_hash for
+        attribution analysis.
+
+        Args:
+            order_id: The order/transaction ID
+            order_value: Amount in smallest currency unit (pence/cents)
+            customer_email: Buyer's email address
+            fingerprint_hash: SHA-256 hash from the JS analytics tracker
+            user_id: Authenticated user ID (if known)
+            order_type: 'purchase', 'subscription', 'donation', 'coffee'
+            currency: ISO currency code (default 'GBP')
+            additional_data: Extra dict of conversion details
+        """
+        try:
+            analytics_db = get_analytics_db()
+            analytics_table = get_analytics_table()
+            timestamp = datetime.now().isoformat()
+
+            conversion_data = {
+                'order_id': order_id,
+                'order_value': order_value,
+                'order_value_display': f"£{order_value / 100:.2f}" if order_value else '£0.00',
+                'customer_email': customer_email,
+                'order_type': order_type,
+                'currency': currency,
+            }
+            if additional_data:
+                conversion_data.update(additional_data)
+
+            conversion_json = json.dumps(conversion_data)
+
+            with Database.connect(analytics_db) as conn:
+                cursor = conn.cursor()
+
+                # Ensure user_id column exists
+                cursor.execute(f"PRAGMA table_info({analytics_table})")
+                existing_cols = {col[1] for col in cursor.fetchall()}
+                if 'user_id' not in existing_cols:
+                    cursor.execute(f"ALTER TABLE {analytics_table} ADD COLUMN user_id TEXT")
+
+                cursor.execute(f"""
+                    INSERT INTO {analytics_table}
+                    (timestamp, event_type, interaction_type, additional_data,
+                     fingerprint_hash, identity, user_id)
+                    VALUES (?, 'conversion', ?, ?, ?, 'human', ?)
+                """, (timestamp, order_type, conversion_json,
+                      fingerprint_hash, user_id))
+                conn.commit()
+
+            print(f"[ANALYTICS] Conversion logged: order {order_id}, "
+                  f"value {order_value}, type {order_type}")
+
+        except Exception as e:
+            print(f"[ERROR ANALYTICS] Failed to log conversion: {e}")
+            try:
+                from lozzalingo.core import db_log
+                db_log('error', 'analytics', 'Failed to log conversion', {
+                    'order_id': order_id, 'error': str(e)
+                })
+            except Exception:
+                pass
+
+    @staticmethod
+    def link_user(fingerprint_hash, user_id, email=None):
+        """Link an anonymous visitor (by fingerprint) to an authenticated user.
+
+        Call this when a user logs in or completes checkout so that their
+        prior anonymous page views can be attributed to them.
+
+        Args:
+            fingerprint_hash: The visitor's fingerprint hash
+            user_id: The authenticated user ID (or email as fallback)
+            email: Optional email to store alongside user_id
+        """
+        try:
+            analytics_db = get_analytics_db()
+            analytics_table = get_analytics_table()
+
+            with Database.connect(analytics_db) as conn:
+                cursor = conn.cursor()
+
+                # Ensure user_id column exists
+                cursor.execute(f"PRAGMA table_info({analytics_table})")
+                existing_cols = {col[1] for col in cursor.fetchall()}
+                if 'user_id' not in existing_cols:
+                    cursor.execute(f"ALTER TABLE {analytics_table} ADD COLUMN user_id TEXT")
+
+                # Update all records for this fingerprint that don't have a user_id yet
+                cursor.execute(f"""
+                    UPDATE {analytics_table}
+                    SET user_id = ?
+                    WHERE fingerprint_hash = ?
+                    AND (user_id IS NULL OR user_id = '')
+                """, (str(user_id), fingerprint_hash))
+
+                updated = cursor.rowcount
+                conn.commit()
+
+            print(f"[ANALYTICS] Linked user {user_id} to fingerprint "
+                  f"{fingerprint_hash[:12]}... ({updated} records updated)")
+
+        except Exception as e:
+            print(f"[ERROR ANALYTICS] Failed to link user: {e}")
+
+    # =========================================================================
+    # Attribution Queries
+    # =========================================================================
+    # These methods join conversion events back to first-touch page views
+    # to answer: which content, referrers, and campaigns drive revenue?
+    # =========================================================================
+
+    @staticmethod
+    def get_conversion_attribution(days=30, limit=20):
+        """Get conversion attribution data: which referrer sources drive purchases.
+
+        Joins conversion events to the earliest page_view_client for the same
+        fingerprint_hash, extracting the referrer source/medium/campaign from
+        the first touch.
+
+        Returns list of dicts: {source, medium, campaign, conversions,
+                                total_revenue, avg_order_value}
+        """
+        try:
+            analytics_db = get_analytics_db()
+            analytics_table = get_analytics_table()
+
+            with Database.connect(analytics_db) as conn:
+                cursor = conn.cursor()
+
+                cursor.execute(f"""
+                    WITH first_touch AS (
+                        SELECT
+                            fingerprint_hash,
+                            MIN(timestamp) as first_visit,
+                            -- Extract referrer info from the earliest page view
+                            JSON_EXTRACT(additional_data, '$.referrer_info.source') as source,
+                            JSON_EXTRACT(additional_data, '$.referrer_info.medium') as medium,
+                            JSON_EXTRACT(additional_data, '$.referrer_info.campaign') as campaign,
+                            url as landing_page
+                        FROM {analytics_table}
+                        WHERE event_type = 'page_view_client'
+                        AND fingerprint_hash IS NOT NULL
+                        AND datetime(timestamp) >= datetime('now', '-{days} days')
+                        GROUP BY fingerprint_hash
+                    ),
+                    conversions AS (
+                        SELECT
+                            fingerprint_hash,
+                            JSON_EXTRACT(additional_data, '$.order_value') as order_value,
+                            timestamp as conversion_time
+                        FROM {analytics_table}
+                        WHERE event_type = 'conversion'
+                        AND datetime(timestamp) >= datetime('now', '-{days} days')
+                    )
+                    SELECT
+                        COALESCE(ft.source, 'direct') as source,
+                        COALESCE(ft.medium, 'none') as medium,
+                        COALESCE(ft.campaign, '') as campaign,
+                        COUNT(*) as conversions,
+                        COALESCE(SUM(c.order_value), 0) as total_revenue,
+                        COALESCE(AVG(c.order_value), 0) as avg_order_value
+                    FROM conversions c
+                    LEFT JOIN first_touch ft ON c.fingerprint_hash = ft.fingerprint_hash
+                    GROUP BY ft.source, ft.medium, ft.campaign
+                    ORDER BY total_revenue DESC
+                    LIMIT {limit}
+                """)
+
+                columns = ['source', 'medium', 'campaign', 'conversions',
+                           'total_revenue', 'avg_order_value']
+                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+                # Add display values
+                for r in results:
+                    r['total_revenue_display'] = f"£{(r['total_revenue'] or 0) / 100:.2f}"
+                    r['avg_order_value_display'] = f"£{(r['avg_order_value'] or 0) / 100:.2f}"
+
+                return results
+
+        except Exception as e:
+            print(f"[ERROR ANALYTICS] Failed to get conversion attribution: {e}")
+            return []
+
+    @staticmethod
+    def get_landing_page_performance(days=30, limit=20):
+        """Get landing page conversion performance.
+
+        Which pages do visitors first land on, and which of those
+        pages lead to the most conversions?
+
+        Returns list of dicts: {landing_page, visitors, conversions,
+                                conversion_rate, total_revenue}
+        """
+        try:
+            analytics_db = get_analytics_db()
+            analytics_table = get_analytics_table()
+
+            with Database.connect(analytics_db) as conn:
+                cursor = conn.cursor()
+
+                cursor.execute(f"""
+                    WITH first_touch AS (
+                        SELECT
+                            fingerprint_hash,
+                            MIN(timestamp) as first_visit,
+                            url as landing_page
+                        FROM {analytics_table}
+                        WHERE event_type = 'page_view_client'
+                        AND fingerprint_hash IS NOT NULL
+                        AND url IS NOT NULL
+                        AND identity IN ('human', 'likely_human')
+                        AND datetime(timestamp) >= datetime('now', '-{days} days')
+                        GROUP BY fingerprint_hash
+                    ),
+                    page_visitors AS (
+                        SELECT
+                            landing_page,
+                            COUNT(*) as visitors,
+                            GROUP_CONCAT(fingerprint_hash) as fps
+                        FROM first_touch
+                        GROUP BY landing_page
+                    ),
+                    page_conversions AS (
+                        SELECT
+                            ft.landing_page,
+                            COUNT(*) as conversions,
+                            COALESCE(SUM(JSON_EXTRACT(c.additional_data, '$.order_value')), 0) as total_revenue
+                        FROM {analytics_table} c
+                        JOIN first_touch ft ON c.fingerprint_hash = ft.fingerprint_hash
+                        WHERE c.event_type = 'conversion'
+                        GROUP BY ft.landing_page
+                    )
+                    SELECT
+                        pv.landing_page,
+                        pv.visitors,
+                        COALESCE(pc.conversions, 0) as conversions,
+                        CASE WHEN pv.visitors > 0
+                            THEN ROUND(CAST(COALESCE(pc.conversions, 0) AS FLOAT) / pv.visitors * 100, 2)
+                            ELSE 0 END as conversion_rate,
+                        COALESCE(pc.total_revenue, 0) as total_revenue
+                    FROM page_visitors pv
+                    LEFT JOIN page_conversions pc ON pv.landing_page = pc.landing_page
+                    ORDER BY COALESCE(pc.total_revenue, 0) DESC, pv.visitors DESC
+                    LIMIT {limit}
+                """)
+
+                columns = ['landing_page', 'visitors', 'conversions',
+                           'conversion_rate', 'total_revenue']
+                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+                for r in results:
+                    r['total_revenue_display'] = f"£{(r['total_revenue'] or 0) / 100:.2f}"
+
+                return results
+
+        except Exception as e:
+            print(f"[ERROR ANALYTICS] Failed to get landing page performance: {e}")
+            return []
+
+    @staticmethod
+    def get_campaign_revenue(days=30, limit=20):
+        """Get revenue breakdown by UTM campaign.
+
+        Returns list of dicts: {utm_source, utm_medium, utm_campaign,
+                                visitors, conversions, total_revenue}
+        """
+        try:
+            analytics_db = get_analytics_db()
+            analytics_table = get_analytics_table()
+
+            with Database.connect(analytics_db) as conn:
+                cursor = conn.cursor()
+
+                cursor.execute(f"""
+                    WITH utm_visitors AS (
+                        SELECT
+                            fingerprint_hash,
+                            JSON_EXTRACT(additional_data, '$.referrer_info.utm_source') as utm_source,
+                            JSON_EXTRACT(additional_data, '$.referrer_info.utm_medium') as utm_medium,
+                            JSON_EXTRACT(additional_data, '$.referrer_info.utm_campaign') as utm_campaign,
+                            MIN(timestamp) as first_visit
+                        FROM {analytics_table}
+                        WHERE event_type = 'page_view_client'
+                        AND fingerprint_hash IS NOT NULL
+                        AND JSON_EXTRACT(additional_data, '$.referrer_info.utm_source') IS NOT NULL
+                        AND datetime(timestamp) >= datetime('now', '-{days} days')
+                        GROUP BY fingerprint_hash
+                    )
+                    SELECT
+                        uv.utm_source,
+                        uv.utm_medium,
+                        uv.utm_campaign,
+                        COUNT(DISTINCT uv.fingerprint_hash) as visitors,
+                        COUNT(DISTINCT c.fingerprint_hash) as conversions,
+                        COALESCE(SUM(JSON_EXTRACT(c.additional_data, '$.order_value')), 0) as total_revenue
+                    FROM utm_visitors uv
+                    LEFT JOIN {analytics_table} c
+                        ON c.fingerprint_hash = uv.fingerprint_hash
+                        AND c.event_type = 'conversion'
+                    GROUP BY uv.utm_source, uv.utm_medium, uv.utm_campaign
+                    ORDER BY total_revenue DESC
+                    LIMIT {limit}
+                """)
+
+                columns = ['utm_source', 'utm_medium', 'utm_campaign',
+                           'visitors', 'conversions', 'total_revenue']
+                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+                for r in results:
+                    r['total_revenue_display'] = f"£{(r['total_revenue'] or 0) / 100:.2f}"
+                    r['conversion_rate'] = round(
+                        (r['conversions'] / r['visitors'] * 100) if r['visitors'] > 0 else 0, 2
+                    )
+
+                return results
+
+        except Exception as e:
+            print(f"[ERROR ANALYTICS] Failed to get campaign revenue: {e}")
+            return []
+
+    @staticmethod
+    def get_time_to_conversion(days=30):
+        """Get average time from first visit to purchase.
+
+        Returns dict: {avg_hours, median_hours, min_hours, max_hours,
+                       same_session_pct, total_conversions}
+        """
+        try:
+            analytics_db = get_analytics_db()
+            analytics_table = get_analytics_table()
+
+            with Database.connect(analytics_db) as conn:
+                cursor = conn.cursor()
+
+                cursor.execute(f"""
+                    WITH first_touch AS (
+                        SELECT
+                            fingerprint_hash,
+                            MIN(timestamp) as first_visit
+                        FROM {analytics_table}
+                        WHERE event_type = 'page_view_client'
+                        AND fingerprint_hash IS NOT NULL
+                        AND datetime(timestamp) >= datetime('now', '-{days} days')
+                        GROUP BY fingerprint_hash
+                    ),
+                    conversion_times AS (
+                        SELECT
+                            c.fingerprint_hash,
+                            (julianday(c.timestamp) - julianday(ft.first_visit)) * 24 as hours_to_convert
+                        FROM {analytics_table} c
+                        JOIN first_touch ft ON c.fingerprint_hash = ft.fingerprint_hash
+                        WHERE c.event_type = 'conversion'
+                        AND datetime(c.timestamp) >= datetime('now', '-{days} days')
+                    )
+                    SELECT
+                        ROUND(AVG(hours_to_convert), 1) as avg_hours,
+                        ROUND(MIN(hours_to_convert), 1) as min_hours,
+                        ROUND(MAX(hours_to_convert), 1) as max_hours,
+                        COUNT(*) as total_conversions,
+                        SUM(CASE WHEN hours_to_convert < 0.5 THEN 1 ELSE 0 END) as same_session
+                    FROM conversion_times
+                """)
+
+                row = cursor.fetchone()
+                if not row or row[3] == 0:
+                    return {
+                        'avg_hours': 0, 'min_hours': 0, 'max_hours': 0,
+                        'total_conversions': 0, 'same_session_pct': 0
+                    }
+
+                total = row[3]
+                same_session = row[4] or 0
+
+                return {
+                    'avg_hours': row[0] or 0,
+                    'min_hours': row[1] or 0,
+                    'max_hours': row[2] or 0,
+                    'total_conversions': total,
+                    'same_session_pct': round(same_session / total * 100, 1) if total > 0 else 0,
+                }
+
+        except Exception as e:
+            print(f"[ERROR ANALYTICS] Failed to get time to conversion: {e}")
+            return {
+                'avg_hours': 0, 'min_hours': 0, 'max_hours': 0,
+                'total_conversions': 0, 'same_session_pct': 0
+            }
+
+    @staticmethod
+    def get_conversion_summary(days=30):
+        """Get a high-level conversion summary.
+
+        Returns dict with total conversions, revenue, conversion rate,
+        and top referrer sources.
+        """
+        try:
+            analytics_db = get_analytics_db()
+            analytics_table = get_analytics_table()
+
+            with Database.connect(analytics_db) as conn:
+                cursor = conn.cursor()
+
+                # Total conversions and revenue
+                cursor.execute(f"""
+                    SELECT
+                        COUNT(*) as total_conversions,
+                        COALESCE(SUM(JSON_EXTRACT(additional_data, '$.order_value')), 0) as total_revenue
+                    FROM {analytics_table}
+                    WHERE event_type = 'conversion'
+                    AND datetime(timestamp) >= datetime('now', '-{days} days')
+                """)
+                conv_row = cursor.fetchone()
+
+                # Unique visitors in the same period
+                cursor.execute(f"""
+                    SELECT COUNT(DISTINCT fingerprint_hash)
+                    FROM {analytics_table}
+                    WHERE event_type = 'page_view_client'
+                    AND fingerprint_hash IS NOT NULL
+                    AND identity IN ('human', 'likely_human')
+                    AND datetime(timestamp) >= datetime('now', '-{days} days')
+                """)
+                visitors = cursor.fetchone()[0] or 0
+
+                total_conversions = conv_row[0] or 0
+                total_revenue = conv_row[1] or 0
+                conversion_rate = round(
+                    total_conversions / visitors * 100, 2
+                ) if visitors > 0 else 0
+
+                return {
+                    'total_conversions': total_conversions,
+                    'total_revenue': total_revenue,
+                    'total_revenue_display': f"£{total_revenue / 100:.2f}",
+                    'unique_visitors': visitors,
+                    'conversion_rate': conversion_rate,
+                    'period_days': days,
+                }
+
+        except Exception as e:
+            print(f"[ERROR ANALYTICS] Failed to get conversion summary: {e}")
+            return {
+                'total_conversions': 0, 'total_revenue': 0,
+                'total_revenue_display': '£0.00',
+                'unique_visitors': 0, 'conversion_rate': 0,
+                'period_days': days,
+            }

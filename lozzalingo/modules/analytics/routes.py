@@ -2249,3 +2249,75 @@ def api_analytics_summary():
     finally:
         if analytics_conn:
             analytics_conn.close()
+
+
+# ── Conversion Attribution Endpoints ─────────────────────────────────────────
+
+@analytics_bp.route('/api/conversion-attribution')
+def api_conversion_attribution():
+    """Get conversion attribution by referrer source/medium/campaign."""
+    is_admin, message = check_admin_access()
+    if not is_admin:
+        return jsonify({"error": message}), 403
+
+    days = request.args.get('days', 30, type=int)
+    from .analytics import Analytics
+    data = Analytics.get_conversion_attribution(days=days)
+    response = make_response(jsonify({'attribution': data, 'period_days': days}))
+    return add_no_cache_headers(response)
+
+
+@analytics_bp.route('/api/landing-page-performance')
+def api_landing_page_performance():
+    """Get landing page conversion performance."""
+    is_admin, message = check_admin_access()
+    if not is_admin:
+        return jsonify({"error": message}), 403
+
+    days = request.args.get('days', 30, type=int)
+    from .analytics import Analytics
+    data = Analytics.get_landing_page_performance(days=days)
+    response = make_response(jsonify({'pages': data, 'period_days': days}))
+    return add_no_cache_headers(response)
+
+
+@analytics_bp.route('/api/campaign-revenue')
+def api_campaign_revenue():
+    """Get revenue breakdown by UTM campaign."""
+    is_admin, message = check_admin_access()
+    if not is_admin:
+        return jsonify({"error": message}), 403
+
+    days = request.args.get('days', 30, type=int)
+    from .analytics import Analytics
+    data = Analytics.get_campaign_revenue(days=days)
+    response = make_response(jsonify({'campaigns': data, 'period_days': days}))
+    return add_no_cache_headers(response)
+
+
+@analytics_bp.route('/api/time-to-conversion')
+def api_time_to_conversion():
+    """Get average time from first visit to purchase."""
+    is_admin, message = check_admin_access()
+    if not is_admin:
+        return jsonify({"error": message}), 403
+
+    days = request.args.get('days', 30, type=int)
+    from .analytics import Analytics
+    data = Analytics.get_time_to_conversion(days=days)
+    response = make_response(jsonify(data))
+    return add_no_cache_headers(response)
+
+
+@analytics_bp.route('/api/conversion-summary')
+def api_conversion_summary():
+    """Get high-level conversion summary."""
+    is_admin, message = check_admin_access()
+    if not is_admin:
+        return jsonify({"error": message}), 403
+
+    days = request.args.get('days', 30, type=int)
+    from .analytics import Analytics
+    data = Analytics.get_conversion_summary(days=days)
+    response = make_response(jsonify(data))
+    return add_no_cache_headers(response)
