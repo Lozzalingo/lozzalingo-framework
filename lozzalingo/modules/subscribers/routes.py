@@ -464,7 +464,7 @@ def subscribe():
                     ''', (subscriber_id, email, token, expires_at))
                     conn.commit()
 
-                    confirm_link = f"{request.url_root.rstrip('/')}api/subscribers/confirm/{token}"
+                    confirm_link = f"{request.url_root.rstrip('/')}/api/subscribers/confirm/{token}"
                     svc = _get_email_service()
                     if svc:
                         try:
@@ -500,7 +500,7 @@ def subscribe():
                     ''', (subscriber_id, email, token, expires_at))
                     conn2.commit()
 
-                confirm_link = f"{request.url_root.rstrip('/')}api/subscribers/confirm/{token}"
+                confirm_link = f"{request.url_root.rstrip('/')}/api/subscribers/confirm/{token}"
                 svc = _get_email_service()
                 if svc:
                     try:
@@ -856,7 +856,7 @@ def process_reminders():
             svc = _get_email_service()
             for token_id, email, token in rows:
                 try:
-                    confirm_link = f"{request.url_root.rstrip('/')}api/subscribers/confirm/{token}"
+                    confirm_link = f"{request.url_root.rstrip('/')}/api/subscribers/confirm/{token}"
                     if svc:
                         _send_reminder_email(svc, email, confirm_link)
                     cursor.execute(
