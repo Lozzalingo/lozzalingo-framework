@@ -620,7 +620,7 @@ app = Flask(__name__)
 
 # Configure email settings
 app.config['RESEND_API_KEY'] = 'your-resend-api-key'
-app.config['EMAIL_ADDRESS'] = 'noreply@yourdomain.com'
+app.config['EMAIL_ADDRESS'] = 'no-reply@yourdomain.com'
 app.config['EMAIL_BRAND_NAME'] = 'Your Brand'
 app.config['EMAIL_BRAND_TAGLINE'] = 'Your tagline here'
 app.config['EMAIL_WEBSITE_URL'] = 'https://yourdomain.com'

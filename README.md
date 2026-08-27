@@ -213,7 +213,7 @@ Configurable email service using Resend API with template preview:
 from lozzalingo.modules.email import email_preview_bp, email_service
 
 app.config['RESEND_API_KEY'] = 'your-api-key'
-app.config['EMAIL_ADDRESS'] = 'noreply@yourdomain.com'
+app.config['EMAIL_ADDRESS'] = 'no-reply@yourdomain.com'
 app.config['EMAIL_BRAND_NAME'] = 'Your Brand'
 
 email_service.init_app(app)

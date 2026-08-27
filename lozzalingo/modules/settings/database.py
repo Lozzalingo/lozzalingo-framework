@@ -332,7 +332,7 @@ SETTINGS_SCHEMA = {
         'icon': '📧',
         'settings': [
             {'key': 'RESEND_API_KEY', 'label': 'Resend API Key', 'type': 'password', 'is_secret': True, 'description': 're_...'},
-            {'key': 'EMAIL_FROM', 'label': 'From Email', 'type': 'email', 'is_secret': False, 'description': 'noreply@yourdomain.com'},
+            {'key': 'EMAIL_FROM', 'label': 'From Email', 'type': 'email', 'is_secret': False, 'description': 'no-reply@yourdomain.com'},
             {'key': 'EMAIL_REPLY_TO', 'label': 'Reply-To Email', 'type': 'email', 'is_secret': False, 'description': 'support@yourdomain.com'},
         ]
     },

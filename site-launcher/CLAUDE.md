@@ -232,7 +232,7 @@ SECRET_KEY=<generate with: python -c "import secrets; print(secrets.token_hex(32
 
 # Email
 RESEND_API_KEY=<provided or placeholder>
-EMAIL_ADDRESS=noreply@<domain>
+EMAIL_ADDRESS=no-reply@<domain>
 
 # OAuth
 GOOGLE_CLIENT_ID=<provided or placeholder>
@@ -740,7 +740,7 @@ Only proceed if the user wants to deploy. Reference `./DEPLOY.md` for detailed s
    ENVIRONMENT=production
    FLASK_SECRET_KEY=<generated-secret>
    RESEND_API_KEY=<key>
-   EMAIL_ADDRESS=noreply@<domain>
+   EMAIL_ADDRESS=no-reply@<domain>
    EOF"
    ```
 

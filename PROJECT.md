@@ -202,7 +202,7 @@ admin:
 
 email:
   resend_api_key: "${RESEND_API_KEY}"  # From environment
-  from_address: "noreply@mysite.com"
+  from_address: "no-reply@mysite.com"
 
 analytics:
   enabled: true

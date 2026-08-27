@@ -151,6 +151,11 @@ class Lozzalingo:
             self._setup_ops_monitoring()
             self._setup_ops_banner_injection()
 
+        # Start daily error digest (requires ops + email features)
+        if (self._config.get('features', {}).get('ops', True)
+                and self._config.get('features', {}).get('email', True)):
+            self._setup_error_digest()
+
         # Store reference on app for access in templates/routes
         app.extensions['lozzalingo'] = self
 
@@ -843,6 +848,19 @@ class Lozzalingo:
 
             response.set_data(data)
             return response
+
+    def _setup_error_digest(self):
+        """Start the daily error digest background thread.
+
+        Sends a summary email of ERROR/CRITICAL logs at 21:00 London time.
+        Only sends if there are errors to report. Requires both ops and email
+        features to be enabled.
+        """
+        try:
+            from .modules.ops.error_digest import start_error_digest
+            start_error_digest(self.app)
+        except Exception as e:
+            self.app.logger.debug(f"Failed to start error digest: {e}")
 
     def get_registered_modules(self) -> list:
         """Get list of registered module names."""

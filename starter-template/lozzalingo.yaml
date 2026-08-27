@@ -34,7 +34,7 @@ analytics:
 # Email settings (configure in .env for security)
 # email:
 #   resend_api_key: "${RESEND_API_KEY}"
-#   from_address: "noreply@yourdomain.com"
+#   from_address: "no-reply@yourdomain.com"
 #   support_email: "support@yourdomain.com"
 #   admin_email: "admin@yourdomain.com"
 

@@ -311,7 +311,7 @@ ssh root@<SERVER_IP> "cat > /var/www/<site_slug>/.env << 'EOF'
 FLASK_ENV=production
 SECRET_KEY=<generate: python3 -c 'import secrets; print(secrets.token_hex(32))'>
 RESEND_API_KEY=<your-key>
-EMAIL_ADDRESS=noreply@<domain>
+EMAIL_ADDRESS=no-reply@<domain>
 EMAIL_PROVIDER=resend
 GOOGLE_CLIENT_ID=<your-id>
 GOOGLE_CLIENT_SECRET=<your-secret>

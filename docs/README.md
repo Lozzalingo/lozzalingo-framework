@@ -53,7 +53,7 @@ admin:
 
 email:
   resend_api_key: "${RESEND_API_KEY}"
-  from_address: "noreply@example.com"
+  from_address: "no-reply@example.com"
 ```
 
 ### Environment Variables
