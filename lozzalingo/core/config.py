@@ -32,7 +32,7 @@ class Config:
     EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS", "onboarding@resend.dev")
     EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
     EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
-    EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+    EMAIL_PORT = int(os.getenv("EMAIL_PORT") or "587")
 
     # Resend API settings (free tier: 3,000 emails/month)
     RESEND_API_KEY = os.getenv('RESEND_API_KEY') or os.getenv('RESEND')
