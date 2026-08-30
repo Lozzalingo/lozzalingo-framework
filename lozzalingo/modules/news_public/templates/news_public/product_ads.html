@@ -13,6 +13,11 @@
 {% set _ads_enabled = article.ads_enabled if article is defined and article.ads_enabled is defined else true %}
 {% if config.get('NEWS_EMBED_PRODUCTS', False) and _ads_enabled %}
 <style>
+/* Reset host-app article image styles on product ad card thumbnails */
+[data-product-ad] img {
+    margin: 0 !important;
+    box-shadow: none !important;
+}
 @media (max-width: 600px) {
     [data-product-ad] img {
         object-fit: contain !important;
