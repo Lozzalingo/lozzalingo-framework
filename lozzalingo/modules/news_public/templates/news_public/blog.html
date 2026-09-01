@@ -11,14 +11,16 @@
     {% if articles %}
         <div class="blog-list">
             {% for article in articles %}
-            <article class="blog-item">
+            <a href="{{ article_url(article) }}" name="blog_{{ article.id }}" class="blog-item-link" style="text-decoration: none; color: inherit; display: block;">
+            <article class="blog-item" style="cursor: pointer;">
                 {% if article.image_url %}
                 <img src="{{ article.image_url }}" alt="{{ article.title }}" loading="lazy">
                 {% endif %}
-                <h2><a href="{{ article_url(article) }}" name="blog_{{ article.id }}">{{ article.title }}</a></h2>
+                <h2>{{ article.title }}</h2>
                 <time>{{ article.created_at }}</time>
                 <div>{{ article.content[:200]|striptags }}...</div>
             </article>
+            </a>
             {% endfor %}
         </div>
     {% else %}

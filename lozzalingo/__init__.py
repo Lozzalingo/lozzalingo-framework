@@ -143,6 +143,9 @@ class Lozzalingo:
         # Set up auto-injection for analytics scripts
         self._setup_auto_injection()
 
+        # Set up auto-injection for Site Monitor client snippets
+        self._setup_site_monitor_injection()
+
         # Set up automatic error logging for all 5xx responses
         self._setup_error_logging()
 
@@ -711,6 +714,61 @@ class Lozzalingo:
             data = re.sub(
                 r'(</body>)',
                 analytics_scripts + r'\1',
+                data,
+                flags=re.IGNORECASE,
+                count=1
+            )
+
+            response.set_data(data)
+            return response
+
+    def _setup_site_monitor_injection(self):
+        """Inject Site Monitor client-side snippets into all HTML responses.
+
+        Adds sm-error.js (client error catching) and sm-session.js (user session tracking)
+        from the centralised Site Monitor service. Only active when SITE_MONITOR_URL is set.
+        """
+        import os
+        sm_url = os.getenv('SITE_MONITOR_URL')
+        if not sm_url:
+            return
+
+        # Determine the site ID from the env var key prefix
+        sm_key = os.getenv('SITE_MONITOR_KEY', '')
+        site_id = ''
+        if sm_key.startswith('sm_') and sm_key.count('_') >= 2:
+            # Extract site_id from key format: sm_{site_id}_{random}
+            parts = sm_key.split('_')
+            site_id = '_'.join(parts[1:-1])
+
+        @self.app.after_request
+        def inject_site_monitor_scripts(response):
+            """Inject Site Monitor snippets into HTML responses."""
+            if response.content_type and 'text/html' not in response.content_type:
+                return response
+
+            # Don't inject into admin pages
+            from flask import request
+            if request.path.startswith('/admin'):
+                return response
+
+            try:
+                data = response.get_data(as_text=True)
+            except Exception:
+                return response
+
+            if '</body>' not in data.lower():
+                return response
+
+            import re
+            sm_scripts = f'''
+    <!-- Site Monitor -->
+    <script src="{sm_url}/static/snippet/sm-error.js" data-site="{site_id}" async></script>
+    <script src="{sm_url}/static/snippet/sm-session.js" data-site="{site_id}" async></script>
+'''
+            data = re.sub(
+                r'(</body>)',
+                sm_scripts + r'\1',
                 data,
                 flags=re.IGNORECASE,
                 count=1

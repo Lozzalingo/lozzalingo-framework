@@ -3,8 +3,10 @@ Centralized logging service for the Mario Pinto application.
 Provides structured logging with database storage and easy integration.
 """
 
+import os
 import sqlite3
 import json
+import threading
 from datetime import datetime
 from flask import request, has_request_context
 from .database import Database
@@ -109,6 +111,12 @@ class LoggingService:
                 ))
                 conn.commit()
 
+            # Forward to Site Monitor (fire-and-forget)
+            LoggingService._forward_to_site_monitor(
+                timestamp, level.upper(), source, message, details,
+                ip_address, user_agent, request_path, user_id
+            )
+
         except Exception as e:
             # Fallback to console logging if database fails
             print(f"[{datetime.now().isoformat()}] [{level.upper()}] [{source}] {message}")
@@ -176,6 +184,52 @@ class LoggingService:
             details['provided_ip'] = ip_address
 
         LoggingService.warning('security', message, details)
+
+    @staticmethod
+    def _forward_to_site_monitor(timestamp, level, source, message, details,
+                                  ip_address, user_agent, request_path, user_id):
+        """
+        Forward a log entry to the centralised Site Monitor service.
+        Runs in a background thread so it never blocks the request.
+        Silently swallows all errors so Site Monitor being down never breaks a site.
+        """
+        sm_url = os.getenv('SITE_MONITOR_URL')
+        sm_key = os.getenv('SITE_MONITOR_KEY')
+
+        if not sm_url or not sm_key:
+            return
+
+        def _send():
+            try:
+                import requests as req_lib
+                payload = {
+                    'level': level,
+                    'message': message,
+                    'timestamp': timestamp,
+                    'request': {
+                        'path': request_path,
+                        'ip': ip_address,
+                    },
+                    'user': {
+                        'id': user_id,
+                    },
+                    'meta': {
+                        'source': source,
+                        'details': details,
+                        'user_agent': user_agent,
+                    },
+                }
+                req_lib.post(
+                    f'{sm_url}/api/sm/ingest',
+                    json=payload,
+                    headers={'X-SM-Key': sm_key, 'Content-Type': 'application/json'},
+                    timeout=5,
+                )
+            except Exception:
+                pass
+
+        thread = threading.Thread(target=_send, daemon=True)
+        thread.start()
 
     @staticmethod
     def cleanup_old_logs(days_to_keep=30):

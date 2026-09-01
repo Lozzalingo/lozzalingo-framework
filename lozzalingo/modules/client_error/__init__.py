@@ -52,8 +52,58 @@ def receive_client_error():
             'url': data.get('url'),
             'project': data.get('project'),
         })
+
+        # Forward to Site Monitor as a structured error
+        _forward_error_to_site_monitor(data, ip)
+
         print(f"[ClientError] {data.get('project', '?')}: {str(message)[:100]}")
         return jsonify({'ok': True})
     except Exception as e:
         print(f"[ClientError] Failed to store error: {e}")
         return jsonify({'error': 'Failed to store error'}), 500
+
+
+def _forward_error_to_site_monitor(data, ip):
+    """Forward a client error to the centralised Site Monitor. Fire-and-forget."""
+    import os
+    import threading
+
+    sm_url = os.getenv('SITE_MONITOR_URL')
+    sm_key = os.getenv('SITE_MONITOR_KEY')
+    if not sm_url or not sm_key:
+        return
+
+    def _send():
+        try:
+            import requests as req_lib
+            payload = {
+                'error': {
+                    'class': 'ClientError',
+                    'message': str(data.get('message', ''))[:1000],
+                    'stack': str(data.get('stack', ''))[:5000] if data.get('stack') else '',
+                    'source': 'client',
+                },
+                'request': {
+                    'path': data.get('url'),
+                    'ip': ip,
+                    'user_agent': request.headers.get('User-Agent', ''),
+                },
+                'timestamp': __import__('datetime').datetime.utcnow().isoformat(),
+                'meta': {
+                    'sourceFile': data.get('source'),
+                    'line': data.get('line'),
+                    'column': data.get('column'),
+                    'project': data.get('project'),
+                },
+            }
+            req_lib.post(
+                f'{sm_url}/api/sm/error',
+                json=payload,
+                headers={'X-SM-Key': sm_key, 'Content-Type': 'application/json'},
+                timeout=5,
+            )
+        except Exception:
+            pass
+
+    thread = threading.Thread(target=_send, daemon=True)
+    thread.start()
