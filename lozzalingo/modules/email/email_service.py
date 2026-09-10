@@ -210,6 +210,10 @@ class EmailService:
         """
         Send an email to multiple recipients via the configured provider.
 
+        If EMAIL_SERVICE_URL and EMAIL_SERVICE_KEY env vars are set, forwards the
+        email to the centralised Email service instead of using the local provider.
+        Falls back to the local implementation if the service call fails.
+
         Args:
             to: List of recipient email addresses
             subject: Email subject
@@ -219,6 +223,33 @@ class EmailService:
         Returns:
             bool: True if at least one email was sent successfully, False otherwise
         """
+        # Centralised Email Service forwarding
+        email_svc_url = os.getenv('EMAIL_SERVICE_URL')
+        email_svc_key = os.getenv('EMAIL_SERVICE_KEY')
+        if email_svc_url and email_svc_key:
+            try:
+                import requests as _requests
+                resp = _requests.post(
+                    f"{email_svc_url}/api/email/send",
+                    json={
+                        'to': to,
+                        'subject': subject,
+                        'html': html_body,
+                        'text': text_body,
+                        'from_address': self.sender_email,
+                        'from_name': self.brand_name,
+                    },
+                    headers={'X-API-Key': email_svc_key},
+                    timeout=15,
+                )
+                if resp.status_code == 200:
+                    logger.info(f"Email forwarded to centralised service: {subject}")
+                    return True
+                else:
+                    logger.warning(f"Centralised email service returned {resp.status_code}, falling back to local provider")
+            except Exception as e:
+                logger.warning(f"Centralised email service unreachable ({e}), falling back to local provider")
+
         if not to:
             logger.error("No recipients provided")
             return False

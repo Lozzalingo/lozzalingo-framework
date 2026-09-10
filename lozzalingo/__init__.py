@@ -38,6 +38,7 @@ __author__ = 'Laurence Stephan'
 import os
 import yaml
 from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 class Lozzalingo:
@@ -128,6 +129,11 @@ class Lozzalingo:
         """
         self.app = app
 
+        # Apply ProxyFix so request.url_root respects X-Forwarded-Proto/Host
+        # headers from reverse proxies (Cloudflare, nginx, etc.). Without this,
+        # generated URLs (e.g. confirmation email links) use http:// instead of https://.
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
         # Load YAML config if exists
         self._load_yaml_config()
 
@@ -145,6 +151,9 @@ class Lozzalingo:
 
         # Set up auto-injection for Site Monitor client snippets
         self._setup_site_monitor_injection()
+
+        # Set up auto-injection for centralised Analytics service
+        self._setup_analytics_injection()
 
         # Set up automatic error logging for all 5xx responses
         self._setup_error_logging()
@@ -769,6 +778,65 @@ class Lozzalingo:
             data = re.sub(
                 r'(</body>)',
                 sm_scripts + r'\1',
+                data,
+                flags=re.IGNORECASE,
+                count=1
+            )
+
+            response.set_data(data)
+            return response
+
+    def _setup_analytics_injection(self):
+        """Inject centralised Analytics service tracking snippet into all HTML responses.
+
+        Adds lza.js from the centralised Analytics service. Only active when
+        ANALYTICS_SERVICE_URL is set. Extracts site_id from ANALYTICS_SERVICE_KEY
+        using the same pattern as Site Monitor (key format: sm_{site_id}_{random}).
+        """
+        import os
+        analytics_url = os.getenv('ANALYTICS_SERVICE_URL')
+        if not analytics_url:
+            return
+
+        # Extract site_id from the key (same pattern as Site Monitor)
+        analytics_key = os.getenv('ANALYTICS_SERVICE_KEY', '')
+        site_id = ''
+        if analytics_key.startswith('sm_') and analytics_key.count('_') >= 2:
+            parts = analytics_key.split('_')
+            site_id = '_'.join(parts[1:-1])
+
+        @self.app.after_request
+        def inject_analytics_service_scripts(response):
+            """Inject centralised Analytics snippet into HTML responses."""
+            if response.content_type and 'text/html' not in response.content_type:
+                return response
+
+            # Don't inject into admin pages
+            from flask import request
+            if request.path.startswith('/admin'):
+                return response
+
+            # Don't track logged-in admins
+            from flask import session
+            if session.get('admin_id'):
+                return response
+
+            try:
+                data = response.get_data(as_text=True)
+            except Exception:
+                return response
+
+            if '</head>' not in data.lower():
+                return response
+
+            import re
+            analytics_script = f'''
+    <!-- Centralised Analytics -->
+    <script src="{analytics_url}/static/lza.js" data-site="{site_id}" async></script>
+'''
+            data = re.sub(
+                r'(</head>)',
+                analytics_script + r'\1',
                 data,
                 flags=re.IGNORECASE,
                 count=1

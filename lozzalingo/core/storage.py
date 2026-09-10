@@ -86,6 +86,10 @@ def upload_file(file_bytes, filename, subfolder):
 
     Automatically compresses images (resize + WebP conversion) before upload.
 
+    If STORAGE_SERVICE_URL and STORAGE_API_KEY env vars are set, uploads via the
+    centralised Storage service instead of directly to DO Spaces/S3. Falls back
+    to the local implementation if the service call fails.
+
     Args:
         file_bytes: Raw bytes of the processed file.
         filename: Target filename (e.g. "abc123.jpg").
@@ -96,6 +100,30 @@ def upload_file(file_bytes, filename, subfolder):
     """
     filename = _sanitize_filename(filename)
     file_bytes, filename = _compress_image(file_bytes, filename)
+
+    # Centralised Storage Service forwarding
+    storage_svc_url = os.getenv('STORAGE_SERVICE_URL')
+    storage_api_key = os.getenv('STORAGE_API_KEY')
+    if storage_svc_url and storage_api_key:
+        try:
+            import requests as _requests
+            app_prefix = current_app.config.get('SPACES_FOLDER', 'uploads')
+            resp = _requests.post(
+                f"{storage_svc_url}/api/storage/upload",
+                files={'file': (filename, file_bytes)},
+                data={'subfolder': subfolder, 'app_prefix': app_prefix},
+                headers={'X-API-Key': storage_api_key},
+                timeout=30,
+            )
+            if resp.status_code == 200:
+                result = resp.json()
+                cdn_url = result.get('url', '')
+                if cdn_url:
+                    print(f"[Storage] Uploaded via centralised service: {cdn_url}")
+                    return cdn_url
+            print(f"[Storage] Centralised service returned {resp.status_code}, falling back to local")
+        except Exception as e:
+            print(f"[Storage] Centralised service unreachable ({e}), falling back to local")
 
     if is_cloud_storage():
         return _upload_to_spaces(file_bytes, filename, subfolder)
