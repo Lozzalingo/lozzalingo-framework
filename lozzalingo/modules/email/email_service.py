@@ -229,17 +229,22 @@ class EmailService:
         if email_svc_url and email_svc_key:
             try:
                 import requests as _requests
+                # Extract site_id from SITE_MONITOR_KEY (format: sm_{site_id}_{random})
+                sm_key = os.getenv('SITE_MONITOR_KEY', '')
+                site_id = ''
+                if sm_key.startswith('sm_') and sm_key.count('_') >= 2:
+                    parts = sm_key.split('_')
+                    site_id = '_'.join(parts[1:-1])
                 resp = _requests.post(
                     f"{email_svc_url}/api/email/send",
                     json={
+                        'site_id': site_id,
                         'to': to,
                         'subject': subject,
                         'html': html_body,
                         'text': text_body,
-                        'from_address': self.sender_email,
-                        'from_name': self.brand_name,
                     },
-                    headers={'X-API-Key': email_svc_key},
+                    headers={'X-Email-Service-Key': email_svc_key},
                     timeout=15,
                 )
                 if resp.status_code == 200:

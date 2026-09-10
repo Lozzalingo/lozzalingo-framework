@@ -107,17 +107,22 @@ def upload_file(file_bytes, filename, subfolder):
     if storage_svc_url and storage_api_key:
         try:
             import requests as _requests
-            app_prefix = current_app.config.get('SPACES_FOLDER', 'uploads')
+            # Extract site_id from SITE_MONITOR_KEY (format: sm_{site_id}_{random})
+            sm_key = os.getenv('SITE_MONITOR_KEY', '')
+            site_id = ''
+            if sm_key.startswith('sm_') and sm_key.count('_') >= 2:
+                parts = sm_key.split('_')
+                site_id = '_'.join(parts[1:-1])
             resp = _requests.post(
                 f"{storage_svc_url}/api/storage/upload",
                 files={'file': (filename, file_bytes)},
-                data={'subfolder': subfolder, 'app_prefix': app_prefix},
-                headers={'X-API-Key': storage_api_key},
+                data={'site_id': site_id, 'subfolder': subfolder},
+                headers={'X-Storage-Key': storage_api_key},
                 timeout=30,
             )
             if resp.status_code == 200:
                 result = resp.json()
-                cdn_url = result.get('url', '')
+                cdn_url = result.get('cdn_url', '')
                 if cdn_url:
                     print(f"[Storage] Uploaded via centralised service: {cdn_url}")
                     return cdn_url
