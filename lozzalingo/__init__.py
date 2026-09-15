@@ -53,7 +53,7 @@ class Lozzalingo:
         'brand_name': 'Lozzalingo Site',
         'brand_tagline': '',
         'brand_logo': None,       # Path relative to host app static folder, e.g. 'img/logo.png'
-        'brand_home_label': None,  # e.g. 'Back to Home' — if None, uses '← Back to {brand_name}'
+        'brand_home_label': None,  # e.g. 'Back to Home'  -  if None, uses '← Back to {brand_name}'
         'secret_key': None,  # Will use app.secret_key or generate one
 
         # Database settings
@@ -356,7 +356,7 @@ class Lozzalingo:
                 if setting['value'] and setting['key'] not in self.app.config:
                     self.app.config[setting['key']] = setting['value']
         except Exception:
-            pass  # Safe to ignore — settings module may not be initialized yet
+            pass  # Safe to ignore  -  settings module may not be initialized yet
 
     def _setup_database_dir(self):
         """Ensure database directory exists."""
@@ -774,6 +774,7 @@ class Lozzalingo:
     <!-- Site Monitor -->
     <script src="{sm_url}/static/snippet/sm-error.js" data-site="{site_id}" async></script>
     <script src="{sm_url}/static/snippet/sm-session.js" data-site="{site_id}" async></script>
+    <script src="{sm_url}/static/snippet/sm-logs.js" data-site="{site_id}" async></script>
 '''
             data = re.sub(
                 r'(</body>)',
