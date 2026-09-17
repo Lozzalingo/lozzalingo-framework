@@ -121,7 +121,7 @@
                             <input type="text" id="techSearchInput" autocomplete="off" placeholder="Type to search technologies...">
                             <div class="tech-dropdown" id="techDropdown"></div>
                             <div class="tech-category-picker" id="techCategoryPicker" style="display:none;">
-                                <span class="tcp-label">New tech — pick category:</span>
+                                <span class="tcp-label">New tech  -  pick category:</span>
                                 <select id="techCategorySelect">
                                     <option value="software">Software</option>
                                     <option value="hardware">Hardware</option>
@@ -138,7 +138,7 @@
                             </div>
                         </div>
                         <input type="hidden" id="technologies" name="technologies">
-                        <small class="form-hint">Type to search & add — <a href="{{ url_for('projects_admin.tech_registry') }}" style="color: var(--lz-accent, #c4788a);" name="manage_tech_registry">Manage Tech Registry</a></small>
+                        <small class="form-hint">Type to search & add  -  <a href="{{ url_for('projects_admin.tech_registry') }}" style="color: var(--lz-accent, #c4788a);" name="manage_tech_registry">Manage Tech Registry</a></small>
                     </div>
 
                     <div class="form-group">
@@ -324,7 +324,7 @@
             </div>
             <div class="fs-body">
                 <div class="fs-preview" id="fsPreview">
-                    <p class="fs-empty" id="fsEmpty">No images added yet — upload, browse, or paste a URL below.</p>
+                    <p class="fs-empty" id="fsEmpty">No images added yet  -  upload, browse, or paste a URL below.</p>
                 </div>
                 <div class="fs-add-section">
                     <div style="display:flex; gap:8px; align-items:center;">
@@ -378,7 +378,7 @@
             </div>
             <div style="padding:20px;">
                 <p style="margin:0 0 12px;font-size:0.85rem;color:var(--lz-muted);">
-                    Describe what's changed — subscribers will see this in the email.
+                    Describe what's changed  -  subscribers will see this in the email.
                 </p>
                 <textarea id="updateEmailDesc" rows="4" style="width:100%;padding:10px;border:1px solid var(--lz-border);border-radius:6px;background:var(--lz-input-bg);color:var(--lz-text);font-family:inherit;font-size:0.9rem;resize:vertical;box-sizing:border-box;"></textarea>
                 <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">
@@ -402,7 +402,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <script>
-    // Custom Image blot — preserves data-size, data-layout, width on <img>
+    // Custom Image blot  -  preserves data-size, data-layout, width on <img>
     (function() {
         const BaseImage = Quill.import('formats/image');
 
@@ -464,7 +464,7 @@
         Quill.register(CustomImage, true);
     })();
 
-    // Filmstrip BlockEmbed — single atomic block containing multiple images
+    // Filmstrip BlockEmbed  -  single atomic block containing multiple images
     (function() {
         const BlockEmbed = Quill.import('blots/block/embed');
 
@@ -667,7 +667,7 @@
             }
         });
 
-        // Category picker — add new tech to registry
+        // Category picker  -  add new tech to registry
         document.getElementById('techCategoryAddBtn').addEventListener('click', async function() {
             if (!pendingTechName) return;
             const cat = techCategorySelect.value;
@@ -836,10 +836,10 @@
                             var url = prompt('URL:');
                             if (!url) return;
                             if (range.length > 0) {
-                                // Text was selected — wrap it as a link
+                                // Text was selected  -  wrap it as a link
                                 this.quill.formatText(range.index, range.length, 'link', url);
                             } else {
-                                // No selection — ask for label text
+                                // No selection  -  ask for label text
                                 var label = prompt('Link text:', url);
                                 if (!label) label = url;
                                 this.quill.insertText(range.index, label, 'link', url, Quill.sources.USER);
@@ -927,7 +927,7 @@
                     return;
                 }
 
-                // Clicking on the toolbar itself — don't hide
+                // Clicking on the toolbar itself  -  don't hide
                 if (toolbar.contains(e.target)) return;
                 if (activeEl) hideToolbar();
             });
@@ -944,7 +944,7 @@
                 if (e.key === 'Escape') hideToolbar();
             });
 
-            // Size buttons — works for both images and filmstrips
+            // Size buttons  -  works for both images and filmstrips
             toolbar.querySelectorAll('.img-tb-btn[data-size]').forEach(function(btn) {
                 btn.addEventListener('mousedown', function(e) {
                     e.preventDefault();
@@ -988,7 +988,7 @@
                 });
             });
 
-            // Edit button — opens filmstrip modal
+            // Edit button  -  opens filmstrip modal
             editBtn.addEventListener('mousedown', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1352,7 +1352,7 @@
             finally { progress.style.display = 'none'; this.value = ''; }
         });
 
-        // Card image — upload, browse, preview, clear
+        // Card image  -  upload, browse, preview, clear
         function updateCardImagePreview() {
             const url = document.getElementById('cardImageUrl').value.trim();
             const preview = document.getElementById('cardImagePreview');
@@ -1403,7 +1403,7 @@
             loadBrowserImages(ibCurrentFolder);
         });
 
-        // Save buttons — single dropdown + Save at top and bottom, kept in sync
+        // Save buttons  -  single dropdown + Save at top and bottom, kept in sync
         function syncSaveMode(source) {
             const val = source.value;
             document.querySelectorAll('.save-mode-select').forEach(sel => { sel.value = val; });
@@ -1580,7 +1580,7 @@
                 if (data.success || data.id) {
                     loadProjects();
                     if (wasEditing) {
-                        // Stay in editor — just flash a confirmation and update status
+                        // Stay in editor  -  just flash a confirmation and update status
                         document.querySelectorAll('.save-flash').forEach(f => {
                             f.textContent = 'Saved';
                             f.style.display = 'inline';
@@ -1590,7 +1590,7 @@
                         });
                         document.getElementById('currentStatus').textContent = status;
                     } else {
-                        // New project — switch into edit mode for it
+                        // New project  -  switch into edit mode for it
                         var newId = data.id;
                         resetForm();
                         if (newId) window._editProject(newId);
@@ -1629,7 +1629,7 @@
                 renderGalleryThumbs();
                 syncGalleryHidden();
 
-                // Restore focal point — parse percentage from stored value
+                // Restore focal point  -  parse percentage from stored value
                 heroImageAlign = p.hero_image_align || 'center 50%';
                 document.getElementById('heroImageAlign').value = heroImageAlign;
                 const pctMatch = heroImageAlign.match(/(\d+)%/);
@@ -1781,9 +1781,9 @@
             // Close any open dropdown
             document.querySelectorAll('.share-menu.show').forEach(m => m.classList.remove('show'));
 
-            // Medium: no API available — open email to request access
+            // Medium: no API available  -  open email to request access
             if (platform === 'medium') {
-                const subject = encodeURIComponent('API Integration Token Request — Programmatic Publishing');
+                const subject = encodeURIComponent('API Integration Token Request  -  Programmatic Publishing');
                 const body = encodeURIComponent(
                     'Hi Medium team,\n\n' +
                     'I run a personal blog at https://laurence.computer and would like to cross-post my articles to Medium programmatically.\n\n' +
@@ -1838,7 +1838,7 @@
             // --- Render preview strip ---
             function renderFsPreview() {
                 if (!fsImages.length) {
-                    fsPreview.innerHTML = '<p class="fs-empty">No images added yet — upload, browse, or paste a URL below.</p>';
+                    fsPreview.innerHTML = '<p class="fs-empty">No images added yet  -  upload, browse, or paste a URL below.</p>';
                     return;
                 }
                 fsPreview.innerHTML = fsImages.map((img, i) => `
@@ -2207,7 +2207,7 @@
             document.addEventListener('touchmove', onCropMove, { passive: false });
             document.addEventListener('touchend', onCropEnd);
 
-            // Apply crop — server-side (avoids CORS canvas taint)
+            // Apply crop  -  server-side (avoids CORS canvas taint)
             const CROP_URL = '/admin/projects-editor/crop-image';
             document.getElementById('cropApplyBtn').addEventListener('click', async function() {
                 if (cropIdx < 0 || !cropImg) return;

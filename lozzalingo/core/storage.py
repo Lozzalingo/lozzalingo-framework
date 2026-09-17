@@ -26,7 +26,7 @@ def _compress_image(file_bytes, filename, max_width=1920, quality=82):
     if ext not in ('jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'):
         return file_bytes, filename
 
-    # Skip GIF (animated) — just pass through
+    # Skip GIF (animated)  -  just pass through
     if ext == 'gif':
         return file_bytes, filename
 

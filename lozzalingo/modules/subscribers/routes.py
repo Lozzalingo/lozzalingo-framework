@@ -41,7 +41,7 @@ from datetime import datetime, timedelta
 from flask import request, jsonify, render_template, session, current_app
 from . import subscribers_bp
 
-# Email validation regex — rejects consecutive dots, leading/trailing dots
+# Email validation regex  -  rejects consecutive dots, leading/trailing dots
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_%+-]+(\.[a-zA-Z0-9_%+-]+)*@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$')
 
 # Setup logging
@@ -94,6 +94,94 @@ def _get_brand_name():
         return 'our newsletter'
 
 
+def _get_base_url():
+    """Get the base URL for building confirmation links.
+
+    Prefers EMAIL_WEBSITE_URL from app config (always https, always correct).
+    Falls back to request.url_root which may be http:// behind a reverse proxy
+    if ProxyFix is not configured.
+    """
+    try:
+        website_url = current_app.config.get('EMAIL_WEBSITE_URL', '')
+        if website_url:
+            return website_url.rstrip('/')
+    except RuntimeError:
+        pass
+    return request.url_root.rstrip('/')
+
+
+def _get_copy(key, **kwargs):
+    """Get subscriber-facing copy, allowing host apps to override for localisation.
+
+    Host apps set SUBSCRIBER_COPY in their config to override default English text.
+    Example for Portuguese:
+        app.config['SUBSCRIBER_COPY'] = {
+            'confirm_subject': 'Confirme a sua subscricao - {brand_name}',
+            'confirm_heading': 'Confirme a sua subscricao',
+            'confirm_body': 'Foi-lhe pedido para confirmar a sua subscricao em <strong>{brand_name}</strong>.',
+            'confirm_cta_text': 'Clique no botao abaixo para confirmar o seu email e comecar a receber novidades.',
+            'confirm_button': 'Confirmar Subscricao',
+            'confirm_disclaimer': 'Se nao se inscreveu, pode ignorar este email com seguranca.',
+            'reminder_subject': 'Nao se esqueca de confirmar - {brand_name}',
+            'reminder_heading': 'Ainda tem interesse?',
+            'reminder_body': 'Nao se esqueca de confirmar a sua subscricao em <strong>{brand_name}</strong>.',
+            'reminder_cta_text': 'Clique abaixo para confirmar e comecar a receber novidades. Este e o unico lembrete que enviaremos.',
+            'reminder_button': 'Confirmar Subscricao',
+            'reminder_disclaimer': 'Se nao se inscreveu, pode ignorar este email. Este e o unico lembrete que enviaremos.',
+            'page_invalid_title': 'Link Invalido',
+            'page_invalid_message': 'Este link de confirmacao nao e valido. Por favor, inscreva-se novamente.',
+            'page_confirmed_title': 'Subscricao Confirmada',
+            'page_confirmed_message': 'Obrigado! A sua subscricao em {brand_name} foi confirmada. Bem-vindo!',
+            'page_already_title': 'Ja Confirmado',
+            'page_already_message': 'A sua subscricao em {brand_name} ja foi confirmada.',
+            'page_expired_title': 'Link Expirado',
+            'page_expired_message': 'Este link de confirmacao expirou. Por favor, inscreva-se novamente.',
+            'page_error_title': 'Algo correu mal',
+            'page_error_message': 'Ocorreu um erro ao confirmar a sua subscricao. Tente novamente mais tarde.',
+            'page_back_link': 'Voltar a pagina inicial',
+        }
+
+    All values support {brand_name} placeholder which is replaced automatically.
+    """
+    defaults = {
+        # Confirmation email
+        'confirm_subject': 'Confirm your subscription to {brand_name}',
+        'confirm_heading': 'Confirm your subscription',
+        'confirm_body': "You've been asked to confirm your subscription to <strong>{brand_name}</strong>.",
+        'confirm_cta_text': 'Click the button below to confirm your email address and start receiving updates.',
+        'confirm_button': 'Confirm Subscription',
+        'confirm_disclaimer': "If you didn't sign up for this, you can safely ignore this email and you won't be subscribed.",
+        # Reminder email
+        'reminder_subject': "Don't forget to confirm your {brand_name} subscription",
+        'reminder_heading': 'Still interested?',
+        'reminder_body': "Don't forget to confirm your subscription to <strong>{brand_name}</strong>.",
+        'reminder_cta_text': "Click below to confirm and start receiving updates. This is the only reminder we'll send.",
+        'reminder_button': 'Confirm Subscription',
+        'reminder_disclaimer': "If you didn't sign up for this, you can safely ignore this email. This is the only reminder we'll send.",
+        # Confirmation result page
+        'page_invalid_title': 'Invalid Link',
+        'page_invalid_message': 'This confirmation link is not valid. Please subscribe again.',
+        'page_confirmed_title': 'Subscription Confirmed',
+        'page_confirmed_message': 'Thank you! Your subscription to {brand_name} has been confirmed. Welcome aboard!',
+        'page_already_title': 'Already Confirmed',
+        'page_already_message': "Your subscription to {brand_name} has already been confirmed. You're all set!",
+        'page_expired_title': 'Link Expired',
+        'page_expired_message': 'This confirmation link has expired. Please subscribe again to receive a new one.',
+        'page_error_title': 'Something went wrong',
+        'page_error_message': 'An error occurred while confirming your subscription. Please try again later.',
+        'page_back_link': 'Back to homepage',
+    }
+
+    try:
+        overrides = current_app.config.get('SUBSCRIBER_COPY', {})
+    except RuntimeError:
+        overrides = {}
+
+    text = overrides.get(key, defaults.get(key, ''))
+    brand_name = _get_brand_name()
+    return text.format(brand_name=brand_name, **kwargs)
+
+
 def _get_feeds_config():
     """Get configured subscriber feeds from app config"""
     try:
@@ -110,7 +198,7 @@ def _get_default_feed():
         return ''
 
 
-# Configurable popup defaults — overridden by DB config or app.config['SUBSCRIBER_POPUP']
+# Configurable popup defaults  -  overridden by DB config or app.config['SUBSCRIBER_POPUP']
 POPUP_DEFAULTS = {
     'title': 'Stay Updated',
     'subtitle': 'Get the latest news and exclusive content delivered straight to your inbox.',
@@ -335,12 +423,12 @@ def _check_ip_rate_limit(ip):
 
 def _detect_bot(data, email, ip_address):
     """Run all bot detection checks. Returns (is_bot, reason) tuple."""
-    # 1. Honeypot field — hidden input that only bots fill
+    # 1. Honeypot field  -  hidden input that only bots fill
     honeypot = data.get('website', '') or data.get('url', '')
     if honeypot:
         return True, 'honeypot'
 
-    # 2. Timestamp check — form submitted too fast
+    # 2. Timestamp check  -  form submitted too fast
     form_ts = data.get('_ts', 0)
     if form_ts:
         try:
@@ -370,7 +458,7 @@ def subscribe():
     """Handle new subscription requests. Accepts optional 'feed' param."""
     init_subscribers_db()
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
 
         if not data or 'email' not in data:
             return jsonify({'error': 'Email address is required'}), 400
@@ -389,7 +477,7 @@ def subscribe():
 
         ip_address = get_client_ip()
 
-        # Bot detection — silently reject with a fake success response
+        # Bot detection  -  silently reject with a fake success response
         is_bot, reason = _detect_bot(data, email, ip_address)
         if is_bot:
             logger.info(f"Bot signup blocked: {email} (reason: {reason}, ip: {ip_address})")
@@ -414,7 +502,7 @@ def subscribe():
                 subscriber_id, is_active, feeds_json, is_confirmed = existing
                 current_feeds = json.loads(feeds_json) if feeds_json else []
 
-                # Already active AND confirmed — handle feeds update only
+                # Already active AND confirmed  -  handle feeds update only
                 if is_active and is_confirmed:
                     feeds_changed = False
                     if feeds_input:
@@ -436,7 +524,7 @@ def subscribe():
                         'message': 'Subscription preferences updated!'
                     }), 200
 
-                # Unconfirmed re-submit — delete old unused tokens and resend
+                # Unconfirmed re-submit  -  delete old unused tokens and resend
                 if not is_confirmed or not is_active:
                     # Update subscriber record
                     new_feeds = feeds_input if feeds_input else current_feeds
@@ -464,7 +552,7 @@ def subscribe():
                     ''', (subscriber_id, email, token, expires_at))
                     conn.commit()
 
-                    confirm_link = f"{request.url_root.rstrip('/')}/api/subscribers/confirm/{token}"
+                    confirm_link = f"{_get_base_url()}/api/subscribers/confirm/{token}"
                     svc = _get_email_service()
                     if svc:
                         try:
@@ -477,7 +565,7 @@ def subscribe():
                     }), 201
 
             else:
-                # New subscriber — insert as unconfirmed
+                # New subscriber  -  insert as unconfirmed
                 feeds_list = feeds_input if feeds_input else []
                 cursor.execute('''
                     INSERT INTO subscribers (email, ip_address, user_agent, source, feeds, is_active, is_confirmed)
@@ -500,7 +588,7 @@ def subscribe():
                     ''', (subscriber_id, email, token, expires_at))
                     conn2.commit()
 
-                confirm_link = f"{request.url_root.rstrip('/')}/api/subscribers/confirm/{token}"
+                confirm_link = f"{_get_base_url()}/api/subscribers/confirm/{token}"
                 svc = _get_email_service()
                 if svc:
                     try:
@@ -543,8 +631,16 @@ def _notify_admin_subscriber(email, ip_address, user_agent, source):
 
 
 def _send_confirmation_email(svc, email, confirm_link):
-    """Send double opt-in confirmation email with branded styling"""
+    """Send double opt-in confirmation email with branded styling.
+
+    Copy can be overridden via SUBSCRIBER_COPY config for localisation.
+    """
     brand_name = _get_brand_name()
+    copy_heading = _get_copy('confirm_heading')
+    copy_body = _get_copy('confirm_body')
+    copy_cta = _get_copy('confirm_cta_text')
+    copy_button = _get_copy('confirm_button')
+    copy_disclaimer = _get_copy('confirm_disclaimer')
     style = getattr(svc, 'style', {})
     bg = style.get('bg', '#faf8f5')
     card_bg = style.get('card_bg', '#ffffff')
@@ -566,29 +662,29 @@ def _send_confirmation_email(svc, email, confirm_link):
 <tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" style="background:{card_bg};border:1px solid {border};">
 <tr><td style="background:{header_bg};padding:30px 40px;text-align:center;">
-<h1 style="margin:0;color:{header_text};font-family:{font_heading};font-size:24px;">Confirm your subscription</h1>
+<h1 style="margin:0;color:{header_text};font-family:{font_heading};font-size:24px;">{copy_heading}</h1>
 </td></tr>
 <tr><td style="padding:40px;">
 <p style="color:{text};font-size:16px;line-height:1.6;margin:0 0 20px;">
-You've been asked to confirm your subscription to <strong>{brand_name}</strong>.
+{copy_body}
 </p>
 <p style="color:{text};font-size:16px;line-height:1.6;margin:0 0 30px;">
-Click the button below to confirm your email address and start receiving updates.
+{copy_cta}
 </p>
 <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:10px 0 30px;">
 <a href="{confirm_link}" name="confirm_subscription" style="display:inline-block;background:{btn_bg};color:{btn_text};text-decoration:none;padding:14px 40px;font-size:16px;font-weight:600;font-family:{font_heading};">
-Confirm Subscription
+{copy_button}
 </a>
 </td></tr></table>
 <p style="color:{text_secondary};font-size:13px;line-height:1.5;margin:0;">
-If you didn't sign up for this, you can safely ignore this email and you won't be subscribed.
+{copy_disclaimer}
 </p>
 </td></tr>
 </table>
 </td></tr></table>
 </body></html>'''
 
-    subject = f'Confirm your subscription to {brand_name}'
+    subject = _get_copy('confirm_subject')
     try:
         svc.send_email([email], subject, html)
         logger.info(f"Confirmation email sent to: {email}")
@@ -600,8 +696,16 @@ If you didn't sign up for this, you can safely ignore this email and you won't b
 
 
 def _send_reminder_email(svc, email, confirm_link):
-    """Send reminder confirmation email (sent once, 2 days after signup)"""
+    """Send reminder confirmation email (sent once, 2 days after signup).
+
+    Copy can be overridden via SUBSCRIBER_COPY config for localisation.
+    """
     brand_name = _get_brand_name()
+    copy_heading = _get_copy('reminder_heading')
+    copy_body = _get_copy('reminder_body')
+    copy_cta = _get_copy('reminder_cta_text')
+    copy_button = _get_copy('reminder_button')
+    copy_disclaimer = _get_copy('reminder_disclaimer')
     style = getattr(svc, 'style', {})
     bg = style.get('bg', '#faf8f5')
     card_bg = style.get('card_bg', '#ffffff')
@@ -623,29 +727,29 @@ def _send_reminder_email(svc, email, confirm_link):
 <tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" style="background:{card_bg};border:1px solid {border};">
 <tr><td style="background:{header_bg};padding:30px 40px;text-align:center;">
-<h1 style="margin:0;color:{header_text};font-family:{font_heading};font-size:24px;">Still interested?</h1>
+<h1 style="margin:0;color:{header_text};font-family:{font_heading};font-size:24px;">{copy_heading}</h1>
 </td></tr>
 <tr><td style="padding:40px;">
 <p style="color:{text};font-size:16px;line-height:1.6;margin:0 0 20px;">
-Don't forget to confirm your subscription to <strong>{brand_name}</strong>.
+{copy_body}
 </p>
 <p style="color:{text};font-size:16px;line-height:1.6;margin:0 0 30px;">
-Click below to confirm and start receiving updates. This is the only reminder we'll send.
+{copy_cta}
 </p>
 <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:10px 0 30px;">
 <a href="{confirm_link}" name="confirm_subscription_reminder" style="display:inline-block;background:{btn_bg};color:{btn_text};text-decoration:none;padding:14px 40px;font-size:16px;font-weight:600;font-family:{font_heading};">
-Confirm Subscription
+{copy_button}
 </a>
 </td></tr></table>
 <p style="color:{text_secondary};font-size:13px;line-height:1.5;margin:0;">
-If you didn't sign up for this, you can safely ignore this email. This is the only reminder we'll send.
+{copy_disclaimer}
 </p>
 </td></tr>
 </table>
 </td></tr></table>
 </body></html>'''
 
-    subject = f"Don't forget to confirm your {brand_name} subscription"
+    subject = _get_copy('reminder_subject')
     try:
         svc.send_email([email], subject, html)
         logger.info(f"Reminder confirmation email sent to: {email}")
@@ -695,7 +799,7 @@ def unsubscribe():
     """Handle unsubscribe requests"""
     init_subscribers_db()
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
 
         if not data or 'email' not in data:
             return jsonify({'error': 'Email address is required'}), 400
@@ -738,9 +842,11 @@ def unsubscribe():
 
 @subscribers_bp.route('/confirm/<token>', methods=['GET'])
 def confirm_subscription(token):
-    """Handle email confirmation link click"""
+    """Handle email confirmation link click.
+
+    Page copy can be overridden via SUBSCRIBER_COPY config for localisation.
+    """
     init_subscribers_db()
-    brand_name = _get_brand_name()
     try:
         db_path = get_db_config()
         with sqlite3.connect(db_path) as conn:
@@ -754,25 +860,28 @@ def confirm_subscription(token):
 
             if not token_row:
                 return render_template('subscribers/confirmation_result.html',
-                    title='Invalid Link',
-                    message='This confirmation link is not valid. Please subscribe again.',
-                    success=False
+                    title=_get_copy('page_invalid_title'),
+                    message=_get_copy('page_invalid_message'),
+                    success=False,
+                    back_text=_get_copy('page_back_link')
                 )
 
             token_id, subscriber_id, email, used, expires_at = token_row
 
             if used:
                 return render_template('subscribers/confirmation_result.html',
-                    title='Already Confirmed',
-                    message=f'Your subscription to {brand_name} has already been confirmed. You\'re all set!',
-                    success=True
+                    title=_get_copy('page_already_title'),
+                    message=_get_copy('page_already_message'),
+                    success=True,
+                    back_text=_get_copy('page_back_link')
                 )
 
             if datetime.strptime(expires_at, '%Y-%m-%d %H:%M:%S') < datetime.now():
                 return render_template('subscribers/confirmation_result.html',
-                    title='Link Expired',
-                    message='This confirmation link has expired. Please subscribe again to receive a new one.',
-                    success=False
+                    title=_get_copy('page_expired_title'),
+                    message=_get_copy('page_expired_message'),
+                    success=False,
+                    back_text=_get_copy('page_back_link')
                 )
 
             # Confirm the subscriber
@@ -810,18 +919,20 @@ def confirm_subscription(token):
                 pass
 
             return render_template('subscribers/confirmation_result.html',
-                title='Subscription Confirmed',
-                message=f'Thank you! Your subscription to {brand_name} has been confirmed. Welcome aboard!',
-                success=True
+                title=_get_copy('page_confirmed_title'),
+                message=_get_copy('page_confirmed_message'),
+                success=True,
+                back_text=_get_copy('page_back_link')
             )
 
     except Exception as e:
         logger.error(f"Error in confirm_subscription: {e}")
         _db_log('error', f'Error in confirm_subscription', {'error': str(e)})
         return render_template('subscribers/confirmation_result.html',
-            title='Something went wrong',
-            message='An error occurred while confirming your subscription. Please try again later.',
-            success=False
+            title=_get_copy('page_error_title'),
+            message=_get_copy('page_error_message'),
+            success=False,
+            back_text=_get_copy('page_back_link')
         )
 
 
@@ -856,7 +967,7 @@ def process_reminders():
             svc = _get_email_service()
             for token_id, email, token in rows:
                 try:
-                    confirm_link = f"{request.url_root.rstrip('/')}/api/subscribers/confirm/{token}"
+                    confirm_link = f"{_get_base_url()}/api/subscribers/confirm/{token}"
                     if svc:
                         _send_reminder_email(svc, email, confirm_link)
                     cursor.execute(
@@ -950,7 +1061,7 @@ def save_popup_config():
         return jsonify({'error': 'Authentication required'}), 401
 
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             return jsonify({'error': 'No data provided'}), 400
 
@@ -1015,7 +1126,7 @@ def manage_preferences():
     """Update subscription feed preferences"""
     init_subscribers_db()
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data or 'email' not in data:
             return jsonify({'error': 'Email address is required'}), 400
 

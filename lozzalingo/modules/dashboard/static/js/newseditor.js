@@ -1044,9 +1044,9 @@ async function crosspostArticle(id, platform) {
     // Close any open dropdown
     document.querySelectorAll('.share-menu.show').forEach(m => m.classList.remove('show'));
 
-    // Medium: no API available — open email to request access
+    // Medium: no API available  -  open email to request access
     if (platform === 'medium') {
-        const subject = encodeURIComponent('API Integration Token Request — Programmatic Publishing');
+        const subject = encodeURIComponent('API Integration Token Request  -  Programmatic Publishing');
         const body = encodeURIComponent(
             'Hi Medium team,\n\n' +
             'I run a personal blog at https://laurence.computer and would like to cross-post my articles to Medium programmatically.\n\n' +

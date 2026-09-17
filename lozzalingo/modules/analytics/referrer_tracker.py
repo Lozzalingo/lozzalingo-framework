@@ -75,11 +75,11 @@ class ReferrerTracker:
     # Meta platform app IDs embedded in fbclid parameters (base64-encoded)
     # These identify which Meta app generated the click, enabling accurate attribution
     META_APP_IDS = {
-        'MjU2MjgxMDQwNTU4': 'Facebook',        # 256281040558 — Facebook / Messenger
-        'MzUwNjg1NTMxNzI4': 'Facebook',        # 350685531728 — Facebook for Android
-        'MTI0MDI0NTc0Mjg3NDE0': 'Instagram',   # 124024574287414 — Instagram
-        'MTUxMjc0MzUxNTY2NDE2': 'Meta Quest',  # 151274351566416 — Meta Quest
-        'MTkyMTMxNTkwODEy': 'Facebook Pages',  # 192131590812 — Facebook Pages
+        'MjU2MjgxMDQwNTU4': 'Facebook',        # 256281040558  -  Facebook / Messenger
+        'MzUwNjg1NTMxNzI4': 'Facebook',        # 350685531728  -  Facebook for Android
+        'MTI0MDI0NTc0Mjg3NDE0': 'Instagram',   # 124024574287414  -  Instagram
+        'MTUxMjc0MzUxNTY2NDE2': 'Meta Quest',  # 151274351566416  -  Meta Quest
+        'MTkyMTMxNTkwODEy': 'Facebook Pages',  # 192131590812  -  Facebook Pages
     }
 
     # In-app browser signatures in user agent strings
@@ -267,7 +267,7 @@ class ReferrerTracker:
                 'raw_referrer': referrer_url
             })
 
-        # Override with UTM parameters if available — these are the most
+        # Override with UTM parameters if available  -  these are the most
         # reliable signal (e.g. utm_source=ig from Instagram mobile)
         if result['utm_source']:
             utm_key = result['utm_source'].lower()
@@ -399,7 +399,7 @@ class ReferrerTracker:
                 })
                 return result
 
-        # Meta app ID detection — FIRST CHECK for fbclid-bearing URLs
+        # Meta app ID detection  -  FIRST CHECK for fbclid-bearing URLs
         # Identifies exact Meta platform (Instagram, Facebook, Quest, etc.)
         meta_platform = ReferrerTracker.detect_meta_app(full_url)
         if meta_platform:
@@ -423,7 +423,7 @@ class ReferrerTracker:
             })
             return result
 
-        # Generic fbclid without recognised app ID — assume Facebook
+        # Generic fbclid without recognised app ID  -  assume Facebook
         if 'fbclid=' in full_url:
             result.update({
                 'source': 'Facebook',

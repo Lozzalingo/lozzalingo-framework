@@ -82,7 +82,7 @@ def _get_memory_info():
             'swap_enabled': swap_total_kb > 0,
         }
     except FileNotFoundError:
-        # macOS fallback — limited info via os.sysconf
+        # macOS fallback  -  limited info via os.sysconf
         try:
             import resource
             page_size = os.sysconf('SC_PAGE_SIZE')
@@ -307,7 +307,7 @@ def _auto_docker_cleanup():
         if not db_path:
             db_path = os.getenv('ANALYTICS_DB', '')
 
-        # Check rate limit — skip if we ran cleanup in last 6 hours
+        # Check rate limit  -  skip if we ran cleanup in last 6 hours
         if db_path and os.path.exists(db_path):
             cutoff = (datetime.now() - timedelta(hours=6)).isoformat()
             with Database.connect(db_path) as conn:
@@ -370,7 +370,7 @@ def _build_health_response(include_errors=False):
 
 
 # ---------------------------------------------------------------------------
-# Public routes (ops_health_bp — no auth)
+# Public routes (ops_health_bp  -  no auth)
 # ---------------------------------------------------------------------------
 
 @ops_health_bp.route('/')
@@ -383,7 +383,7 @@ def health_check():
 
 
 # ---------------------------------------------------------------------------
-# Admin routes (ops_admin_bp — session auth)
+# Admin routes (ops_admin_bp  -  session auth)
 # ---------------------------------------------------------------------------
 
 @ops_admin_bp.route('/')

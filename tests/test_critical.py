@@ -364,7 +364,7 @@ def test_template_filters_registered(app):
 
 def test_health_endpoint(client):
     """GET /health returns JSON with status field and checks dict.
-    HTTP 200 for ok/warning, 503 for critical — both are valid."""
+    HTTP 200 for ok/warning, 503 for critical  -  both are valid."""
     response = client.get("/health")
     assert response.status_code in (200, 503), (
         f"Expected 200 or 503, got {response.status_code}"

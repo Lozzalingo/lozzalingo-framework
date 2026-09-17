@@ -1,4 +1,4 @@
-// Subscription Pop-up Manager (Framework version — config-driven)
+// Subscription Pop-up Manager (Framework version  -  config-driven)
 class SubscriptionPopup {
     constructor() {
         this.overlay = null;
@@ -10,7 +10,7 @@ class SubscriptionPopup {
         this.skipBtn = null;
         this.feedContainer = null;
 
-        // Default config — overridden by server response
+        // Default config  -  overridden by server response
         this.config = {
             title: 'Stay Updated',
             subtitle: 'Get the latest news and exclusive content delivered straight to your inbox.',
@@ -71,7 +71,7 @@ class SubscriptionPopup {
                 Object.assign(this.config, data.popup);
             }
         } catch (err) {
-            // No feeds/config — popup will work with defaults
+            // No feeds/config  -  popup will work with defaults
         }
     }
 
@@ -315,7 +315,7 @@ class SubscriptionPopup {
                 );
                 this.form.reset();
 
-                // Store subscriber email — popup will never show again
+                // Store subscriber email  -  popup will never show again
                 try {
                     localStorage.setItem(this.subscriberKey, email);
                 } catch (e) {}

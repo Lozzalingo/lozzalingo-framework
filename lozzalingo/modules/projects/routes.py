@@ -203,7 +203,7 @@ def get_all_tech_categories():
         print(f"Error reading tech_registry: {e}")
         return {}
 
-# NOTE: Do NOT add fetched_content here — it can be several MB and would load
+# NOTE: Do NOT add fetched_content here  -  it can be several MB and would load
 # on every homepage/list request. It is queried separately only where needed:
 # get_project_db() for the editor, and the /embed endpoint.
 _SELECT_COLS = '''id, title, slug, content, image_url, year, status, project_status,
@@ -224,7 +224,7 @@ def _row_to_dict(row):
         'project_status': row[7], 'excerpt': row[8], 'meta_description': row[9],
         'technologies': row[10], 'created_at': row[11], 'updated_at': row[12],
     }
-    # New columns may not exist in older DBs — guard with len checks
+    # New columns may not exist in older DBs  -  guard with len checks
     d['year_end'] = row[13] if len(row) > 13 else None
     d['gross_earnings'] = row[14] if len(row) > 14 else None
     d['earnings_currency'] = row[15] if len(row) > 15 else None

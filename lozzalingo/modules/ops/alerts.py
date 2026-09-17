@@ -3,7 +3,7 @@ Ops Alert System
 ================
 
 Email notifications with rate-limiting for infrastructure issues.
-Rate-limits by querying app_logs for previous alerts — no new DB tables needed.
+Rate-limits by querying app_logs for previous alerts  -  no new DB tables needed.
 """
 
 import json

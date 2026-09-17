@@ -1,5 +1,5 @@
 /**
- * Product Detail Modal — Lozzalingo Framework
+ * Product Detail Modal  -  Lozzalingo Framework
  * Self-contained IIFE with inline CSS, hash detection, image gallery, and pulsating CTA.
  * Host apps configure via ProductDetail.init(config).
  */

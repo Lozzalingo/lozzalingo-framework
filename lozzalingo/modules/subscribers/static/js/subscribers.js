@@ -42,7 +42,7 @@ class SubscribersManager {
                 this.renderFeedOptions();
             }
         } catch (err) {
-            // No feeds configured or endpoint unavailable — hide feed options
+            // No feeds configured or endpoint unavailable  -  hide feed options
         }
     }
 

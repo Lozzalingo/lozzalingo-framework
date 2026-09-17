@@ -17,7 +17,7 @@ from . import merchandise_public_bp
 
 logger = logging.getLogger(__name__)
 
-# Allowed origins for CORS — add any domains that need to fetch products
+# Allowed origins for CORS  -  add any domains that need to fetch products
 ALLOWED_ORIGINS = [
     'https://laurence.computer',
     'https://aiblogbuilder.laurence.computer',
@@ -310,7 +310,7 @@ def products_embed():
             price = row['price'] or 0
             price_display = f"\u00a3{price / 100:.2f}"
 
-            # Build product URL — uses configurable shop path
+            # Build product URL  -  uses configurable shop path
             # Set SHOP_URL_PATH in app config (e.g. '/aightclothing' or '/merchandise')
             shop_path = current_app.config.get('SHOP_URL_PATH', '/merchandise')
             # Strip any hash fragment from shop_path

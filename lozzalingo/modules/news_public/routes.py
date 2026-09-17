@@ -481,7 +481,7 @@ def blog_post(slug):
         if cat_slug:
             return redirect(f'/{cat_slug}/{slug}', code=301)
 
-    # No categories configured — render directly (original behavior)
+    # No categories configured  -  render directly (original behavior)
     all_articles = get_all_articles_db(status='published')
     related_articles = [a for a in all_articles if a['slug'] != slug][:3]
     return render_template('news_public/blog_post.html', article=article, related_articles=related_articles)

@@ -39,13 +39,13 @@ class AnalyticsClient {
 
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                // Tab going hidden — bank the active time
+                // Tab going hidden  -  bank the active time
                 if (this._tabVisible) {
                     this._activeTime += Date.now() - this._lastVisibleAt;
                 }
                 this._tabVisible = false;
             } else {
-                // Tab becoming visible — start a new active interval
+                // Tab becoming visible  -  start a new active interval
                 this._lastVisibleAt = Date.now();
                 this._tabVisible = true;
             }
@@ -778,7 +778,7 @@ class AnalyticsClient {
             }
         });
 
-        // Track page exit — send beacon on beforeunload (actual navigation away)
+        // Track page exit  -  send beacon on beforeunload (actual navigation away)
         // and visibilitychange to hidden (tab close, mobile app switch).
         // visibilitychange fires on tab switches too, so we allow re-sending
         // with updated time when the user actually leaves.

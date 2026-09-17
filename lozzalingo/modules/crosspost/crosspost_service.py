@@ -12,7 +12,7 @@ from .platforms import linkedin, medium, substack, twitter, threads
 
 
 class CrossPostService:
-    """Cross-posting service — reads config from Flask app.config at call time."""
+    """Cross-posting service  -  reads config from Flask app.config at call time."""
 
     def _get_config(self, key, default=''):
         """Get config value: app.config > Config class > env var."""

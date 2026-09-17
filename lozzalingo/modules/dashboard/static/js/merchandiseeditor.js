@@ -224,7 +224,7 @@
         // Form submission
         form.addEventListener('submit', handleProductSubmit);
 
-        // Cancel button — use explicit event prevention to avoid form interference
+        // Cancel button  -  use explicit event prevention to avoid form interference
         cancelBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -294,7 +294,7 @@
                 fileInput.click();
             });
 
-            // File selected — upload immediately
+            // File selected  -  upload immediately
             fileInput.addEventListener('change', async () => {
                 if (!fileInput.files[0] || !currentEditingProduct) return;
 
@@ -314,7 +314,7 @@
                     const result = await response.json();
 
                     if (result.success) {
-                        console.log(`FULFILMENT_UPLOAD: Success — ${field}: ${result.url}`);
+                        console.log(`FULFILMENT_UPLOAD: Success  -  ${field}: ${result.url}`);
                         setDesignPreview(slot, result.url);
                         showSuccessMessage('Fulfilment file uploaded');
                     } else {
@@ -347,7 +347,7 @@
                     const result = await response.json();
 
                     if (result.success) {
-                        console.log(`FULFILMENT_REMOVE: Success — cleared ${field}`);
+                        console.log(`FULFILMENT_REMOVE: Success  -  cleared ${field}`);
                         clearDesignPreview(slot);
                         showSuccessMessage('Fulfilment file removed');
                     } else {
@@ -373,7 +373,7 @@
             campaignFields.style.display = campaignEnabled.checked ? 'block' : 'none';
         });
 
-        // Campaign design slots — browse storage + remove (no direct upload, URLs stored in JS vars)
+        // Campaign design slots  -  browse storage + remove (no direct upload, URLs stored in JS vars)
         const campaignSlots = document.querySelectorAll('.campaign-design-slot');
         campaignSlots.forEach(slot => {
             const field = slot.dataset.field;
@@ -493,7 +493,7 @@
         if (browseStorageForImages) {
             browseStorageForImages.addEventListener('click', () => {
                 openStorageBrowser('Select Image for Product Listing', 'merchandise', (url) => {
-                    // Add as a product listing image — URL already has /static/ or https://
+                    // Add as a product listing image  -  URL already has /static/ or https://
                     const imageObj = {
                         existing: true,
                         url: url,
@@ -1343,7 +1343,7 @@
         const stockInput = document.getElementById('productStock');
         stockInput.disabled = product.is_preorder || product.print_on_demand;
 
-        // Toggle fulfilment section — show if POD is checked OR if any design URLs exist
+        // Toggle fulfilment section  -  show if POD is checked OR if any design URLs exist
         const fulfilmentSection = document.getElementById('fulfilmentSection');
         const hasDesignUrls = product.front_design_url || product.back_design_url ||
                               product.front_mockup_url || product.back_mockup_url;

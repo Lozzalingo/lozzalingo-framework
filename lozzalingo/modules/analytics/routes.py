@@ -948,7 +948,7 @@ def log_interaction():
         print(f"Error logging interaction: {e}")
         return jsonify({"error": str(e)}), 400
 
-_unnamed_alerts_sent = {}  # {page: last_sent_date} — rate limit to once/day/page
+_unnamed_alerts_sent = {}  # {page: last_sent_date}  -  rate limit to once/day/page
 
 @analytics_bp.route('/api/unnamed-elements', methods=['POST'])
 def report_unnamed_elements():
@@ -997,7 +997,7 @@ def report_unnamed_elements():
             <h2 style="color:#d4a855;">Unnamed Elements Detected</h2>
             <p><strong>Page:</strong> {page}</p>
             <p><strong>Count:</strong> {len(elements)} element(s) missing <code>name</code> attribute</p>
-            <p style="color:#ff6b6b;">These will appear as "unnamed_link" or "unnamed" in analytics — add a <code>name</code> attribute to track them properly.</p>
+            <p style="color:#ff6b6b;">These will appear as "unnamed_link" or "unnamed" in analytics  -  add a <code>name</code> attribute to track them properly.</p>
             <table style="border-collapse:collapse;margin-top:12px;font-size:13px;">
                 <tr style="background:#1a1a2e;">
                     <th style="padding:8px 10px;border:1px solid #333;color:#d4a855;">Tag</th>
@@ -1190,7 +1190,7 @@ def get_route_analytics():
             except Exception:
                 pass
 
-        # User journeys — reconstruct page sequences per visitor from page_view/page_exit events
+        # User journeys  -  reconstruct page sequences per visitor from page_view/page_exit events
         if has_session_id:
             session_id_select = ', session_id'
             session_id_filter = "OR (session_id IS NOT NULL AND session_id != '')"
@@ -1230,7 +1230,7 @@ def get_route_analytics():
             elif row[0]:  # has fingerprint_hash only
                 fingerprint_events[row[0]].append(event)
 
-        # Sessions from session_id are already grouped — no gap splitting needed
+        # Sessions from session_id are already grouped  -  no gap splitting needed
         all_sessions = list(session_events.values())
 
         # For fingerprint-only data, split into sessions by 30min gap
@@ -1463,7 +1463,7 @@ def get_referer_data():
 
             # 2. Re-parse from referrer URL + UTM + user agent if stored info was Direct/Internal
             if not referrer_data:
-                # Parse UTM parameters — try utm_params first, then search_params
+                # Parse UTM parameters  -  try utm_params first, then search_params
                 url_params = {}
                 try:
                     if utm_params_json:
@@ -1487,7 +1487,7 @@ def get_referer_data():
                 # parse_referrer checks: referrer URL → UTM → user agent (in that order)
                 referrer_data = ReferrerTracker.parse_referrer(primary_referrer, url_params, user_agent=row_user_agent)
 
-            # Reclassify internal as Direct — an "internal" first page view just means
+            # Reclassify internal as Direct  -  an "internal" first page view just means
             # we don't know the original source
             if referrer_data.get('is_internal'):
                 referrer_data.update({

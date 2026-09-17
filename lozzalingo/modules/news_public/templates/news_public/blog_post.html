@@ -233,13 +233,13 @@
                     html += `<label class="blog-sub-feed-option">
                         <input type="radio" name="blog_sub_feed" value="${f.id}" ${checked}>
                         <span class="blog-sub-feed-name">${f.label}</span>
-                        ${f.description ? `<span class="blog-sub-feed-desc">— ${f.description}</span>` : ''}
+                        ${f.description ? `<span class="blog-sub-feed-desc"> -  ${f.description}</span>` : ''}
                     </label>`;
                 });
                 html += `<label class="blog-sub-feed-option">
                     <input type="radio" name="blog_sub_feed" value="__all__" ${!defaultFeed ? 'checked' : ''}>
                     <span class="blog-sub-feed-name">All updates</span>
-                    <span class="blog-sub-feed-desc">— Receive everything</span>
+                    <span class="blog-sub-feed-desc"> -  Receive everything</span>
                 </label>`;
                 html += '</div>';
                 feedsContainer.innerHTML = html;
