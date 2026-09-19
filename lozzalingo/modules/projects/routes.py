@@ -1113,18 +1113,15 @@ def send_project_email(project_id):
         if not project:
             return jsonify({'error': 'Project not found'}), 404
 
-        # Get subscriber emails
-        get_subscriber_emails = None
+        # Get subscriber emails via SubscribersClient
         try:
-            from lozzalingo.modules.subscribers.routes import get_all_subscriber_emails
-            get_subscriber_emails = get_all_subscriber_emails
-        except ImportError:
-            pass
+            from lozzalingo.clients.subscribers_client import SubscribersClient
+            _subs = SubscribersClient()
+            result = _subs.list_subscribers(status='confirmed')
+            subscribers = [s['email'] for s in result.get('subscribers', [])] if result else []
+        except Exception:
+            subscribers = []
 
-        if get_subscriber_emails is None:
-            return jsonify({'error': 'Subscribers module not available'}), 500
-
-        subscribers = get_subscriber_emails()
         if not subscribers:
             return jsonify({
                 'success': False,
@@ -1138,29 +1135,39 @@ def send_project_email(project_id):
 
         # Prepare project data
         content = project.get('content', '')
-        project_data = {
-            'id': project['id'],
-            'title': project['title'],
-            'content': content,
-            'slug': slug,
-            'excerpt': project.get('excerpt') or (content[:300] + '...' if len(content) > 300 else content),
-            'image_url': project.get('image_url', ''),
-            'technologies': project.get('technologies', ''),
-            'url': project_url
-        }
+        title = project['title']
+        excerpt = project.get('excerpt') or (content[:300] + '...' if len(content) > 300 else content)
 
-        # Get email service
-        email_svc = None
+        # Send notification via EmailClient
         try:
-            from lozzalingo.modules.email.email_service import email_service
-            email_svc = email_service
-        except ImportError:
-            pass
-
-        if email_svc is None:
-            return jsonify({'error': 'Email service not available'}), 500
-
-        success = email_svc.send_project_notification(subscribers, project_data)
+            from lozzalingo.clients.email_client import EmailClient
+            _email = EmailClient()
+            site_id = current_app.config.get('EMAIL_SITE_ID', os.getenv('EMAIL_SITE_ID', 'unknown'))
+            brand = current_app.config.get('EMAIL_BRAND_NAME', 'Projects')
+            website_url = current_app.config.get('EMAIL_WEBSITE_URL', '')
+            full_url = f"{website_url}{project_url}"
+            image_url = project.get('image_url', '')
+            image_block = f'<img src="{image_url}" alt="{title}" style="width:100%;height:auto;display:block;" />' if image_url else ''
+            html = f'''<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:24px;">
+<h1>{brand.upper()}</h1>
+{image_block}
+<h2>New Project: {title}</h2>
+<p>{excerpt}</p>
+<p><a href="{full_url}" name="view_project">View Project</a></p>
+<hr><p style="font-size:13px;"><a href="{website_url}/unsubscribe">Unsubscribe</a></p>
+</body></html>'''
+            result = _email.send_batch(
+                recipients=subscribers,
+                subject=f'New Project: {title}',
+                html=html,
+                site_id=site_id,
+            )
+            success = result is not None and result.get('success', False)
+        except Exception as send_err:
+            from lozzalingo.core import db_log
+            db_log('error', 'projects', f'Failed to send project notification: {send_err}')
+            success = False
 
         if success:
             _mark_project_email_sent(project_id)
@@ -1198,18 +1205,15 @@ def send_project_update_email(project_id):
         if not project:
             return jsonify({'error': 'Project not found'}), 404
 
-        # Get subscriber emails
-        get_subscriber_emails = None
+        # Get subscriber emails via SubscribersClient
         try:
-            from lozzalingo.modules.subscribers.routes import get_all_subscriber_emails
-            get_subscriber_emails = get_all_subscriber_emails
-        except ImportError:
-            pass
+            from lozzalingo.clients.subscribers_client import SubscribersClient
+            _subs = SubscribersClient()
+            result = _subs.list_subscribers(status='confirmed')
+            subscribers = [s['email'] for s in result.get('subscribers', [])] if result else []
+        except Exception:
+            subscribers = []
 
-        if get_subscriber_emails is None:
-            return jsonify({'error': 'Subscribers module not available'}), 500
-
-        subscribers = get_subscriber_emails()
         if not subscribers:
             return jsonify({
                 'success': False,
@@ -1220,28 +1224,35 @@ def send_project_update_email(project_id):
         # Build project URL
         slug = project.get('slug', '')
         project_url = f"/projects/{slug}"
+        title = project['title']
 
-        # Prepare project data with update description
-        project_data = {
-            'id': project['id'],
-            'title': project['title'],
-            'slug': slug,
-            'url': project_url,
-            'update_description': description,
-        }
-
-        # Get email service
-        email_svc = None
+        # Send update notification via EmailClient
         try:
-            from lozzalingo.modules.email.email_service import email_service
-            email_svc = email_service
-        except ImportError:
-            pass
-
-        if email_svc is None:
-            return jsonify({'error': 'Email service not available'}), 500
-
-        success = email_svc.send_project_update_notification(subscribers, project_data)
+            from lozzalingo.clients.email_client import EmailClient
+            _email = EmailClient()
+            site_id = current_app.config.get('EMAIL_SITE_ID', os.getenv('EMAIL_SITE_ID', 'unknown'))
+            brand = current_app.config.get('EMAIL_BRAND_NAME', 'Projects')
+            website_url = current_app.config.get('EMAIL_WEBSITE_URL', '')
+            full_url = f"{website_url}{project_url}"
+            html = f'''<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:24px;">
+<h1>{brand.upper()}</h1>
+<h2>Project Update: {title}</h2>
+<p>{description}</p>
+<p><a href="{full_url}" name="view_project_update">View Project</a></p>
+<hr><p style="font-size:13px;"><a href="{website_url}/unsubscribe">Unsubscribe</a></p>
+</body></html>'''
+            result = _email.send_batch(
+                recipients=subscribers,
+                subject=f'Project Update: {title}',
+                html=html,
+                site_id=site_id,
+            )
+            success = result is not None and result.get('success', False)
+        except Exception as send_err:
+            from lozzalingo.core import db_log
+            db_log('error', 'projects', f'Failed to send project update notification: {send_err}')
+            success = False
 
         if success:
             return jsonify({

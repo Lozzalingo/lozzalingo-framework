@@ -213,14 +213,10 @@ def upvote_project(project_id):
     if not fingerprint:
         return jsonify({'error': 'fingerprint required'}), 400
 
-    try:
-        from lozzalingo.modules.analytics.analytics import Analytics
-        fingerprint_hash = Analytics.hash_fingerprint(fingerprint)
-    except ImportError:
-        import hashlib
-        if isinstance(fingerprint, dict):
-            fingerprint = json.dumps(fingerprint, sort_keys=True)
-        fingerprint_hash = hashlib.sha256(fingerprint.encode('utf-8')).hexdigest()
+    import hashlib
+    if isinstance(fingerprint, dict):
+        fingerprint = json.dumps(fingerprint, sort_keys=True)
+    fingerprint_hash = hashlib.sha256(fingerprint.encode('utf-8')).hexdigest()
 
     init_projects_db()
     projects_db = get_db_config()
@@ -268,14 +264,10 @@ def check_upvote_batch():
     if not fingerprint or not project_ids:
         return jsonify({'voted': []})
 
-    try:
-        from lozzalingo.modules.analytics.analytics import Analytics
-        fingerprint_hash = Analytics.hash_fingerprint(fingerprint)
-    except ImportError:
-        import hashlib
-        if isinstance(fingerprint, dict):
-            fingerprint = json.dumps(fingerprint, sort_keys=True)
-        fingerprint_hash = hashlib.sha256(fingerprint.encode('utf-8')).hexdigest()
+    import hashlib
+    if isinstance(fingerprint, dict):
+        fingerprint = json.dumps(fingerprint, sort_keys=True)
+    fingerprint_hash = hashlib.sha256(fingerprint.encode('utf-8')).hexdigest()
 
     init_projects_db()
     projects_db = get_db_config()

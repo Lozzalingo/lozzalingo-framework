@@ -6,14 +6,30 @@ Email sending functions for authentication flows.
 Uses the lozzalingo email module with styled HTML templates.
 """
 
+import os
+
 from flask import current_app
 
-# Try to import from lozzalingo email module
-try:
-    from lozzalingo.modules.email import email_service
-    HAS_EMAIL_SERVICE = True
-except ImportError:
-    HAS_EMAIL_SERVICE = False
+from lozzalingo.clients.email_client import EmailClient
+
+_email = EmailClient()
+
+_DEFAULT_STYLE = {
+    'bg': '#f8f6f0', 'card_bg': '#ffffff', 'header_bg': '#2a2a2a',
+    'header_text': '#f8f6f0', 'text': '#2a2a2a', 'text_secondary': '#666666',
+    'accent': '#2a2a2a', 'highlight_bg': '#f8f6f0', 'highlight_border': '#2a2a2a',
+    'border': '#d4c5a0', 'link': '#2a2a2a', 'btn_bg': '#2a2a2a',
+    'btn_text': '#f8f6f0', 'footer_bg': '#f8f6f0',
+    'font': "'Georgia', serif", 'font_heading': "'Georgia', serif",
+}
+
+
+def _get_site_id():
+    """Get site ID from app config or env."""
+    try:
+        return current_app.config.get('EMAIL_SITE_ID', os.getenv('EMAIL_SITE_ID', 'unknown'))
+    except RuntimeError:
+        return os.getenv('EMAIL_SITE_ID', 'unknown')
 
 
 def _get_brand_name():
@@ -25,23 +41,20 @@ def _get_brand_name():
 
 
 def _get_style():
-    """Get email style dict from the email service, falling back to defaults."""
-    if HAS_EMAIL_SERVICE and hasattr(email_service, 'style'):
-        return email_service.style
-    return {
-        'bg': '#f8f6f0', 'card_bg': '#ffffff', 'header_bg': '#2a2a2a',
-        'header_text': '#f8f6f0', 'text': '#2a2a2a', 'text_secondary': '#666666',
-        'accent': '#2a2a2a', 'highlight_bg': '#f8f6f0', 'highlight_border': '#2a2a2a',
-        'border': '#d4c5a0', 'link': '#2a2a2a', 'btn_bg': '#2a2a2a',
-        'btn_text': '#f8f6f0', 'footer_bg': '#f8f6f0',
-        'font': "'Georgia', serif", 'font_heading': "'Georgia', serif",
-    }
+    """Get email style dict from app config, falling back to defaults."""
+    try:
+        custom = current_app.config.get('EMAIL_STYLE', {})
+        if custom:
+            merged = dict(_DEFAULT_STYLE)
+            merged.update(custom)
+            return merged
+    except RuntimeError:
+        pass
+    return dict(_DEFAULT_STYLE)
 
 
 def _get_website_url():
-    """Get website URL from email service or config."""
-    if HAS_EMAIL_SERVICE and hasattr(email_service, 'website_url'):
-        return email_service.website_url
+    """Get website URL from config."""
     try:
         return current_app.config.get('EMAIL_WEBSITE_URL', '')
     except RuntimeError:
@@ -49,9 +62,7 @@ def _get_website_url():
 
 
 def _get_tagline():
-    """Get brand tagline from email service or config."""
-    if HAS_EMAIL_SERVICE and hasattr(email_service, 'brand_tagline'):
-        return email_service.brand_tagline
+    """Get brand tagline from config."""
     try:
         return current_app.config.get('EMAIL_BRAND_TAGLINE', '')
     except RuntimeError:
@@ -124,11 +135,11 @@ The {brand} Team"""
 
     html_body = _wrap_html(brand, s, content)
 
-    if HAS_EMAIL_SERVICE:
-        return email_service.send_email([email], subject, html_body, text_body=text_body)
-    else:
-        print(f"[EMAIL] Would send password reset to {email}")
-        return True
+    result = _email.send(to=email, subject=subject, html=html_body, site_id=_get_site_id(), text=text_body)
+    if result is None:
+        print(f"[EMAIL] Failed to send password reset to {email}")
+        return False
+    return True
 
 
 def send_password_changed_email(email, first_name):
@@ -158,11 +169,11 @@ The {brand} Team"""
 
     html_body = _wrap_html(brand, s, content)
 
-    if HAS_EMAIL_SERVICE:
-        return email_service.send_email([email], subject, html_body, text_body=text_body)
-    else:
-        print(f"[EMAIL] Would send password changed notification to {email}")
-        return True
+    result = _email.send(to=email, subject=subject, html=html_body, site_id=_get_site_id(), text=text_body)
+    if result is None:
+        print(f"[EMAIL] Failed to send password changed notification to {email}")
+        return False
+    return True
 
 
 def send_verification_email(email, first_name, verification_link):
@@ -200,8 +211,8 @@ The {brand} Team"""
 
     html_body = _wrap_html(brand, s, content)
 
-    if HAS_EMAIL_SERVICE:
-        return email_service.send_email([email], subject, html_body, text_body=text_body)
-    else:
-        print(f"[EMAIL] Would send verification to {email}")
-        return True
+    result = _email.send(to=email, subject=subject, html=html_body, site_id=_get_site_id(), text=text_body)
+    if result is None:
+        print(f"[EMAIL] Failed to send verification to {email}")
+        return False
+    return True

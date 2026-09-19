@@ -104,8 +104,9 @@ def _was_recently_alerted(issue_type, hours=6):
 def _send_alert_email(app, issues, disk, memory, error_count):
     """Send alert email and log it to app_logs for rate-limiting."""
     try:
-        from lozzalingo.modules.email.email_service import EmailService
+        from lozzalingo.clients.email_client import EmailClient
         from lozzalingo.core import db_log
+        import os
 
         admin_email = app.config.get('EMAIL_ADMIN_EMAIL')
         if not admin_email:
@@ -127,11 +128,11 @@ def _send_alert_email(app, issues, disk, memory, error_count):
         # Build HTML email body
         html_body = _build_alert_html(brand_name, severity, issues, disk, memory, error_count)
 
-        # Try to send via EmailService
-        email_svc = EmailService()
+        # Send via EmailClient
+        _email = EmailClient()
+        site_id = app.config.get('EMAIL_SITE_ID', os.getenv('EMAIL_SITE_ID', 'unknown'))
         try:
-            email_svc.init_app(app)
-            email_svc.send_email([admin_email], subject, html_body)
+            _email.send(to=admin_email, subject=subject, html=html_body, site_id=site_id)
         except Exception as e:
             app.logger.debug(f"ops: Failed to send alert email: {e}")
 

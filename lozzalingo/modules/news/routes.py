@@ -790,25 +790,15 @@ def send_article_email(article_id):
                         feed = cat['feed']
                         break
 
-        # Get subscriber emails (optional import)
-        get_subscriber_emails = None
+        # Get subscriber emails via SubscribersClient
         try:
-            from lozzalingo.modules.subscribers.routes import get_all_subscriber_emails
-            get_subscriber_emails = get_all_subscriber_emails
-        except ImportError:
-            pass
+            from lozzalingo.clients.subscribers_client import SubscribersClient
+            _subs = SubscribersClient()
+            result = _subs.list_subscribers(status='confirmed')
+            subscribers = [s['email'] for s in result.get('subscribers', [])] if result else []
+        except Exception:
+            subscribers = []
 
-        if get_subscriber_emails is None:
-            try:
-                from app.blueprints.subscribers.routes import get_all_subscriber_emails
-                get_subscriber_emails = get_all_subscriber_emails
-            except ImportError:
-                pass
-
-        if get_subscriber_emails is None:
-            return jsonify({'error': 'Subscribers module not available'}), 500
-
-        subscribers = get_subscriber_emails(feed=feed)
         if not subscribers:
             feed_msg = f' for feed "{feed}"' if feed else ''
             return jsonify({
@@ -843,25 +833,37 @@ def send_article_email(article_id):
             'image_url': article.get('image_url', ''),
         }
 
-        # Get email service (optional import)
-        email_svc = None
+        # Send notification via EmailClient
         try:
-            from lozzalingo.modules.email.email_service import email_service
-            email_svc = email_service
-        except ImportError:
-            pass
-
-        if email_svc is None:
-            try:
-                from app.services.email_service import email_service
-                email_svc = email_service
-            except ImportError:
-                pass
-
-        if email_svc is None:
-            return jsonify({'error': 'Email service not available'}), 500
-
-        success = email_svc.send_news_notification(subscribers, article_data)
+            from lozzalingo.clients.email_client import EmailClient
+            _email = EmailClient()
+            site_id = current_app.config.get('EMAIL_SITE_ID', os.getenv('EMAIL_SITE_ID', 'unknown'))
+            brand = current_app.config.get('EMAIL_BRAND_NAME', 'News')
+            website_url = current_app.config.get('EMAIL_WEBSITE_URL', '')
+            title = article_data.get('title', 'Latest News')
+            excerpt = article_data.get('excerpt', '')
+            article_url = f"{website_url}{article_data.get('url', '')}"
+            image_url = article_data.get('image_url', '')
+            image_block = f'<a href="{article_url}"><img src="{image_url}" alt="{title}" style="width:100%;height:auto;display:block;" /></a>' if image_url else ''
+            html = f'''<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:24px;">
+<h1>{brand.upper()}</h1>
+{image_block}
+<h2>{title}</h2>
+<p>{excerpt}</p>
+<p><a href="{article_url}" name="read_full_article">Read Full Article</a></p>
+<hr><p style="font-size:13px;"><a href="{website_url}/unsubscribe">Unsubscribe</a></p>
+</body></html>'''
+            result = _email.send_batch(
+                recipients=subscribers,
+                subject=f'New Update: {title}',
+                html=html,
+                site_id=site_id,
+            )
+            success = result is not None and result.get('success', False)
+        except Exception as send_err:
+            logger.error(f"Failed to send news notification: {send_err}")
+            success = False
 
         if success:
             mark_email_sent_db(article_id)

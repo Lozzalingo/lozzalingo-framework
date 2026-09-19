@@ -33,48 +33,46 @@ def _db_log(level, message, details=None):
         pass
 
 
-def _get_email_service():
-    """Get the email service (try framework first, then local app)"""
+def _get_email_client():
+    """Get the EmailClient for sending emails via the centralised service."""
     try:
-        from lozzalingo.modules.email.email_service import email_service
-        if email_service.sender_email:
-            return email_service
-    except (ImportError, AttributeError):
-        pass
+        from lozzalingo.clients.email_client import EmailClient
+        return EmailClient()
+    except Exception:
+        return None
+
+
+def _get_email_site_id():
+    """Get site ID from app config or env."""
+    import os
     try:
-        from app.services.email_service import email_service
-        return email_service
-    except ImportError:
-        pass
-    return None
+        return current_app.config.get('EMAIL_SITE_ID', os.getenv('EMAIL_SITE_ID', 'unknown'))
+    except RuntimeError:
+        return os.getenv('EMAIL_SITE_ID', 'unknown')
 
 
 def _get_subscriber_emails():
-    """Get all active subscriber emails"""
+    """Get all active subscriber emails via SubscribersClient"""
     try:
-        from lozzalingo.modules.subscribers.routes import get_all_subscriber_emails
-        return get_all_subscriber_emails()
-    except ImportError:
-        pass
-    try:
-        from app.blueprints.subscribers.routes import get_all_subscriber_emails
-        return get_all_subscriber_emails()
-    except ImportError:
+        from lozzalingo.clients.subscribers_client import SubscribersClient
+        _subs = SubscribersClient()
+        result = _subs.list_subscribers(status='confirmed')
+        if result:
+            return [s['email'] for s in result.get('subscribers', [])]
+    except Exception:
         pass
     return []
 
 
 def _get_subscriber_count():
-    """Get active subscriber count"""
+    """Get active subscriber count via SubscribersClient"""
     try:
-        from lozzalingo.modules.subscribers.routes import get_subscriber_count
-        return get_subscriber_count()
-    except ImportError:
-        pass
-    try:
-        from app.blueprints.subscribers.routes import get_subscriber_count
-        return get_subscriber_count()
-    except ImportError:
+        from lozzalingo.clients.subscribers_client import SubscribersClient
+        _subs = SubscribersClient()
+        result = _subs.list_subscribers(status='confirmed')
+        if result:
+            return result.get('total', 0)
+    except Exception:
         pass
     return 0
 
@@ -190,13 +188,15 @@ def send_campaign(campaign_id):
     if not campaign:
         return jsonify({'error': 'Campaign not found'}), 404
 
-    svc = _get_email_service()
-    if not svc:
+    client = _get_email_client()
+    if not client:
         return jsonify({'error': 'Email service not configured'}), 500
 
     emails = _get_subscriber_emails()
     if not emails:
         return jsonify({'error': 'No active subscribers found'}), 400
+
+    site_id = _get_email_site_id()
 
     # Skip subscribers who already received this campaign
     already_sent = get_sent_emails(campaign_id)
@@ -216,7 +216,8 @@ def send_campaign(campaign_id):
                 campaign_name=campaign['name'],
                 tracking_id=tracking_id
             )
-            success = svc.send_email([email_addr], campaign['subject'], html)
+            result = client.send(to=email_addr, subject=campaign['subject'], html=html, site_id=site_id)
+            success = result is not None
 
             if success:
                 record_send(campaign_id, email_addr, 'sent')
@@ -257,8 +258,8 @@ def send_test(campaign_id):
     if not campaign:
         return jsonify({'error': 'Campaign not found'}), 404
 
-    svc = _get_email_service()
-    if not svc:
+    client = _get_email_client()
+    if not client:
         return jsonify({'error': 'Email service not configured'}), 500
 
     # Use custom email if provided, otherwise fall back to admin email
@@ -276,7 +277,8 @@ def send_test(campaign_id):
 
         html = render_campaign(campaign['blocks'], preview_vars, campaign_name=campaign['name'])
         subject = f"[TEST] {campaign['subject']}"
-        success = svc.send_email([recipient], subject, html)
+        result = client.send(to=recipient, subject=subject, html=html, site_id=_get_email_site_id())
+        success = result is not None
 
         if success:
             logger.info(f"Test email sent for campaign {campaign_id} to {recipient}")
@@ -370,10 +372,12 @@ def send_triggered_campaigns(email, trigger_type):
         if not campaigns:
             return
 
-        svc = _get_email_service()
-        if not svc:
+        client = _get_email_client()
+        if not client:
             logger.warning("Cannot send triggered campaigns: email service not configured")
             return
+
+        site_id = _get_email_site_id()
 
         for campaign in campaigns:
             try:
@@ -384,7 +388,8 @@ def send_triggered_campaigns(email, trigger_type):
                     campaign_name=campaign['name'],
                     tracking_id=tracking_id
                 )
-                success = svc.send_email([email], campaign['subject'], html)
+                result = client.send(to=email, subject=campaign['subject'], html=html, site_id=site_id)
+                success = result is not None
 
                 if success:
                     record_send(campaign['id'], email, 'sent')

@@ -71,19 +71,43 @@ def get_db_config():
         return os.getenv('USER_DB', 'users.db')
 
 
-def _get_email_service():
-    """Get the email service (optional import)"""
+def _get_email_client():
+    """Get the EmailClient for sending emails via the centralised service."""
     try:
-        from lozzalingo.modules.email.email_service import email_service
-        return email_service
-    except ImportError:
-        pass
+        from lozzalingo.clients.email_client import EmailClient
+        return EmailClient()
+    except Exception:
+        return None
+
+
+def _get_email_site_id():
+    """Get site ID from app config or env."""
     try:
-        from app.services.email_service import email_service
-        return email_service
-    except ImportError:
+        return current_app.config.get('EMAIL_SITE_ID', os.getenv('EMAIL_SITE_ID', 'unknown'))
+    except RuntimeError:
+        return os.getenv('EMAIL_SITE_ID', 'unknown')
+
+
+def _get_email_style():
+    """Get email style dict from app config, falling back to defaults."""
+    defaults = {
+        'bg': '#faf8f5', 'card_bg': '#ffffff', 'header_bg': '#1a1a2e',
+        'header_text': '#ffffff', 'text': '#333333', 'text_secondary': '#666666',
+        'accent': '#d4a574', 'btn_bg': '#1a1a2e', 'btn_text': '#ffffff',
+        'border': '#e8e0d8', 'font': "'Georgia', 'Times New Roman', serif",
+        'font_heading': "'Georgia', 'Times New Roman', serif",
+        'highlight_bg': '#faf8f5', 'highlight_border': '#d4a574',
+        'link': '#1a1a2e', 'footer_bg': '#faf8f5',
+    }
+    try:
+        custom = current_app.config.get('EMAIL_STYLE', {})
+        if custom:
+            merged = dict(defaults)
+            merged.update(custom)
+            return merged
+    except RuntimeError:
         pass
-    return None
+    return defaults
 
 
 def _get_brand_name():
@@ -553,10 +577,10 @@ def subscribe():
                     conn.commit()
 
                     confirm_link = f"{_get_base_url()}/api/subscribers/confirm/{token}"
-                    svc = _get_email_service()
-                    if svc:
+                    client = _get_email_client()
+                    if client:
                         try:
-                            _send_confirmation_email(svc, email, confirm_link)
+                            _send_confirmation_email(client, email, confirm_link)
                         except Exception:
                             pass  # Logged inside helper
 
@@ -589,10 +613,10 @@ def subscribe():
                     conn2.commit()
 
                 confirm_link = f"{_get_base_url()}/api/subscribers/confirm/{token}"
-                svc = _get_email_service()
-                if svc:
+                client = _get_email_client()
+                if client:
                     try:
-                        _send_confirmation_email(svc, email, confirm_link)
+                        _send_confirmation_email(client, email, confirm_link)
                     except Exception:
                         pass  # Logged inside helper
 
@@ -614,23 +638,31 @@ def subscribe():
 
 def _notify_admin_subscriber(email, ip_address, user_agent, source):
     """Send admin notification about new/reactivated subscriber"""
-    svc = _get_email_service()
-    if svc:
+    client = _get_email_client()
+    if client:
         try:
-            subscriber_details = {
-                'email': email,
-                'subscribed_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'ip_address': ip_address,
-                'user_agent': user_agent,
-                'source': source
-            }
-            svc.send_admin_subscriber_notification(subscriber_details)
+            admin_email = current_app.config.get('EMAIL_ADMIN_EMAIL', '')
+            if not admin_email:
+                return
+            brand = _get_brand_name()
+            html = f'''<h2>New Subscriber</h2>
+<p><strong>Email:</strong> {email}</p>
+<p><strong>Source:</strong> {source}</p>
+<p><strong>IP:</strong> {ip_address}</p>
+<p><strong>User Agent:</strong> {user_agent}</p>
+<p><strong>Time:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>'''
+            client.send(
+                to=admin_email,
+                subject=f'[{brand}] New subscriber: {email}',
+                html=html,
+                site_id=_get_email_site_id(),
+            )
             logger.info(f"Admin notification sent for subscriber: {email}")
         except Exception as e:
             logger.error(f"Failed to send admin notification for {email}: {e}")
 
 
-def _send_confirmation_email(svc, email, confirm_link):
+def _send_confirmation_email(client, email, confirm_link):
     """Send double opt-in confirmation email with branded styling.
 
     Copy can be overridden via SUBSCRIBER_COPY config for localisation.
@@ -641,7 +673,7 @@ def _send_confirmation_email(svc, email, confirm_link):
     copy_cta = _get_copy('confirm_cta_text')
     copy_button = _get_copy('confirm_button')
     copy_disclaimer = _get_copy('confirm_disclaimer')
-    style = getattr(svc, 'style', {})
+    style = _get_email_style()
     bg = style.get('bg', '#faf8f5')
     card_bg = style.get('card_bg', '#ffffff')
     header_bg = style.get('header_bg', '#1a1a2e')
@@ -686,7 +718,7 @@ def _send_confirmation_email(svc, email, confirm_link):
 
     subject = _get_copy('confirm_subject')
     try:
-        svc.send_email([email], subject, html)
+        client.send(to=email, subject=subject, html=html, site_id=_get_email_site_id())
         logger.info(f"Confirmation email sent to: {email}")
         _db_log('info', f'Confirmation email sent to: {email}')
     except Exception as e:
@@ -695,7 +727,7 @@ def _send_confirmation_email(svc, email, confirm_link):
         raise
 
 
-def _send_reminder_email(svc, email, confirm_link):
+def _send_reminder_email(client, email, confirm_link):
     """Send reminder confirmation email (sent once, 2 days after signup).
 
     Copy can be overridden via SUBSCRIBER_COPY config for localisation.
@@ -706,7 +738,7 @@ def _send_reminder_email(svc, email, confirm_link):
     copy_cta = _get_copy('reminder_cta_text')
     copy_button = _get_copy('reminder_button')
     copy_disclaimer = _get_copy('reminder_disclaimer')
-    style = getattr(svc, 'style', {})
+    style = _get_email_style()
     bg = style.get('bg', '#faf8f5')
     card_bg = style.get('card_bg', '#ffffff')
     header_bg = style.get('header_bg', '#1a1a2e')
@@ -751,7 +783,7 @@ def _send_reminder_email(svc, email, confirm_link):
 
     subject = _get_copy('reminder_subject')
     try:
-        svc.send_email([email], subject, html)
+        client.send(to=email, subject=subject, html=html, site_id=_get_email_site_id())
         logger.info(f"Reminder confirmation email sent to: {email}")
         _db_log('info', f'Reminder confirmation email sent to: {email}')
     except Exception as e:
@@ -902,10 +934,36 @@ def confirm_subscription(token):
             _db_log('info', f'Subscription confirmed: {email}')
 
             # Now send welcome email + triggered campaigns
-            svc = _get_email_service()
-            if svc:
+            client = _get_email_client()
+            if client:
                 try:
-                    svc.send_welcome_email(email)
+                    brand = _get_brand_name()
+                    style = _get_email_style()
+                    website_url = _get_base_url()
+                    welcome_html = f'''<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:{style['bg']};font-family:{style['font']};">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{style['bg']};padding:40px 20px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:{style['card_bg']};border:1px solid {style['border']};">
+<tr><td style="background:{style['header_bg']};padding:30px 40px;text-align:center;">
+<h1 style="margin:0;color:{style['header_text']};font-family:{style['font_heading']};font-size:24px;">Welcome to {brand}</h1>
+</td></tr>
+<tr><td style="padding:40px;">
+<p style="color:{style['text']};font-size:16px;line-height:1.6;">Thank you for subscribing! You will now receive updates from {brand}.</p>
+<p style="text-align:center;margin:32px 0;">
+<a href="{website_url}" name="welcome_visit_site" style="display:inline-block;background:{style['btn_bg']};color:{style['btn_text']};text-decoration:none;padding:14px 40px;font-size:16px;font-weight:600;">Visit {brand}</a>
+</p>
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>'''
+                    client.send(
+                        to=email,
+                        subject=f'Welcome to {brand}!',
+                        html=welcome_html,
+                        site_id=_get_email_site_id(),
+                    )
                     logger.info(f"Welcome email sent to: {email}")
                     _db_log('info', f'Welcome email sent to: {email}')
                 except Exception as email_error:
@@ -964,12 +1022,12 @@ def process_reminders():
             rows = cursor.fetchall()
             processed = len(rows)
 
-            svc = _get_email_service()
+            client = _get_email_client()
             for token_id, email, token in rows:
                 try:
                     confirm_link = f"{_get_base_url()}/api/subscribers/confirm/{token}"
-                    if svc:
-                        _send_reminder_email(svc, email, confirm_link)
+                    if client:
+                        _send_reminder_email(client, email, confirm_link)
                     cursor.execute(
                         'UPDATE subscriber_confirmation_tokens SET reminder_sent = 1, reminder_sent_at = ? WHERE id = ?',
                         (now, token_id)

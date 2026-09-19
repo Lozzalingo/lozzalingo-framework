@@ -105,43 +105,31 @@ def test_config_db_paths(app):
 
 
 # ---------------------------------------------------------------------------
-# 3. Email service init (Resend) -- init_app with Resend config does not crash
+# 3. EmailClient init -- reads config from env vars without crashing
 # ---------------------------------------------------------------------------
 
-def test_email_service_init_resend(app):
-    """EmailService.init_app() with Resend provider stores config correctly."""
-    from lozzalingo.modules.email.email_service import EmailService
+def test_email_client_init(app):
+    """EmailClient initialises and reads config from env vars."""
+    from lozzalingo.clients.email_client import EmailClient
 
-    svc = EmailService()
-    app.config["RESEND_API_KEY"] = "re_test_fake_key_123"
-    app.config["EMAIL_PROVIDER"] = "resend"
-    app.config["EMAIL_BRAND_NAME"] = "TestBrand"
+    client = EmailClient(service_url='http://localhost:5050', api_key='test-key')
 
-    with app.app_context():
-        svc.init_app(app)
-
-    assert svc.provider == "resend"
-    assert svc.brand_name == "TestBrand"
-    assert svc.api_key == "re_test_fake_key_123"
+    assert client.url == 'http://localhost:5050'
+    assert client.key == 'test-key'
 
 
 # ---------------------------------------------------------------------------
-# 4. Email service init (SES) -- init_app with SES config does not crash
+# 4. EmailClient init (no config) -- does not crash with missing env vars
 # ---------------------------------------------------------------------------
 
-def test_email_service_init_ses(app):
-    """EmailService.init_app() with SES provider does not crash even if
-    boto3 is not installed (it logs a warning instead)."""
-    from lozzalingo.modules.email.email_service import EmailService
+def test_email_client_init_no_config(app):
+    """EmailClient does not crash when env vars are not set."""
+    from lozzalingo.clients.email_client import EmailClient
 
-    svc = EmailService()
-    app.config["EMAIL_PROVIDER"] = "ses"
-    app.config["AWS_REGION"] = "us-east-1"
+    client = EmailClient(service_url='', api_key='')
 
-    with app.app_context():
-        svc.init_app(app)
-
-    assert svc.provider == "ses"
+    assert client.url == ''
+    assert client.key == ''
 
 
 # ---------------------------------------------------------------------------
@@ -273,46 +261,20 @@ def test_yaml_config_mapping(tmp_db_dir):
 # 9. Subscriber route exists -- POST /api/subscribers/ is registered
 # ---------------------------------------------------------------------------
 
-def test_subscriber_post_route_exists(tmp_db_dir):
-    """When the subscribers blueprint is registered, POST /api/subscribers
-    appears in the app's URL map.  The subscribers module is not auto-registered
-    by Lozzalingo -- consuming apps register it explicitly."""
-    from lozzalingo.modules.subscribers import subscribers_bp
+def test_subscribers_client_initialises(tmp_db_dir):
+    """SubscribersClient can be instantiated and has the expected methods.
+    Apps now call the subscribers-service via HTTP API instead of registering
+    the framework blueprint directly."""
+    from lozzalingo.clients.subscribers_client import SubscribersClient
 
-    app = Flask(__name__)
-    app.config["TESTING"] = True
-    app.config["SECRET_KEY"] = "test-secret"
-    app.config["DB_DIR"] = tmp_db_dir
-    app.config["USER_DB"] = os.path.join(tmp_db_dir, "users.db")
-    app.config["NEWS_DB"] = os.path.join(tmp_db_dir, "news.db")
-    app.config["ANALYTICS_DB"] = os.path.join(tmp_db_dir, "analytics.db")
-    app.config["PROJECTS_DB"] = os.path.join(tmp_db_dir, "projects.db")
-    app.config["QUICK_LINKS_DB"] = os.path.join(tmp_db_dir, "quick_links.db")
-
-    Lozzalingo(app, {
-        'features': {
-            'projects': True,
-            'projects_public': True,
-            'quick_links': True,
-            'campaigns': True,
-        }
-    })
-    app.register_blueprint(subscribers_bp)
-
-    rules = [rule.rule for rule in app.url_map.iter_rules()]
-    # Blueprint url_prefix is '/api/subscribers', route is '' -> '/api/subscribers'
-    assert "/api/subscribers" in rules, (
-        f"POST /api/subscribers route not found. Routes: {sorted(rules)}"
-    )
-
-    # Verify the route accepts POST
-    post_methods = None
-    for rule in app.url_map.iter_rules():
-        if rule.rule == "/api/subscribers":
-            post_methods = rule.methods
-            break
-    assert post_methods is not None
-    assert "POST" in post_methods
+    client = SubscribersClient(service_url='http://localhost:7226', api_key='test')
+    assert hasattr(client, 'subscribe')
+    assert hasattr(client, 'list_subscribers')
+    assert hasattr(client, 'get_subscriber')
+    assert hasattr(client, 'unsubscribe')
+    assert hasattr(client, 'create_list')
+    assert hasattr(client, 'get_lists')
+    assert client.url == 'http://localhost:7226'
 
 
 # ---------------------------------------------------------------------------

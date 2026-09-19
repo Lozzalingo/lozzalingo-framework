@@ -179,11 +179,12 @@ def send_error_digest(app: Flask, hours_back=None):
             # Build HTML email
             html = _build_digest_html(brand_name, errors, critical_count, error_count)
 
-            # Send via EmailService
-            from lozzalingo.modules.email.email_service import EmailService
-            email_svc = EmailService()
-            email_svc.init_app(app)
-            email_svc.send_email([recipient], subject, html)
+            # Send via EmailClient
+            from lozzalingo.clients.email_client import EmailClient
+            import os
+            _email = EmailClient()
+            site_id = app.config.get('EMAIL_SITE_ID', os.getenv('EMAIL_SITE_ID', 'unknown'))
+            _email.send(to=recipient, subject=subject, html=html, site_id=site_id)
 
             print(f"[ErrorDigest] Sent digest to {recipient}: "
                   f"{error_count} errors, {critical_count} critical")

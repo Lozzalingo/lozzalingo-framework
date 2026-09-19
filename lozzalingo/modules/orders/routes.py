@@ -832,13 +832,16 @@ def api_resend_confirmation():
                 return jsonify({'success': False, 'error': 'Email service returned failure'}), 500
 
         except ImportError:
-            # Fallback: use lozzalingo email service directly
+            # Fallback: use centralised email client
             try:
-                from lozzalingo.modules.email.email_service import email_service
-                email_service.send_email(
-                    [customer_email],
-                    'Order Confirmation (resent)',
-                    f'<p>This is a resend of your order confirmation for order #{order_id}.</p>'
+                from lozzalingo.clients.email_client import EmailClient
+                _email = EmailClient()
+                site_id = current_app.config.get('EMAIL_SITE_ID', os.getenv('EMAIL_SITE_ID', 'unknown'))
+                _email.send(
+                    to=customer_email,
+                    subject='Order Confirmation (resent)',
+                    html=f'<p>This is a resend of your order confirmation for order #{order_id}.</p>',
+                    site_id=site_id,
                 )
                 return jsonify({'success': True, 'message': f'Confirmation email sent to {customer_email}'})
             except Exception as e:

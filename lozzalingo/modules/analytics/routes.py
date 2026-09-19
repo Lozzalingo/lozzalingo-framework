@@ -1012,12 +1012,14 @@ def report_unnamed_elements():
         </div>'''
 
         try:
-            from lozzalingo.modules.email.email_service import EmailService
-            svc = EmailService()
-            svc.send_email(
-                [admin_email],
-                f'[{brand}] {len(elements)} unnamed element(s) on {page}',
-                html
+            from lozzalingo.clients.email_client import EmailClient
+            _email = EmailClient()
+            site_id = current_app.config.get('EMAIL_SITE_ID', os.getenv('EMAIL_SITE_ID', 'unknown'))
+            _email.send(
+                to=admin_email,
+                subject=f'[{brand}] {len(elements)} unnamed element(s) on {page}',
+                html=html,
+                site_id=site_id,
             )
             logger.info('analytics', f'Sent unnamed elements alert for {page}: {len(elements)} elements')
         except Exception as e:
