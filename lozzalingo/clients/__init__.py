@@ -5,3 +5,4 @@ from .subscribers_client import SubscribersClient
 from .analytics_client import AnalyticsClient
 from .ecommerce_client import EcommerceClient
 from .auth_client import AuthClient, sso_login_required
+from .user_auth_client import UserAuthClient

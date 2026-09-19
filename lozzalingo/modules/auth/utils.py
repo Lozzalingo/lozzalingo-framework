@@ -5,7 +5,7 @@ Auth Utilities
 Utility functions for authentication including OAuth support.
 """
 
-from flask import flash, redirect, url_for, session, current_app
+from flask import flash, redirect, url_for, session, current_app, request
 import os
 
 # Optional import for authlib (OAuth support)
@@ -93,7 +93,7 @@ def login_required(f):
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # 1. Check SSO JWT cookie first
+        # 1. Check SSO JWT cookie first (admin auth)
         try:
             from lozzalingo.auth_client import get_auth_user_from_cookie
             payload = get_auth_user_from_cookie()
@@ -112,6 +112,26 @@ def login_required(f):
                     session['user_id'] = payload.get('sub') or payload.get('user_id') or 'sso'
                     session['email'] = payload.get('email', '')
                 return f(*args, **kwargs)
+        except ImportError:
+            pass
+        except Exception:
+            pass
+
+        # 1b. Check per-site user JWT cookie (public user auth)
+        try:
+            from lozzalingo.auth_client import decode_jwt
+            site_id = current_app.config.get('SITE_ID', '')
+            if site_id:
+                user_token = request.cookies.get(f'lza_user_{site_id}')
+                if user_token:
+                    payload = decode_jwt(user_token)
+                    if payload:
+                        if 'user_id' not in session:
+                            session['user_id'] = payload.get('sub') or payload.get('user_id')
+                            session['email'] = payload.get('email', '')
+                            session['first_name'] = payload.get('first_name', '')
+                            session['last_name'] = payload.get('last_name', '')
+                        return f(*args, **kwargs)
         except ImportError:
             pass
         except Exception:
