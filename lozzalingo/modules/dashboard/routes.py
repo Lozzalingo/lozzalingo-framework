@@ -12,6 +12,39 @@ import hashlib
 import os
 from datetime import datetime, timedelta
 
+
+def _is_admin_authenticated():
+    """Check if the current request has admin access via session or SSO JWT.
+
+    Returns True if the user is authenticated as an admin, and populates
+    session['admin_id'] and session['admin_email'] from the JWT when needed
+    so downstream code that checks session['admin_id'] keeps working.
+    """
+    if 'admin_id' in session:
+        return True
+
+    # Try SSO JWT from auth_token cookie
+    try:
+        from lozzalingo.auth_client import get_auth_user_from_cookie
+        payload = get_auth_user_from_cookie()
+        if payload:
+            # Super admins always have access. For non-super admins,
+            # accept any user with site_access that includes an admin+ role.
+            is_super = payload.get('is_super_admin', False)
+            has_admin_role = any(
+                a.get('role') in ('admin', 'owner')
+                for a in payload.get('site_access', [])
+            )
+            if is_super or has_admin_role:
+                # Populate session so existing admin_id checks pass
+                session['admin_id'] = payload.get('sub') or payload.get('user_id') or 'sso'
+                session['admin_email'] = payload.get('email', '')
+                return True
+    except Exception:
+        pass
+
+    return False
+
 def _get_config_value(key, default=None):
     """Get configuration value: Flask app config first, then Config import, then env var"""
     try:
@@ -81,7 +114,21 @@ def init_admin_table(db_connection_func, user_db_path):
 
 @dashboard_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    """Admin login route"""
+    """Admin login route.
+
+    GET: redirects to centralised auth service (SSO) if AUTH_SERVICE_URL is
+    configured, otherwise falls back to the local login template.
+    POST: kept for backward compatibility with the local login form.
+    """
+    # --- SSO redirect for GET requests ---
+    if request.method == 'GET':
+        auth_service_url = _get_config_value('AUTH_SERVICE_URL')
+        if auth_service_url:
+            # Build the redirect-back URL (next page or the dashboard)
+            next_page = request.args.get('next') or url_for('admin.dashboard', _external=True)
+            return redirect(f'{auth_service_url}/login?redirect={next_page}')
+
+    # --- Legacy local POST login (backward compat) ---
     # Get database connection function and path from config
     user_db = _get_config_value('USER_DB', 'users.db')
 
@@ -135,6 +182,15 @@ def logout():
     admin_email = session.get('admin_email', 'Unknown')
     session.pop('admin_id', None)
     session.pop('admin_email', None)
+
+    # If SSO is configured, redirect to auth service logout
+    auth_service_url = _get_config_value('AUTH_SERVICE_URL')
+    if auth_service_url:
+        from flask import make_response
+        resp = make_response(redirect(f'{auth_service_url}/logout'))
+        resp.delete_cookie('auth_token', domain='.laurence.computer')
+        return resp
+
     flash('You have been logged out', 'info')
     return redirect(url_for('admin.login'))
 
@@ -142,14 +198,14 @@ def logout():
 @dashboard_bp.route('/dashboard')
 def dashboard():
     """Admin dashboard - the unified admin interface"""
-    if 'admin_id' not in session:
-        return redirect(url_for('admin.login', next=request.path))
+    if not _is_admin_authenticated():
+        return redirect(url_for('admin.login', next=request.url))
     return render_template('dashboard/dashboard.html')
 
 @dashboard_bp.route('/change-password', methods=['GET', 'POST'])
 def change_password():
     """Change admin password"""
-    if 'admin_id' not in session:
+    if not _is_admin_authenticated():
         return redirect(url_for('admin.login'))
 
     # Get database connection
@@ -316,7 +372,7 @@ def api_stats():
     Returns stats for various admin dashboard cards.
     Makes database queries optional so sites can implement only what they need.
     """
-    if 'admin_id' not in session:
+    if not _is_admin_authenticated():
         return jsonify({'error': 'Authentication required'}), 401
 
     try:

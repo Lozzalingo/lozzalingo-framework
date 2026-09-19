@@ -83,19 +83,48 @@ def configure_oauth(app):
 def login_required(f):
     """Decorator to require authentication.
 
-    Accepts either auth module sessions (user_id) or dashboard admin
-    sessions (admin_id) so that admin users authenticated via the
-    dashboard login are also recognised.
+    Checks in order:
+    1. SSO JWT (auth_token cookie) - centralised auth service
+    2. Flask session user_id (public user auth)
+    3. Flask session admin_id (dashboard admin auth)
+
+    If none pass, redirects to login.
     """
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session and 'admin_id' not in session:
-            flash('Please sign in to access this page.', 'error')
-            # Prefer the dashboard login when it exists, fall back to auth signin
-            try:
-                return redirect(url_for('admin.login'))
-            except Exception:
-                return redirect(url_for('auth.signin'))
-        return f(*args, **kwargs)
+        # 1. Check SSO JWT cookie first
+        try:
+            from lozzalingo.auth_client import get_auth_user_from_cookie
+            payload = get_auth_user_from_cookie()
+            if payload:
+                # Valid SSO token - populate session for downstream compat
+                if 'admin_id' not in session:
+                    is_super = payload.get('is_super_admin', False)
+                    has_admin_role = any(
+                        a.get('role') in ('admin', 'owner')
+                        for a in payload.get('site_access', [])
+                    )
+                    if is_super or has_admin_role:
+                        session['admin_id'] = payload.get('sub') or payload.get('user_id') or 'sso'
+                        session['admin_email'] = payload.get('email', '')
+                if 'user_id' not in session:
+                    session['user_id'] = payload.get('sub') or payload.get('user_id') or 'sso'
+                    session['email'] = payload.get('email', '')
+                return f(*args, **kwargs)
+        except ImportError:
+            pass
+        except Exception:
+            pass
+
+        # 2. Fall back to Flask session
+        if 'user_id' in session or 'admin_id' in session:
+            return f(*args, **kwargs)
+
+        flash('Please sign in to access this page.', 'error')
+        # Prefer the dashboard login when it exists, fall back to auth signin
+        try:
+            return redirect(url_for('admin.login'))
+        except Exception:
+            return redirect(url_for('auth.signin'))
     return decorated_function
