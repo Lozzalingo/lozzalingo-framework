@@ -167,7 +167,10 @@ class PaymentsClient:
         """Create a subscription checkout session.
 
         Args:
-            line_items: List of dicts with price_id and quantity.
+            line_items: List of dicts. Each item can have either:
+                - price_id and quantity (for existing Stripe prices), or
+                - price_data dict with currency, unit_amount, recurring,
+                  and product_data (for dynamic pricing).
             success_url: Redirect URL after successful payment.
             cancel_url: Redirect URL if the customer cancels.
             customer_email: Optional pre-fill email.
