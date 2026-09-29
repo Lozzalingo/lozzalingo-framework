@@ -3,7 +3,7 @@ Lozzalingo - A Flask Admin Framework
 ====================================
 
 A batteries-included Flask framework with admin dashboard, analytics,
-authentication, and more - all working out of the box.
+analytics, and more - all working out of the box.
 
 Quick Start:
     from flask import Flask
@@ -19,7 +19,6 @@ With configuration:
         'brand_name': 'My Site',
         'features': {
             'analytics': True,
-            'auth': True,
             'news': False,  # Disable news module
         }
     })
@@ -29,7 +28,6 @@ Or use a YAML config file (lozzalingo.yaml in your app root):
       name: "My Site"
     features:
       analytics: true
-      auth: true
 """
 
 __version__ = '0.2.0'
@@ -62,11 +60,9 @@ class Lozzalingo:
         # Feature flags - all enabled by default
         'features': {
             'analytics': True,
-            'auth': True,
             'dashboard': True,
             'news': True,
             'news_public': True,
-            'email': True,
             'customer_spotlight': True,
             'merchandise': True,
             'merchandise_public': True,
@@ -87,21 +83,6 @@ class Lozzalingo:
             'allowed_origins': None,  # None = allow request origin (dynamic)
         },
 
-        # Email settings
-        'email': {
-            'resend_api_key': None,  # From RESEND_API_KEY env var
-            'from_address': None,
-            'support_email': None,
-            'admin_email': None,
-        },
-
-        # Auth settings
-        'auth': {
-            'google_client_id': None,
-            'google_client_secret': None,
-            'github_client_id': None,
-            'github_client_secret': None,
-        },
     }
 
     def __init__(self, app: Flask = None, config: dict = None):
@@ -163,9 +144,8 @@ class Lozzalingo:
             self._setup_ops_monitoring()
             self._setup_ops_banner_injection()
 
-        # Start daily error digest (requires ops + email features)
-        if (self._config.get('features', {}).get('ops', True)
-                and self._config.get('features', {}).get('email', True)):
+        # Start daily error digest (requires ops feature, sends via centralised email service)
+        if self._config.get('features', {}).get('ops', True):
             self._setup_error_digest()
 
         # Store reference on app for access in templates/routes
@@ -289,10 +269,6 @@ class Lozzalingo:
         if 'analytics' in yaml_config:
             result['analytics'] = yaml_config['analytics']
 
-        # Map auth section
-        if 'auth' in yaml_config:
-            result['auth'] = yaml_config['auth']
-
         # Map CRM section (customer_prefix, scoring weights)
         if 'crm' in yaml_config:
             result['crm'] = yaml_config['crm']
@@ -337,17 +313,6 @@ class Lozzalingo:
         self.app.config.setdefault('PROJECTS_DB', os.path.join(db_dir, 'projects.db'))
         self.app.config.setdefault('QUICK_LINKS_DB', os.path.join(db_dir, 'quick_links.db'))
 
-        # Auth configuration
-        auth_config = self._config.get('auth', {})
-        self.app.config.setdefault('GOOGLE_CLIENT_ID',
-            auth_config.get('google_client_id') or os.environ.get('GOOGLE_CLIENT_ID'))
-        self.app.config.setdefault('GOOGLE_CLIENT_SECRET',
-            auth_config.get('google_client_secret') or os.environ.get('GOOGLE_CLIENT_SECRET'))
-        self.app.config.setdefault('GITHUB_CLIENT_ID',
-            auth_config.get('github_client_id') or os.environ.get('GITHUB_CLIENT_ID'))
-        self.app.config.setdefault('GITHUB_CLIENT_SECRET',
-            auth_config.get('github_client_secret') or os.environ.get('GITHUB_CLIENT_SECRET'))
-
         # Load settings DB values into app.config (if settings module is available)
         try:
             from lozzalingo.modules.settings.database import get_all_settings
@@ -379,10 +344,6 @@ class Lozzalingo:
         # Analytics
         if features.get('analytics', True):
             self._register_analytics()
-
-        # Auth (user authentication)
-        if features.get('auth', True):
-            self._register_auth()
 
         # News (admin)
         if features.get('news', True):
@@ -466,23 +427,6 @@ class Lozzalingo:
             self.app.logger.debug("Registered analytics module")
         except Exception as e:
             self.app.logger.error(f"Failed to register analytics module: {e}")
-
-    def _register_auth(self):
-        """Register the auth module."""
-        try:
-            from .modules.auth import auth_bp, configure_oauth, init_oauth, oauth
-            self.app.register_blueprint(auth_bp)
-
-            # Configure OAuth if credentials are available
-            if (self.app.config.get('GOOGLE_CLIENT_ID') or
-                self.app.config.get('GITHUB_CLIENT_ID')):
-                configure_oauth(self.app)
-                init_oauth(oauth)
-
-            self._registered_blueprints.append('auth')
-            self.app.logger.debug("Registered auth module")
-        except Exception as e:
-            self.app.logger.error(f"Failed to register auth module: {e}")
 
     def _register_news(self):
         """Register the news admin module."""
@@ -995,12 +939,11 @@ class Lozzalingo:
 
 
 # Convenience exports
-from .modules import analytics, auth, dashboard
+from .modules import analytics, dashboard
 
 __all__ = [
     'Lozzalingo',
     'analytics',
-    'auth',
     'dashboard',
     '__version__',
 ]

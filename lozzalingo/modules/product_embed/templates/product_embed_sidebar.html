@@ -1,0 +1,64 @@
+{#
+  Product embed sidebar widget.
+
+  Renders a sidebar panel that fetches products from the local
+  product embed proxy and displays them as compact cards.
+
+  Usage:
+    {% set embed_site_id = 'coffeegoblin' %}
+    {% include 'product_embed_sidebar.html' %}
+#}
+
+<aside id="product-sidebar" class="product-embed-sidebar" data-site="{{ embed_site_id|default('') }}" data-limit="{{ embed_limit|default(3) }}">
+  <h3 style="margin:0 0 0.75rem;font-size:1.1rem;">You might also like</h3>
+  <div id="product-sidebar-items">
+    <p style="font-size:0.875rem;color:#6b7280;">Loading...</p>
+  </div>
+</aside>
+
+<script>
+(function() {
+  var sidebar = document.getElementById('product-sidebar');
+  var siteId = sidebar.getAttribute('data-site');
+  var limit = sidebar.getAttribute('data-limit') || '3';
+  var container = document.getElementById('product-sidebar-items');
+
+  if (!siteId) {
+    container.innerHTML = '';
+    return;
+  }
+
+  fetch('/api/product-embed/' + siteId + '?limit=' + limit)
+    .then(function(res) {
+      if (!res.ok) throw new Error('Failed to load');
+      return res.json();
+    })
+    .then(function(data) {
+      var products = data.products || data;
+      if (!products.length) {
+        container.innerHTML = '';
+        sidebar.style.display = 'none';
+        return;
+      }
+
+      var html = '';
+      products.forEach(function(p) {
+        var symbol = (p.currency === 'USD') ? '$' : '\u00a3';
+        html += '<div style="display:flex;gap:0.75rem;margin-bottom:0.75rem;padding-bottom:0.75rem;border-bottom:1px solid #e5e7eb;">';
+        if (p.image_url) {
+          html += '<img src="' + p.image_url + '" alt="' + p.title + '" loading="lazy" style="width:64px;height:64px;object-fit:cover;border-radius:0.25rem;flex-shrink:0;">';
+        }
+        html += '<div style="flex:1;min-width:0;">';
+        html += '<p style="margin:0 0 0.25rem;font-weight:600;font-size:0.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + p.title + '</p>';
+        html += '<p style="margin:0 0 0.25rem;font-size:0.875rem;">' + symbol + p.price + '</p>';
+        html += '<a name="sidebar_product_' + p.id + '" href="' + p.product_url + '" target="_blank" rel="noopener noreferrer" style="font-size:0.75rem;color:#2563eb;">View</a>';
+        html += '</div></div>';
+      });
+      container.innerHTML = html;
+    })
+    .catch(function() {
+      container.innerHTML = '';
+      sidebar.style.display = 'none';
+    });
+})();
+</script>

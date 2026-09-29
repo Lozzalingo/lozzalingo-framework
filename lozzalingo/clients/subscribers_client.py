@@ -130,7 +130,7 @@ class SubscribersClient:
         if ip_address:
             payload['ip_address'] = ip_address
 
-        return self._request('POST', '/subscribers', json_data=payload)
+        return self._request('POST', '/api/subscribers', json_data=payload)
 
     def get_subscriber(self, subscriber_id):
         """Get subscriber detail with list memberships.
@@ -141,7 +141,7 @@ class SubscribersClient:
         Returns:
             Dict with subscriber fields and lists array, or None.
         """
-        return self._request('GET', f'/subscribers/{subscriber_id}')
+        return self._request('GET', f'/api/subscribers/{subscriber_id}')
 
     def list_subscribers(self, page=1, per_page=50, status=None, list_id=None):
         """List subscribers with pagination and filters.
@@ -160,7 +160,7 @@ class SubscribersClient:
             params['status'] = status
         if list_id:
             params['list_id'] = list_id
-        return self._request('GET', '/subscribers', params=params)
+        return self._request('GET', '/api/subscribers', params=params)
 
     def update_subscriber(self, subscriber_id, data):
         """Update subscriber details.
@@ -172,7 +172,7 @@ class SubscribersClient:
         Returns:
             Dict with message on success, or None.
         """
-        return self._request('PUT', f'/subscribers/{subscriber_id}', json_data=data)
+        return self._request('PUT', f'/api/subscribers/{subscriber_id}', json_data=data)
 
     def unsubscribe(self, subscriber_id):
         """Unsubscribe and erase subscriber data (GDPR).
@@ -183,7 +183,7 @@ class SubscribersClient:
         Returns:
             Dict with message on success, or None.
         """
-        return self._request('DELETE', f'/subscribers/{subscriber_id}')
+        return self._request('DELETE', f'/api/subscribers/{subscriber_id}')
 
     # ------------------------------------------------------------------
     # Lists
@@ -202,7 +202,7 @@ class SubscribersClient:
         payload = {'name': name}
         if description:
             payload['description'] = description
-        return self._request('POST', '/lists', json_data=payload)
+        return self._request('POST', '/api/subscribers/lists', json_data=payload)
 
     def get_lists(self):
         """Get all mailing lists.
@@ -210,7 +210,7 @@ class SubscribersClient:
         Returns:
             List of dicts with list info, or None.
         """
-        return self._request('GET', '/lists')
+        return self._request('GET', '/api/subscribers/lists')
 
     def get_list(self, list_id):
         """Get a single mailing list.
@@ -221,4 +221,4 @@ class SubscribersClient:
         Returns:
             Dict with list info, or None.
         """
-        return self._request('GET', f'/lists/{list_id}')
+        return self._request('GET', f'/api/subscribers/lists/{list_id}')

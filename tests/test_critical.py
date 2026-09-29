@@ -139,10 +139,8 @@ def test_email_client_init_no_config(app):
 EXPECTED_MODULES = [
     "dashboard",
     "analytics",
-    "auth",
     "news",
     "news_public",
-    "email",
     "customer_spotlight",
     "merchandise",
     "merchandise_public",

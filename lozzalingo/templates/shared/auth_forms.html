@@ -1,0 +1,112 @@
+{#
+  Shared authentication forms for Jinja2 templates.
+
+  Include with:
+    {% include 'shared/auth_forms.html' %}
+
+  Set `auth_service_url` before including:
+    {% set auth_service_url = config.get('AUTH_SERVICE_URL', '') %}
+
+  The template renders three forms (login, register, forgot password)
+  and uses vanilla JS to toggle between them.
+#}
+
+<div id="auth-forms" class="auth-forms">
+  <!-- Login form -->
+  <form id="auth-login-form" action="{{ auth_service_url }}/api/auth/login" method="POST" aria-label="Sign in">
+    <h2>Sign in</h2>
+
+    <div id="login-error" role="alert" style="colour:#b91c1c;display:none;margin-bottom:0.75rem;"></div>
+
+    <div style="margin-bottom:0.75rem;">
+      <label for="login-email">Email address</label>
+      <input id="login-email" name="email" type="email" required autocomplete="email"
+             style="display:block;width:100%;margin-top:0.25rem;">
+    </div>
+
+    <div style="margin-bottom:0.75rem;">
+      <label for="login-password">Password</label>
+      <input id="login-password" name="password" type="password" required autocomplete="current-password"
+             style="display:block;width:100%;margin-top:0.25rem;">
+    </div>
+
+    <button name="login_submit" type="submit">Sign in</button>
+
+    <p style="margin-top:0.75rem;">
+      <a name="show_forgot_password" href="#" onclick="showAuthForm('forgot');return false;">Forgotten your password?</a>
+    </p>
+    <p>
+      Don't have an account?
+      <a name="show_register_from_login" href="#" onclick="showAuthForm('register');return false;">Create one here</a>
+    </p>
+  </form>
+
+  <!-- Register form -->
+  <form id="auth-register-form" action="{{ auth_service_url }}/api/auth/register" method="POST" aria-label="Create account" style="display:none;">
+    <h2>Create account</h2>
+
+    <div id="register-error" role="alert" style="colour:#b91c1c;display:none;margin-bottom:0.75rem;"></div>
+
+    <div style="margin-bottom:0.75rem;">
+      <label for="register-name">Full name</label>
+      <input id="register-name" name="name" type="text" required autocomplete="name"
+             style="display:block;width:100%;margin-top:0.25rem;">
+    </div>
+
+    <div style="margin-bottom:0.75rem;">
+      <label for="register-email">Email address</label>
+      <input id="register-email" name="email" type="email" required autocomplete="email"
+             style="display:block;width:100%;margin-top:0.25rem;">
+    </div>
+
+    <div style="margin-bottom:0.75rem;">
+      <label for="register-password">Password</label>
+      <input id="register-password" name="password" type="password" required minlength="8" autocomplete="new-password"
+             style="display:block;width:100%;margin-top:0.25rem;">
+    </div>
+
+    <div style="margin-bottom:0.75rem;">
+      <label for="register-confirm-password">Confirm password</label>
+      <input id="register-confirm-password" name="confirm_password" type="password" required minlength="8" autocomplete="new-password"
+             style="display:block;width:100%;margin-top:0.25rem;">
+    </div>
+
+    <button name="register_submit" type="submit">Create account</button>
+
+    <p style="margin-top:0.75rem;">
+      Already have an account?
+      <a name="show_login_from_register" href="#" onclick="showAuthForm('login');return false;">Sign in</a>
+    </p>
+  </form>
+
+  <!-- Forgot password form -->
+  <form id="auth-forgot-form" action="{{ auth_service_url }}/api/auth/forgot-password" method="POST" aria-label="Reset password" style="display:none;">
+    <h2>Reset password</h2>
+
+    <div id="forgot-error" role="alert" style="colour:#b91c1c;display:none;margin-bottom:0.75rem;"></div>
+
+    <p style="margin-bottom:0.75rem;">
+      Enter the email address associated with your account and we will send you a link to reset your password.
+    </p>
+
+    <div style="margin-bottom:0.75rem;">
+      <label for="forgot-email">Email address</label>
+      <input id="forgot-email" name="email" type="email" required autocomplete="email"
+             style="display:block;width:100%;margin-top:0.25rem;">
+    </div>
+
+    <button name="forgot_password_submit" type="submit">Send reset link</button>
+
+    <p style="margin-top:0.75rem;">
+      <a name="show_login_from_forgot" href="#" onclick="showAuthForm('login');return false;">Back to sign in</a>
+    </p>
+  </form>
+</div>
+
+<script>
+function showAuthForm(form) {
+  document.getElementById('auth-login-form').style.display = form === 'login' ? '' : 'none';
+  document.getElementById('auth-register-form').style.display = form === 'register' ? '' : 'none';
+  document.getElementById('auth-forgot-form').style.display = form === 'forgot' ? '' : 'none';
+}
+</script>

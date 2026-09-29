@@ -2,492 +2,232 @@
 News Admin Routes
 =================
 
-Complete news/blog management extracted from Mario Pinto project.
-Framework-ready with all features.
+Admin interface for news/blog article management.
+Calls the centralised Blog Service (port 7219) for all article data.
 """
 
-from flask import render_template, request, redirect, url_for, session, jsonify
+from flask import render_template, request, redirect, url_for, session, jsonify, current_app
 from . import news_bp
 import os
 import uuid
-from datetime import datetime
-import re
 
-# ===== Database Helper Functions =====
+from lozzalingo.core import db_log
 
-def get_db_config():
-    """Get database configuration"""
+
+# ===== Blog Service Client =====
+
+def _get_blog_client():
+    """Get a BlogClient instance."""
+    from lozzalingo.clients.blog_client import BlogClient
+    return BlogClient()
+
+
+def _get_site_id():
+    """Get the current site's identifier for blog service calls."""
     try:
-        from flask import current_app
-        val = current_app.config.get('NEWS_DB')
-        if val:
-            return val
+        site_id = current_app.config.get('BLOG_SITE_ID')
+        if site_id:
+            return site_id
     except RuntimeError:
         pass
-    try:
-        from config import Config
-        return Config.NEWS_DB if hasattr(Config, 'NEWS_DB') else 'news.db'
-    except ImportError:
-        return os.getenv('NEWS_DB', 'news.db')
+    return os.getenv('BLOG_SITE_ID', os.getenv('EMAIL_SITE_ID', 'unknown'))
 
-def get_db_connection():
-    """Get database connection function"""
-    try:
-        from database import Database
-        return Database.connect
-    except ImportError:
-        import sqlite3
-        return sqlite3.connect
 
-def init_news_db():
-    """Initialize news database with migrations"""
-    news_db = get_db_config()
-    db_connect = get_db_connection()
-
-    try:
-        # Create directory if it doesn't exist (only if there's a directory component)
-        db_dir = os.path.dirname(news_db)
-        if db_dir:
-            os.makedirs(db_dir, exist_ok=True)
-
-        with db_connect(news_db) as conn:
-            cursor = conn.cursor()
-
-            # First, create the table if it doesn't exist
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS news_articles (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL,
-                    slug TEXT NOT NULL UNIQUE,
-                    content TEXT NOT NULL,
-                    image_url TEXT,
-                    status TEXT DEFAULT 'published',
-                    email_sent BOOLEAN DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    excerpt TEXT,
-                    meta_title TEXT,
-                    meta_description TEXT,
-                    author_name TEXT,
-                    author_email TEXT,
-                    category_name TEXT,
-                    source_id TEXT,
-                    source_url TEXT,
-                    image_position TEXT DEFAULT 'center'
-                )
-            ''')
-
-            # Now check if we need to migrate the table (add missing columns)
-            cursor.execute("PRAGMA table_info(news_articles)")
-            columns = [column[1] for column in cursor.fetchall()]
-
-            # Add new columns for extended article data (from AI Blog Builder integration)
-            new_columns = [
-                ('status', 'TEXT DEFAULT "published"'),
-                ('email_sent', 'BOOLEAN DEFAULT 0'),
-                ('excerpt', 'TEXT'),
-                ('meta_title', 'TEXT'),
-                ('meta_description', 'TEXT'),
-                ('author_name', 'TEXT'),
-                ('author_email', 'TEXT'),
-                ('category_name', 'TEXT'),
-                ('source_id', 'TEXT'),
-                ('source_url', 'TEXT'),
-                ('crossposted_linkedin', 'BOOLEAN DEFAULT 0'),
-                ('crossposted_medium', 'BOOLEAN DEFAULT 0'),
-                ('crossposted_substack', 'BOOLEAN DEFAULT 0'),
-                ('crossposted_twitter', 'BOOLEAN DEFAULT 0'),
-                ('crossposted_threads', 'BOOLEAN DEFAULT 0'),
-                ('image_position', 'TEXT DEFAULT "center"'),
-                ('ads_enabled', 'BOOLEAN DEFAULT 1'),
-                ('ads_shops', 'TEXT'),
-            ]
-            for col_name, col_type in new_columns:
-                if col_name not in columns:
-                    print(f"Adding {col_name} column to news_articles table...")
-                    try:
-                        cursor.execute(f'ALTER TABLE news_articles ADD COLUMN {col_name} {col_type}')
-                    except Exception as e:
-                        print(f"Could not add column {col_name}: {e}")
-
-            # Create indexes for faster lookups
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_news_slug ON news_articles(slug)')
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_news_status ON news_articles(status)')
-
-            conn.commit()
-            print("News database initialized successfully")
-    except Exception as e:
-        print(f"Error initializing news database: {e}")
-        raise
-
-def create_slug(title):
-    """Create URL-friendly slug with uniqueness checking"""
-    news_db = get_db_config()
-    db_connect = get_db_connection()
-
-    # Convert to lowercase and replace spaces with hyphens
-    slug = re.sub(r'[^\w\s-]', '', title.lower())
-    slug = re.sub(r'[-\s]+', '-', slug)
-    slug = slug.strip('-')
-
-    # Ensure uniqueness
-    base_slug = slug
-    counter = 1
-
-    with db_connect(news_db) as conn:
-        cursor = conn.cursor()
-        while True:
-            cursor.execute('SELECT id FROM news_articles WHERE slug = ?', (slug,))
-            if not cursor.fetchone():
-                break
-            slug = f"{base_slug}-{counter}"
-            counter += 1
-
-    return slug
+# ===== Compatibility layer =====
+# These functions match the old signatures so existing callers (news_public, sitemaps)
+# continue to work without changes.
 
 _POS_MAP = {'top': '0', 'center': '50', 'bottom': '100'}
 
+
 def _normalize_pos(val):
-    """Normalize image_position to a numeric string (0-100)."""
+    """Normalise image_position to a numeric string (0-100)."""
     if not val:
         return '50'
     return _POS_MAP.get(val, val)
 
+
+def _service_to_legacy(article):
+    """Convert a Blog Service article dict to the legacy format used by templates."""
+    if not article:
+        return None
+    return {
+        'id': article.get('id'),
+        'title': article.get('title', ''),
+        'slug': article.get('slug', ''),
+        'content': article.get('content_html', ''),
+        'image_url': article.get('og_image_url', ''),
+        'status': article.get('status', 'draft'),
+        'email_sent': False,
+        'created_at': article.get('created_at', ''),
+        'updated_at': article.get('updated_at', ''),
+        'excerpt': article.get('excerpt', ''),
+        'meta_title': article.get('seo_title', ''),
+        'meta_description': article.get('seo_description', ''),
+        'author_name': article.get('author', ''),
+        'author_email': '',
+        'category_name': article.get('category_name', ''),
+        'source_id': '',
+        'source_url': '',
+        'crossposted_linkedin': False,
+        'crossposted_medium': False,
+        'crossposted_substack': False,
+        'crossposted_twitter': False,
+        'crossposted_threads': False,
+        'image_position': _normalize_pos(article.get('image_position')),
+        'ads_enabled': article.get('ads_enabled', True),
+        'ads_shops': article.get('ads_shops'),
+    }
+
+
+def init_news_db():
+    """No-op. The Blog Service manages its own database."""
+    pass
+
+
 def get_all_articles_db(status=None, category_name=None, exclude_categories=None):
-    """Get all articles with optional status, category, and exclusion filters"""
-    news_db = get_db_config()
-    db_connect = get_db_connection()
+    """Get all articles from the Blog Service with optional filters."""
+    client = _get_blog_client()
+    site_id = _get_site_id()
 
-    try:
-        with db_connect(news_db) as conn:
-            cursor = conn.cursor()
-
-            conditions = []
-            params = []
-
-            if status:
-                conditions.append('status = ?')
-                params.append(status)
-
-            if category_name:
-                conditions.append('category_name = ?')
-                params.append(category_name)
-
-            if exclude_categories:
-                placeholders = ','.join('?' for _ in exclude_categories)
-                conditions.append(f'(category_name IS NULL OR category_name NOT IN ({placeholders}))')
-                params.extend(exclude_categories)
-
-            where_clause = f' WHERE {" AND ".join(conditions)}' if conditions else ''
-
-            cursor.execute(f'''
-                SELECT id, title, slug, content, image_url, status, email_sent, created_at, updated_at,
-                       excerpt, meta_title, meta_description, author_name, author_email,
-                       category_name, source_id, source_url,
-                       crossposted_linkedin, crossposted_medium, crossposted_substack,
-                       crossposted_twitter, crossposted_threads, image_position,
-                       ads_enabled, ads_shops
-                FROM news_articles{where_clause}
-                ORDER BY created_at DESC
-            ''', params)
-
-            rows = cursor.fetchall()
-            articles = []
-            for row in rows:
-                d = {
-                    'id': row[0],
-                    'title': row[1],
-                    'slug': row[2],
-                    'content': row[3],
-                    'image_url': row[4],
-                    'status': row[5],
-                    'email_sent': bool(row[6]),
-                    'created_at': row[7],
-                    'updated_at': row[8],
-                    'excerpt': row[9],
-                    'meta_title': row[10],
-                    'meta_description': row[11],
-                    'author_name': row[12],
-                    'author_email': row[13],
-                    'category_name': row[14],
-                    'source_id': row[15],
-                    'source_url': row[16],
-                }
-                d['crossposted_linkedin'] = bool(row[17]) if len(row) > 17 else False
-                d['crossposted_medium'] = bool(row[18]) if len(row) > 18 else False
-                d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
-                d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
-                d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
-                d['image_position'] = _normalize_pos(row[22] if len(row) > 22 else None)
-                d['ads_enabled'] = bool(row[23]) if len(row) > 23 and row[23] is not None else True
-                d['ads_shops'] = row[24] if len(row) > 24 else None
-                articles.append(d)
-            return articles
-    except Exception as e:
-        print(f"Error getting articles: {e}")
+    result = client.list_articles(site_id=site_id, status=status, per_page=500)
+    if not result:
         return []
+
+    articles_raw = result.get('articles', result) if isinstance(result, dict) else result
+    if not isinstance(articles_raw, list):
+        articles_raw = []
+
+    articles = [_service_to_legacy(a) for a in articles_raw]
+
+    # Apply category filters client-side (the blog service may not support these directly)
+    if category_name:
+        articles = [a for a in articles if a.get('category_name') == category_name]
+
+    if exclude_categories:
+        articles = [
+            a for a in articles
+            if not a.get('category_name') or a.get('category_name') not in exclude_categories
+        ]
+
+    return articles
+
+
+def get_article_db(article_id):
+    """Get a single article by ID from the Blog Service."""
+    client = _get_blog_client()
+    result = client.get_article(article_id)
+    return _service_to_legacy(result)
+
+
+def get_article_by_slug_db(slug):
+    """Get a single article by slug from the Blog Service."""
+    client = _get_blog_client()
+    site_id = _get_site_id()
+    result = client.get_article_by_slug(slug, site_id=site_id)
+    return _service_to_legacy(result)
+
 
 def create_article_db(title, content, image_url=None, status='draft',
                       excerpt=None, meta_title=None, meta_description=None,
                       author_name=None, author_email=None, category_name=None,
                       source_id=None, source_url=None, image_position=None,
                       ads_enabled=True, ads_shops=None):
-    """Create new article in database"""
-    news_db = get_db_config()
-    db_connect = get_db_connection()
+    """Create a new article via the Blog Service."""
+    client = _get_blog_client()
+    site_id = _get_site_id()
 
-    slug = create_slug(title)
+    result = client.create_article(
+        site_id=site_id,
+        title=title,
+        content_html=content,
+        status=status,
+        excerpt=excerpt,
+        author=author_name,
+        seo_title=meta_title,
+        seo_description=meta_description,
+        og_image_url=image_url,
+    )
 
-    try:
-        with db_connect(news_db) as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO news_articles (title, slug, content, image_url, status,
-                    excerpt, meta_title, meta_description, author_name, author_email,
-                    category_name, source_id, source_url, image_position,
-                    ads_enabled, ads_shops)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (title, slug, content, image_url, status,
-                  excerpt, meta_title, meta_description, author_name, author_email,
-                  category_name, source_id, source_url, image_position or 'center',
-                  1 if ads_enabled else 0, ads_shops))
-            conn.commit()
-            return cursor.lastrowid, slug
-    except Exception as e:
-        print(f"Error creating article: {e}")
-        raise
+    if result:
+        return result.get('id'), result.get('slug', '')
+    raise Exception('Failed to create article via Blog Service')
+
 
 def update_article_db(article_id, title, content, image_url=None, status=None,
                       excerpt=None, meta_title=None, meta_description=None,
                       author_name=None, author_email=None, category_name=None,
                       source_id=None, source_url=None, image_position=None,
                       ads_enabled=None, ads_shops=None):
-    """Update existing article"""
-    news_db = get_db_config()
-    db_connect = get_db_connection()
+    """Update an article via the Blog Service."""
+    client = _get_blog_client()
 
-    try:
-        with db_connect(news_db) as conn:
-            cursor = conn.cursor()
+    data = {
+        'title': title,
+        'content_html': content,
+    }
+    if image_url is not None:
+        data['og_image_url'] = image_url
+    if status is not None:
+        data['status'] = status
+    if excerpt is not None:
+        data['excerpt'] = excerpt
+    if meta_title is not None:
+        data['seo_title'] = meta_title
+    if meta_description is not None:
+        data['seo_description'] = meta_description
+    if author_name is not None:
+        data['author'] = author_name
 
-            # Get current article
-            cursor.execute('SELECT title, slug, status FROM news_articles WHERE id = ?', (article_id,))
-            current = cursor.fetchone()
+    result = client.update_article(article_id, data)
+    return result is not None
 
-            if not current:
-                return False
-
-            # Generate new slug if title changed
-            slug = current[1]
-            if current[0] != title:
-                slug = create_slug(title)
-
-            # Use current status if not provided
-            if status is None:
-                status = current[2]
-
-            # Validate required data
-            if not title.strip() or not content.strip():
-                raise ValueError("Title and content cannot be empty")
-
-            # Clean image_url
-            if image_url is not None and not image_url.strip():
-                image_url = None
-
-            # Update the article with all fields
-            cursor.execute('''
-                UPDATE news_articles
-                SET title = ?, slug = ?, content = ?, image_url = ?, status = ?,
-                    excerpt = ?, meta_title = ?, meta_description = ?,
-                    author_name = ?, author_email = ?, category_name = ?,
-                    source_id = ?, source_url = ?, image_position = ?,
-                    ads_enabled = ?, ads_shops = ?,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            ''', (title.strip(), slug, content.strip(), image_url, status,
-                  excerpt, meta_title, meta_description,
-                  author_name, author_email, category_name,
-                  source_id, source_url, image_position or 'center',
-                  1 if ads_enabled is None or ads_enabled else 0,
-                  ads_shops, article_id))
-            conn.commit()
-
-            return cursor.rowcount > 0
-    except Exception as e:
-        print(f"Error updating article: {e}")
-        raise
 
 def delete_article_db(article_id):
-    """Delete article from database"""
-    news_db = get_db_config()
-    db_connect = get_db_connection()
+    """Delete an article via the Blog Service (soft delete)."""
+    client = _get_blog_client()
+    result = client.delete_article(article_id)
+    return result is not None
 
-    try:
-        with db_connect(news_db) as conn:
-            cursor = conn.cursor()
-            cursor.execute('DELETE FROM news_articles WHERE id = ?', (article_id,))
-            conn.commit()
-            return cursor.rowcount > 0
-    except Exception as e:
-        print(f"Error deleting article: {e}")
-        raise
-
-def get_article_db(article_id):
-    """Get single article by ID"""
-    news_db = get_db_config()
-    db_connect = get_db_connection()
-
-    try:
-        with db_connect(news_db) as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT id, title, slug, content, image_url, status, email_sent, created_at, updated_at,
-                       excerpt, meta_title, meta_description, author_name, author_email,
-                       category_name, source_id, source_url,
-                       crossposted_linkedin, crossposted_medium, crossposted_substack,
-                       crossposted_twitter, crossposted_threads, image_position,
-                       ads_enabled, ads_shops
-                FROM news_articles WHERE id = ?
-            ''', (article_id,))
-            row = cursor.fetchone()
-
-            if row:
-                d = {
-                    'id': row[0],
-                    'title': row[1],
-                    'slug': row[2],
-                    'content': row[3],
-                    'image_url': row[4],
-                    'status': row[5],
-                    'email_sent': bool(row[6]),
-                    'created_at': row[7],
-                    'updated_at': row[8],
-                    'excerpt': row[9],
-                    'meta_title': row[10],
-                    'meta_description': row[11],
-                    'author_name': row[12],
-                    'author_email': row[13],
-                    'category_name': row[14],
-                    'source_id': row[15],
-                    'source_url': row[16],
-                }
-                d['crossposted_linkedin'] = bool(row[17]) if len(row) > 17 else False
-                d['crossposted_medium'] = bool(row[18]) if len(row) > 18 else False
-                d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
-                d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
-                d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
-                d['image_position'] = _normalize_pos(row[22] if len(row) > 22 else None)
-                d['ads_enabled'] = bool(row[23]) if len(row) > 23 and row[23] is not None else True
-                d['ads_shops'] = row[24] if len(row) > 24 else None
-                return d
-            return None
-    except Exception as e:
-        print(f"Error getting article: {e}")
-        return None
-
-def get_article_by_slug_db(slug):
-    """Get single article by slug"""
-    news_db = get_db_config()
-    db_connect = get_db_connection()
-
-    try:
-        with db_connect(news_db) as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT id, title, slug, content, image_url, status, email_sent, created_at, updated_at,
-                       excerpt, meta_title, meta_description, author_name, author_email,
-                       category_name, source_id, source_url,
-                       crossposted_linkedin, crossposted_medium, crossposted_substack,
-                       crossposted_twitter, crossposted_threads, image_position,
-                       ads_enabled, ads_shops
-                FROM news_articles WHERE slug = ?
-            ''', (slug,))
-            row = cursor.fetchone()
-
-            if row:
-                d = {
-                    'id': row[0],
-                    'title': row[1],
-                    'slug': row[2],
-                    'content': row[3],
-                    'image_url': row[4],
-                    'status': row[5],
-                    'email_sent': bool(row[6]),
-                    'created_at': row[7],
-                    'updated_at': row[8],
-                    'excerpt': row[9],
-                    'meta_title': row[10],
-                    'meta_description': row[11],
-                    'author_name': row[12],
-                    'author_email': row[13],
-                    'category_name': row[14],
-                    'source_id': row[15],
-                    'source_url': row[16],
-                }
-                d['crossposted_linkedin'] = bool(row[17]) if len(row) > 17 else False
-                d['crossposted_medium'] = bool(row[18]) if len(row) > 18 else False
-                d['crossposted_substack'] = bool(row[19]) if len(row) > 19 else False
-                d['crossposted_twitter'] = bool(row[20]) if len(row) > 20 else False
-                d['crossposted_threads'] = bool(row[21]) if len(row) > 21 else False
-                d['image_position'] = _normalize_pos(row[22] if len(row) > 22 else None)
-                d['ads_enabled'] = bool(row[23]) if len(row) > 23 and row[23] is not None else True
-                d['ads_shops'] = row[24] if len(row) > 24 else None
-                return d
-            return None
-    except Exception as e:
-        print(f"Error getting article by slug: {e}")
-        return None
 
 def toggle_article_status_db(article_id):
-    """Toggle article status between draft and published"""
-    news_db = get_db_config()
-    db_connect = get_db_connection()
+    """Toggle article status between draft and published."""
+    client = _get_blog_client()
 
-    try:
-        with db_connect(news_db) as conn:
-            cursor = conn.cursor()
-
-            # Get current status
-            cursor.execute('SELECT status FROM news_articles WHERE id = ?', (article_id,))
-            result = cursor.fetchone()
-
-            if not result:
-                return None
-
-            current_status = result[0]
-            new_status = 'draft' if current_status == 'published' else 'published'
-
-            # Update status
-            cursor.execute('''
-                UPDATE news_articles
-                SET status = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            ''', (new_status, article_id))
-            conn.commit()
-
-            return new_status
-    except Exception as e:
-        print(f"Error toggling article status: {e}")
+    # Get current article to check its status
+    article = client.get_article(article_id)
+    if not article:
         return None
 
-def mark_email_sent_db(article_id):
-    """Mark that email has been sent for this article"""
-    news_db = get_db_config()
-    db_connect = get_db_connection()
+    current_status = article.get('status', 'draft')
+    new_status = 'draft' if current_status == 'published' else 'published'
 
-    try:
-        with db_connect(news_db) as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                UPDATE news_articles
-                SET email_sent = 1
-                WHERE id = ?
-            ''', (article_id,))
-            conn.commit()
-            return cursor.rowcount > 0
-    except Exception as e:
-        print(f"Error marking email sent: {e}")
-        return False
+    if new_status == 'published':
+        result = client.publish_article(article_id)
+    else:
+        result = client.update_article(article_id, {'status': 'draft'})
+
+    if result:
+        return new_status
+    return None
+
+
+def mark_email_sent_db(article_id):
+    """Mark that email has been sent for this article.
+
+    The Blog Service does not track email_sent natively, so this is a no-op
+    that returns True for backwards compatibility.
+    """
+    return True
+
+
+def create_slug(title):
+    """No-op. The Blog Service generates slugs server-side."""
+    import re
+    slug = re.sub(r'[^\w\s-]', '', title.lower())
+    slug = re.sub(r'[-\s]+', '-', slug)
+    return slug.strip('-')
+
 
 # ===== Routes =====
 
@@ -498,8 +238,6 @@ def news_editor():
     if 'admin_id' not in session:
         return redirect(url_for('admin.login', next=request.path))
 
-    # Initialize database on first access
-    init_news_db()
     return render_template('news/news_editor.html')
 
 @news_bp.route('/api/articles', methods=['GET'])
@@ -509,11 +247,10 @@ def get_articles():
         return jsonify({'error': 'Authentication required'}), 401
 
     try:
-        init_news_db()
         articles = get_all_articles_db()
         return jsonify(articles)
     except Exception as e:
-        print(f"Error getting articles: {e}")
+        db_log('error', 'news', f'Error getting articles: {e}')
         return jsonify({'error': str(e)}), 500
 
 @news_bp.route('/api/articles/<int:article_id>', methods=['GET'])
@@ -528,7 +265,7 @@ def get_article(article_id):
             return jsonify(article)
         return jsonify({'error': 'Article not found'}), 404
     except Exception as e:
-        print(f"Error getting article: {e}")
+        db_log('error', 'news', f'Error getting article: {e}')
         return jsonify({'error': str(e)}), 500
 
 @news_bp.route('/api/articles', methods=['POST'])
@@ -544,7 +281,6 @@ def create_article():
         image_url = data.get('image_url', '')
         status = data.get('status', 'draft')
 
-        # New fields
         excerpt = data.get('excerpt') or None
         meta_title = data.get('meta_title') or None
         meta_description = data.get('meta_description') or None
@@ -575,7 +311,7 @@ def create_article():
             'status': status
         })
     except Exception as e:
-        print(f"Error creating article: {e}")
+        db_log('error', 'news', f'Error creating article: {e}')
         return jsonify({'error': str(e)}), 500
 
 @news_bp.route('/api/articles/<int:article_id>', methods=['PUT'])
@@ -591,7 +327,6 @@ def update_article(article_id):
         image_url = data.get('image_url', '')
         status = data.get('status', 'draft')
 
-        # New fields
         excerpt = data.get('excerpt') or None
         meta_title = data.get('meta_title') or None
         meta_description = data.get('meta_description') or None
@@ -619,7 +354,7 @@ def update_article(article_id):
             return jsonify({'success': True, 'message': 'Article updated successfully'})
         return jsonify({'error': 'Article not found'}), 404
     except Exception as e:
-        print(f"Error updating article: {e}")
+        db_log('error', 'news', f'Error updating article: {e}')
         return jsonify({'error': str(e)}), 500
 
 @news_bp.route('/api/articles/<int:article_id>', methods=['DELETE'])
@@ -634,7 +369,7 @@ def delete_article(article_id):
             return jsonify({'success': True})
         return jsonify({'error': 'Article not found'}), 404
     except Exception as e:
-        print(f"Error deleting article: {e}")
+        db_log('error', 'news', f'Error deleting article: {e}')
         return jsonify({'error': str(e)}), 500
 
 @news_bp.route('/api/articles/<int:article_id>/toggle-status', methods=['POST'])
@@ -649,7 +384,7 @@ def toggle_status(article_id):
             return jsonify({'success': True, 'status': new_status})
         return jsonify({'error': 'Article not found'}), 404
     except Exception as e:
-        print(f"Error toggling status: {e}")
+        db_log('error', 'news', f'Error toggling status: {e}')
         return jsonify({'error': str(e)}), 500
 
 @news_bp.route('/api/product-shops', methods=['GET'])
@@ -705,7 +440,7 @@ def upload_image():
         })
 
     except Exception as e:
-        print(f"Error uploading image: {e}")
+        db_log('error', 'news', f'Error uploading image: {e}')
         return jsonify({'error': 'Failed to upload image'}), 500
 
 
@@ -723,7 +458,7 @@ def list_images():
         images = list_files(folder)
         return jsonify(images)
     except Exception as e:
-        print(f"Error listing images: {e}")
+        db_log('error', 'news', f'Error listing images: {e}')
         return jsonify({'error': 'Failed to list images'}), 500
 
 
@@ -753,7 +488,7 @@ def delete_image():
         delete_file(url)
         return jsonify({'success': True})
     except Exception as e:
-        print(f"Error deleting image: {e}")
+        db_log('error', 'news', f'Error deleting image: {e}')
         return jsonify({'error': str(e)}), 500
 
 
@@ -768,19 +503,16 @@ def send_article_email(article_id):
         return jsonify({'error': 'Admin access required'}), 401
 
     try:
-        # Get article
         article = get_article_db(article_id)
         if not article:
             return jsonify({'error': 'Article not found'}), 404
 
-        # Get feed: explicit override from POST body, or auto-detect from article category
         data = request.get_json(silent=True) or {}
         feed = data.get('feed', None)
 
         if feed == '__all__':
-            feed = None  # explicit "send to everyone"
+            feed = None
         elif feed is None:
-            # Auto-detect from NEWS_CATEGORIES config
             from flask import current_app
             category_name = article.get('category_name')
             if category_name:
@@ -796,7 +528,8 @@ def send_article_email(article_id):
             _subs = SubscribersClient()
             result = _subs.list_subscribers(status='confirmed')
             subscribers = [s['email'] for s in result.get('subscribers', [])] if result else []
-        except Exception:
+        except Exception as e:
+            db_log('error', 'news', f'Error fetching subscribers: {e}')
             subscribers = []
 
         if not subscribers:
@@ -807,7 +540,6 @@ def send_article_email(article_id):
                 'subscriber_count': 0
             }), 200
 
-        # Build the correct article URL using category routing if configured
         slug = article.get('slug', '')
         article_url = None
         category_name = article.get('category_name', '')
@@ -820,7 +552,6 @@ def send_article_email(article_id):
         if not article_url:
             article_url = f"/news/{slug}"
 
-        # Prepare article data
         content = article.get('content', '')
         article_data = {
             'id': article['id'],
@@ -833,7 +564,6 @@ def send_article_email(article_id):
             'image_url': article.get('image_url', ''),
         }
 
-        # Send notification via EmailClient
         try:
             from lozzalingo.clients.email_client import EmailClient
             _email = EmailClient()
@@ -842,16 +572,16 @@ def send_article_email(article_id):
             website_url = current_app.config.get('EMAIL_WEBSITE_URL', '')
             title = article_data.get('title', 'Latest News')
             excerpt = article_data.get('excerpt', '')
-            article_url = f"{website_url}{article_data.get('url', '')}"
+            full_article_url = f"{website_url}{article_data.get('url', '')}"
             image_url = article_data.get('image_url', '')
-            image_block = f'<a href="{article_url}"><img src="{image_url}" alt="{title}" style="width:100%;height:auto;display:block;" /></a>' if image_url else ''
+            image_block = f'<a href="{full_article_url}"><img src="{image_url}" alt="{title}" style="width:100%;height:auto;display:block;" /></a>' if image_url else ''
             html = f'''<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:24px;">
 <h1>{brand.upper()}</h1>
 {image_block}
 <h2>{title}</h2>
 <p>{excerpt}</p>
-<p><a href="{article_url}" name="read_full_article">Read Full Article</a></p>
+<p><a href="{full_article_url}" name="read_full_article">Read Full Article</a></p>
 <hr><p style="font-size:13px;"><a href="{website_url}/unsubscribe">Unsubscribe</a></p>
 </body></html>'''
             result = _email.send_batch(
@@ -862,7 +592,7 @@ def send_article_email(article_id):
             )
             success = result is not None and result.get('success', False)
         except Exception as send_err:
-            logger.error(f"Failed to send news notification: {send_err}")
+            db_log('error', 'news', f'Failed to send news notification: {send_err}')
             success = False
 
         if success:
@@ -880,7 +610,7 @@ def send_article_email(article_id):
             }), 500
 
     except Exception as e:
-        print(f"Error sending article email: {e}")
+        db_log('error', 'news', f'Error sending article email: {e}')
         return jsonify({'error': str(e)}), 500
 
 
@@ -900,7 +630,6 @@ def crosspost_article(article_id, platform):
         return jsonify({'error': f'Invalid platform. Must be one of: {", ".join(VALID_CROSSPOST_PLATFORMS)}'}), 400
 
     try:
-        init_news_db()
         article = get_article_db(article_id)
         if not article:
             return jsonify({'error': 'Article not found'}), 404
@@ -908,12 +637,10 @@ def crosspost_article(article_id, platform):
         if article.get('status') != 'published':
             return jsonify({'error': 'Only published articles can be cross-posted'}), 400
 
-        # Build canonical URL
         from flask import current_app
         site_url = current_app.config.get('EMAIL_WEBSITE_URL', current_app.config.get('SITE_URL', ''))
         slug = article.get('slug', '')
 
-        # Try category-based URL first
         canonical_url = None
         category_name = article.get('category_name', '')
         if category_name:
@@ -925,7 +652,6 @@ def crosspost_article(article_id, platform):
         if not canonical_url:
             canonical_url = f"{site_url}/news/{slug}" if site_url else f"/news/{slug}"
 
-        # Get crosspost service
         crosspost_svc = None
         try:
             from lozzalingo.modules.crosspost import crosspost_service
@@ -936,12 +662,10 @@ def crosspost_article(article_id, platform):
         if crosspost_svc is None:
             return jsonify({'error': 'Cross-post service not available'}), 500
 
-        # Build image URL (absolute)
         image_url = article.get('image_url', '')
         if image_url and not image_url.startswith('http') and site_url:
             image_url = f"{site_url}{image_url}"
 
-        # Dispatch to platform
         result = None
         if platform == 'linkedin':
             result = crosspost_svc.post_to_linkedin(
@@ -985,7 +709,6 @@ def crosspost_article(article_id, platform):
             )
 
         if result and result.get('success'):
-            _mark_article_crosspost_sent(article_id, platform)
             return jsonify({
                 'success': True,
                 'platform': platform,
@@ -997,23 +720,5 @@ def crosspost_article(article_id, platform):
             return jsonify({'success': False, 'error': error_msg}), 500
 
     except Exception as e:
-        print(f"Error cross-posting article: {e}")
+        db_log('error', 'news', f'Error cross-posting article: {e}')
         return jsonify({'error': str(e)}), 500
-
-
-def _mark_article_crosspost_sent(article_id, platform):
-    """Mark an article as having been cross-posted to a platform"""
-    if platform not in VALID_CROSSPOST_PLATFORMS:
-        return
-    col = f'crossposted_{platform}'
-    news_db = get_db_config()
-    db_connect = get_db_connection()
-    try:
-        with db_connect(news_db) as conn:
-            conn.execute(
-                f'UPDATE news_articles SET {col} = 1 WHERE id = ?',
-                (article_id,)
-            )
-            conn.commit()
-    except Exception as e:
-        print(f"Error marking article crosspost ({platform}): {e}")

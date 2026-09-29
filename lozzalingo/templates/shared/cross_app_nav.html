@@ -1,0 +1,35 @@
+{#
+  Cross-app navigation partial for Jinja2 templates.
+
+  Include with:
+    {% include 'shared/cross_app_nav.html' %}
+
+  Optionally set `current_app_id` before including to highlight the
+  active link, e.g.:
+    {% set current_app_id = 'coffeegoblin' %}
+#}
+
+<nav aria-label="Lozzalingo ecosystem navigation" class="cross-app-nav">
+  <ul style="list-style:none;margin:0;padding:0;display:flex;gap:1rem;flex-wrap:wrap;">
+    {% set apps = [
+      {'id': 'fatbigquiz', 'name': 'Fat Big Quiz', 'url': 'https://fatbigquiz.com', 'desc': 'Live interactive pub quizzes and trivia nights'},
+      {'id': 'coffeegoblin', 'name': 'Coffee Goblin', 'url': 'https://coffeegoblin.co.uk', 'desc': 'Speciality coffee and merchandise'},
+      {'id': 'bucketrace', 'name': 'Bucket Race', 'url': 'https://bucketrace.com', 'desc': 'Team challenges, experiences, and adventures'},
+      {'id': 'crowdsauced', 'name': 'Crowd Sauced', 'url': 'https://crowdsauced.co.uk', 'desc': 'Community-curated hot sauce reviews and rankings'},
+      {'id': 'laurencecomputer', 'name': 'laurence.computer', 'url': 'https://laurence.computer', 'desc': 'Personal site and blog'},
+      {'id': 'tomlintenniscoaching', 'name': 'Tomlin Tennis Coaching', 'url': 'https://tomlintenniscoaching.co.uk', 'desc': 'Professional tennis coaching in London'},
+    ] %}
+    {% for app in apps %}
+    <li>
+      <a
+        name="nav_ecosystem_{{ app.id }}"
+        href="{{ app.url }}"
+        title="{{ app.desc }}"
+        {% if current_app_id == app.id %}aria-current="page" style="font-weight:700;text-decoration:none;color:inherit;"{% else %}style="text-decoration:none;color:inherit;"{% endif %}
+      >
+        {{ app.name }}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</nav>

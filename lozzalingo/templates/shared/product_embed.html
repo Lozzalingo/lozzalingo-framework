@@ -1,0 +1,68 @@
+{#
+  Product embed partial for Jinja2 templates.
+
+  Include with:
+    {% include 'shared/product_embed.html' %}
+
+  Set the following before including:
+    {% set ecommerce_service_url = config.get('ECOMMERCE_SERVICE_URL', '') %}
+    {% set embed_site_id = 'coffeegoblin' %}
+
+  Products are fetched client-side via fetch() so the page loads
+  without blocking on the E-commerce Service.
+#}
+
+<div id="product-embed" class="product-embed" data-url="{{ ecommerce_service_url }}" data-site="{{ embed_site_id }}" data-limit="{{ embed_limit|default(4) }}">
+  <p>Loading products...</p>
+</div>
+
+<script>
+(function() {
+  var container = document.getElementById('product-embed');
+  var baseUrl = container.getAttribute('data-url');
+  var siteId = container.getAttribute('data-site');
+  var limit = container.getAttribute('data-limit') || '4';
+
+  if (!baseUrl || !siteId) {
+    container.innerHTML = '';
+    return;
+  }
+
+  fetch(baseUrl + '/api/embed/' + siteId + '?limit=' + limit)
+    .then(function(res) {
+      if (!res.ok) throw new Error('Failed to load');
+      return res.json();
+    })
+    .then(function(data) {
+      var products = data.products || data;
+      if (!products.length) {
+        container.innerHTML = '';
+        return;
+      }
+
+      var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;">';
+      products.forEach(function(p) {
+        var symbol = (p.currency === 'USD') ? '$' : '\u00a3';
+        html += '<div style="border:1px solid #e5e7eb;border-radius:0.5rem;overflow:hidden;display:flex;flex-direction:column;">';
+        if (p.image_url) {
+          html += '<img src="' + p.image_url + '" alt="' + p.title + '" loading="lazy" style="width:100%;aspect-ratio:4/3;object-fit:cover;">';
+        }
+        html += '<div style="padding:0.75rem;flex:1;display:flex;flex-direction:column;">';
+        html += '<h3 style="margin:0 0 0.25rem;font-size:1rem;">' + p.title + '</h3>';
+        if (p.description) {
+          html += '<p style="margin:0 0 0.5rem;font-size:0.875rem;color:#6b7280;">' + p.description + '</p>';
+        }
+        html += '<p style="margin:0 0 0.75rem;font-weight:600;margin-top:auto;">' + symbol + p.price + '</p>';
+        html += '<a name="product_card_buy_' + p.id + '" href="' + p.product_url + '" target="_blank" rel="noopener noreferrer" ';
+        html += 'style="display:inline-block;padding:0.5rem 1rem;background:#111827;color:#fff;border-radius:0.375rem;text-decoration:none;text-align:center;font-size:0.875rem;">';
+        html += 'View product</a>';
+        html += '</div></div>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
+    })
+    .catch(function() {
+      container.innerHTML = '';
+    });
+})();
+</script>
