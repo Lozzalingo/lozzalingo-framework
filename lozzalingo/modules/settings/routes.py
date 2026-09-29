@@ -163,24 +163,25 @@ def test_stripe_connection():
         return jsonify({'success': False, 'error': str(e)})
 
 
-@settings_bp.route('/api/test-resend')
+@settings_bp.route('/api/test-email')
 @admin_required
-def test_resend_connection():
-    """Test Resend API connection"""
+def test_email_connection():
+    """Test centralised Email Service connection"""
     try:
-        import resend
+        import os
+        import requests
 
-        api_key = get_setting('RESEND_API_KEY')
-        if not api_key:
-            return jsonify({'success': False, 'error': 'Resend API key not configured'})
+        service_url = os.getenv('EMAIL_SERVICE_URL', '')
+        if not service_url:
+            return jsonify({'success': False, 'error': 'EMAIL_SERVICE_URL not configured'})
 
-        resend.api_key = api_key
-        # List domains to verify connection
-        resend.Domains.list()
+        resp = requests.get(f'{service_url}/health', timeout=10)
+        data = resp.json()
 
-        return jsonify({'success': True, 'message': 'Resend connection successful'})
+        if resp.status_code == 200 and data.get('status') in ('healthy', 'ok'):
+            return jsonify({'success': True, 'message': 'Email service connection successful'})
+        else:
+            return jsonify({'success': False, 'error': f'Email service returned: {data}'})
 
-    except ImportError:
-        return jsonify({'success': False, 'error': 'Resend package not installed'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})

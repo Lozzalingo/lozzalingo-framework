@@ -256,15 +256,6 @@ class Lozzalingo:
             result['features'] = yaml_config['features']
 
         # Map admin section
-        if 'admin' in yaml_config:
-            admin = yaml_config['admin']
-            if 'email' in admin:
-                result.setdefault('email', {})['admin_email'] = admin['email']
-
-        # Map email section
-        if 'email' in yaml_config:
-            result['email'] = yaml_config['email']
-
         # Map analytics section
         if 'analytics' in yaml_config:
             result['analytics'] = yaml_config['analytics']
@@ -290,19 +281,6 @@ class Lozzalingo:
                     "No SECRET_KEY set. Generated random key. "
                     "Set SECRET_KEY environment variable for production."
                 )
-
-        # Email configuration
-        email_config = self._config.get('email', {})
-        self.app.config.setdefault('RESEND_API_KEY',
-            email_config.get('resend_api_key') or os.environ.get('RESEND_API_KEY'))
-        self.app.config.setdefault('EMAIL_ADDRESS',
-            email_config.get('from_address') or os.environ.get('EMAIL_ADDRESS'))
-        self.app.config.setdefault('EMAIL_BRAND_NAME', self._config.get('brand_name'))
-        self.app.config.setdefault('EMAIL_BRAND_TAGLINE', self._config.get('brand_tagline'))
-        self.app.config.setdefault('EMAIL_SUPPORT_EMAIL',
-            email_config.get('support_email') or os.environ.get('EMAIL_SUPPORT_EMAIL'))
-        self.app.config.setdefault('EMAIL_ADMIN_EMAIL',
-            email_config.get('admin_email') or os.environ.get('EMAIL_ADMIN_EMAIL'))
 
         # Database configuration
         db_dir = os.path.join(self.app.root_path, self._config.get('db_dir', 'databases'))
@@ -352,10 +330,6 @@ class Lozzalingo:
         # News Public
         if features.get('news_public', True):
             self._register_news_public()
-
-        # Email
-        if features.get('email', True):
-            self._register_email()
 
         # Customer Spotlight
         if features.get('customer_spotlight', True):
@@ -447,21 +421,6 @@ class Lozzalingo:
             self.app.logger.debug("Registered news_public module")
         except Exception as e:
             self.app.logger.error(f"Failed to register news_public module: {e}")
-
-    def _register_email(self):
-        """Register the email module."""
-        try:
-            from .modules.email import email_preview_bp, email_service
-
-            # Initialize email service
-            email_service.init_app(self.app)
-
-            # Register preview blueprint
-            self.app.register_blueprint(email_preview_bp)
-            self._registered_blueprints.append('email')
-            self.app.logger.debug("Registered email module")
-        except Exception as e:
-            self.app.logger.error(f"Failed to register email module: {e}")
 
     def _register_customer_spotlight(self):
         """Register the customer spotlight module."""

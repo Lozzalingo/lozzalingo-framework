@@ -159,7 +159,7 @@ class EmailClient:
             Dict with success, sent, failed, results on success, or None.
         """
         payload = {
-            'recipients': recipients,
+            'to': recipients,
             'subject': subject,
             'html': html,
             'site_id': site_id,
@@ -204,18 +204,18 @@ class EmailClient:
             params['site_id'] = site_id
         return self._request('GET', '/api/email/stats', params=params)
 
-    def get_logs(self, site_id=None, page=1, per_page=50):
+    def get_logs(self, site_id=None, limit=50, offset=0):
         """Get email delivery logs.
 
         Args:
             site_id: Optional filter by site.
-            page: Page number (default 1).
-            per_page: Results per page (default 50).
+            limit: Max results to return (default 50, max 200).
+            offset: Number of results to skip (default 0).
 
         Returns:
             Dict with emails list and pagination info, or None.
         """
-        params = {'page': page, 'per_page': per_page}
+        params = {'limit': limit, 'offset': offset}
         if site_id:
             params['site_id'] = site_id
         return self._request('GET', '/api/email/list', params=params)

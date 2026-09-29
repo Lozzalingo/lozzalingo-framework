@@ -390,7 +390,7 @@
             <h1>Site Settings</h1>
             <div style="display: flex; align-items: center; gap: 12px;">
                 <button name="theme_toggle" class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"><span class="theme-icon"></span></button>
-                <a href="{{ url_for('admin.dashboard') }}" class="back-btn">
+                <a href="{{ url_for('admin.dashboard') }}" name="settings_back_to_dashboard" class="back-btn">
                     <span>&larr;</span> Back to Dashboard
                 </a>
             </div>
@@ -497,7 +497,7 @@
                     {% if category_key == 'stripe' %}
                     <button name="settings_test_stripe" type="button" class="test-btn" onclick="testStripe(this)">Test Stripe Connection</button>
                     {% elif category_key == 'email' %}
-                    <button name="settings_test_resend" type="button" class="test-btn" onclick="testResend(this)">Test Resend Connection</button>
+                    <button name="settings_test_email" type="button" class="test-btn" onclick="testEmail(this)">Test Email Service</button>
                     {% endif %}
                 </div>
             </div>
@@ -551,12 +551,12 @@
             }, 5000);
         }
 
-        async function testResend(btn) {
+        async function testEmail(btn) {
             btn.textContent = 'Testing...';
             btn.classList.remove('success', 'error');
 
             try {
-                const response = await fetch('{{ url_for("settings.test_resend_connection") }}');
+                const response = await fetch('{{ url_for("settings.test_email_connection") }}');
                 const data = await response.json();
 
                 if (data.success) {
@@ -572,7 +572,7 @@
             }
 
             setTimeout(() => {
-                btn.textContent = 'Test Resend Connection';
+                btn.textContent = 'Test Email Service';
                 btn.classList.remove('success', 'error');
             }, 5000);
         }

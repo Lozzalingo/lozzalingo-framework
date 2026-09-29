@@ -243,7 +243,6 @@ def test_yaml_config_mapping(tmp_db_dir):
 
     yaml_input = {
         "site": {"name": "My Test Site", "tagline": "A tagline"},
-        "admin": {"email": "admin@test.com"},
         "features": {"news": False},
     }
 
@@ -251,7 +250,6 @@ def test_yaml_config_mapping(tmp_db_dir):
 
     assert mapped["brand_name"] == "My Test Site"
     assert mapped["brand_tagline"] == "A tagline"
-    assert mapped["email"]["admin_email"] == "admin@test.com"
     assert mapped["features"]["news"] is False
 
 
