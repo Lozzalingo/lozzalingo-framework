@@ -14,7 +14,6 @@ See the main [README.md](../README.md) for installation and basic setup.
 | [Dashboard](./dashboard.md) | Admin authentication and dashboard | Pending |
 | [Auth](./auth.md) | User authentication (email, OAuth) | Pending |
 | [Email](./email.md) | Email service with Resend API | Pending |
-| [Customer Spotlight](./customer-spotlight.md) | Customer photo gallery | Pending |
 | [News](./news.md) | Blog/news management | Pending |
 | [Merchandise](./merchandise.md) | Product management | Pending |
 | [Orders](./orders.md) | Order management | Pending |
@@ -44,7 +43,6 @@ features:
   auth: true
   news: true
   email: true
-  customer_spotlight: true
   merchandise: false
   orders: false
 
@@ -73,10 +71,6 @@ For modules to work correctly, your templates should include:
 ### Analytics (automatic)
 No requirements - scripts are auto-injected.
 
-### Customer Spotlight
-```html
-<div id="customer-spotlight"></div>
-```
 
 ### News Section
 ```html

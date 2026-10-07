@@ -16,7 +16,7 @@ features:
   news: true
   news_public: true
   email: true
-  customer_spotlight: true
+  customer_spotlight: false
   merchandise: true
   merchandise_public: true
   orders: true

@@ -122,9 +122,12 @@ def test_email_client_init(app):
 # 4. EmailClient init (no config) -- does not crash with missing env vars
 # ---------------------------------------------------------------------------
 
-def test_email_client_init_no_config(app):
+def test_email_client_init_no_config(app, monkeypatch):
     """EmailClient does not crash when env vars are not set."""
     from lozzalingo.clients.email_client import EmailClient
+
+    monkeypatch.delenv('EMAIL_SERVICE_URL', raising=False)
+    monkeypatch.delenv('EMAIL_SERVICE_API_KEY', raising=False)
 
     client = EmailClient(service_url='', api_key='')
 
@@ -141,7 +144,6 @@ EXPECTED_MODULES = [
     "analytics",
     "news",
     "news_public",
-    "customer_spotlight",
     "merchandise",
     "merchandise_public",
     "orders",
@@ -259,18 +261,24 @@ def test_yaml_config_mapping(tmp_db_dir):
 
 def test_subscribers_client_initialises(tmp_db_dir):
     """SubscribersClient can be instantiated and has the expected methods.
-    Apps now call the subscribers-service via HTTP API instead of registering
-    the framework blueprint directly."""
+    Subscriber management now goes via the CRM and Email services instead of
+    the retired standalone subscribers service."""
     from lozzalingo.clients.subscribers_client import SubscribersClient
 
-    client = SubscribersClient(service_url='http://localhost:7226', api_key='test')
+    client = SubscribersClient(
+        email_service_url='http://localhost:7226',
+        crm_service_url='http://localhost:7300',
+        email_api_key='test',
+        crm_api_key='test',
+    )
     assert hasattr(client, 'subscribe')
     assert hasattr(client, 'list_subscribers')
     assert hasattr(client, 'get_subscriber')
     assert hasattr(client, 'unsubscribe')
     assert hasattr(client, 'create_list')
     assert hasattr(client, 'get_lists')
-    assert client.url == 'http://localhost:7226'
+    assert client.email_url == 'http://localhost:7226'
+    assert client.crm_url == 'http://localhost:7300'
 
 
 # ---------------------------------------------------------------------------

@@ -64,7 +64,6 @@ docker-compose up
 | `/admin/dashboard` | Main dashboard |
 | `/admin/analytics` | Analytics dashboard |
 | `/admin/news-editor` | News/blog editor |
-| `/admin/customer-spotlight-editor` | Customer gallery manager |
 | `/admin/email-preview/` | Email template preview |
 | `/admin/api-keys` | API key management |
 | `/admin/create-admin` | Create admin account (first-time setup) |

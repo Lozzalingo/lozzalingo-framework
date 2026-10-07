@@ -137,30 +137,7 @@
             </div>
             {% endif %}
 
-            <!-- Customer Spotlight Card -->
-            {% if endpoint_exists('customer_spotlight.admin_spotlights') %}
-            <div class="dashboard-card">
-                <div class="card-content">
-                    <h2>Customer Spotlight</h2>
-                    <p>Manage customer images and Instagram handles for the gallery showcase.</p>
-                    <div class="card-stats">
-                        <div class="stat">
-                            <span class="stat-number" id="totalSpotlights">-</span>
-                            <span class="stat-label">Active Spotlights</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-number" id="spotlightsSavings">-</span>
-                            <span class="stat-label">MB Saved</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-actions">
-                    <a href="/admin/customer-spotlight-editor" class="admin-btn admin-btn-primary">
-                        Spotlight Editor
-                    </a>
-                </div>
-            </div>
-            {% endif %}
+            <!-- Customer Spotlight card removed - managed by the central Customer Spotlight service -->
 
             <!-- Admin Management Card -->
             <div class="dashboard-card">
@@ -407,11 +384,6 @@
                         <span>Manage Orders</span>
                     </a>
                     {% endif %}
-                    {% if endpoint_exists('customer_spotlight.admin_spotlights') %}
-                    <a href="/admin/customer-spotlight-editor" class="quick-action">
-                        <span>Add Spotlight</span>
-                    </a>
-                    {% endif %}
                     <a href="/admin/analytics" class="quick-action">
                         <span>View Stats</span>
                     </a>
@@ -477,12 +449,6 @@
                         }
                         if (data.admin) {
                             document.getElementById('totalAdmins').textContent = data.admin.total_admins || '1';
-                        }
-                        if (data.customer_spotlight) {
-                            const el = document.getElementById('totalSpotlights');
-                            if (el) el.textContent = data.customer_spotlight.total_active || '0';
-                            const el2 = document.getElementById('spotlightsSavings');
-                            if (el2) el2.textContent = data.customer_spotlight.size_savings_mb || '0';
                         }
                         if (data.orders) {
                             const el = document.getElementById('totalOrders');

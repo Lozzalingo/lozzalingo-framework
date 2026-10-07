@@ -8,7 +8,7 @@ Shared framework rules are auto-loaded from the parent `Lozzalingo-python/CLAUDE
 - Version: 0.2.0, defined in `lozzalingo/__init__.py`
 
 ## Modules (17 total)
-analytics, auth, customer_spotlight, dashboard, email, external_api, inkthreadable, merchandise, merchandise_public, news, news_public, ops, orders, settings, subscribers
+analytics, auth, dashboard, email, external_api, inkthreadable, merchandise, merchandise_public, news, news_public, ops, orders, settings, subscribers
 
 All enabled by default via `DEFAULT_CONFIG['features']`. Host apps can disable with:
 ```python

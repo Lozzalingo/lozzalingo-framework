@@ -66,7 +66,6 @@ docker-compose up
 | `/admin/dashboard` | Admin dashboard with all modules |
 | `/admin/analytics` | Analytics dashboard |
 | `/admin/news-editor` | News/blog editor |
-| `/admin/customer-spotlight-editor` | Customer gallery manager |
 | `/admin/email-preview` | Email template preview |
 | `/admin/api-keys` | API key management |
 | `/news/` | Public news/blog listing |
@@ -94,7 +93,6 @@ lozzalingo-framework/
 │   └── modules/
 │       ├── analytics/           # Page view & event tracking
 │       ├── auth/                # User authentication
-│       ├── customer_spotlight/  # Customer gallery
 │       ├── dashboard/           # Admin dashboard
 │       ├── email/               # Email service
 │       ├── external_api/        # API key auth
@@ -151,7 +149,6 @@ Instead of requiring users to add `<script>` tags, we inject them automatically 
 ### 4. Required HTML structure
 For modules to work, templates need specific attributes:
 - Analytics: No requirements (auto-tracks all pages)
-- Customer Spotlight: `<div id="customer-spotlight"></div>`
 - News: Links with `href="/news/..."`
 
 ## Success Criteria
@@ -167,7 +164,6 @@ For modules to work, templates need specific attributes:
 |--------|-----------------|------------|-----------|--------|
 | analytics | Partial | No | No | No |
 | auth | Partial | No | No | No |
-| customer_spotlight | Partial | No | No | No |
 | dashboard | Partial | No | No | No |
 | email | Partial | No | No | No |
 | external_api | Partial | No | No | No |
@@ -212,7 +208,6 @@ features:
   auth: true
   news: true
   merchandise: false
-  customer_spotlight: true
 ```
 
 ## Next Steps

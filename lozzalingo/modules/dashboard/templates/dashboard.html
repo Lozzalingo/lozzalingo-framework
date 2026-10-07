@@ -26,10 +26,10 @@
                 <p class="admin-welcome">Welcome, {{ session.admin_email }}</p>
             </div>
             <div class="admin-actions">
-                <a href="{{ url_for('admin.change_password') }}" class="admin-btn admin-btn-secondary">
+                <a href="{{ url_for('admin.change_password') }}" class="admin-btn admin-btn-secondary" name="admin_change_password">
                     🔒 Change Password
                 </a>
-                <a href="{{ url_for('admin.logout') }}" class="admin-btn admin-btn-danger">
+                <a href="{{ url_for('admin.logout') }}" class="admin-btn admin-btn-danger" name="admin_logout">
                     🚪 Logout
                 </a>
             </div>
@@ -54,7 +54,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="/admin/analytics" class="admin-btn admin-btn-primary">
+                    <a href="/admin/analytics" class="admin-btn admin-btn-primary" name="view_analytics">
                         📈 View Analytics
                     </a>
                 </div>
@@ -78,7 +78,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="/admin/news-editor" class="admin-btn admin-btn-primary">
+                    <a href="/admin/news-editor" class="admin-btn admin-btn-primary" name="news_editor">
                         ✏️ News Editor
                     </a>
                 </div>
@@ -102,7 +102,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="/admin/merchandise-editor" class="admin-btn admin-btn-primary">
+                    <a href="/admin/merchandise-editor" class="admin-btn admin-btn-primary" name="merchandise_editor">
                         🛒 Merchandise Editor
                     </a>
                 </div>
@@ -126,35 +126,13 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="/admin/orders-manager" class="admin-btn admin-btn-primary">
+                    <a href="/admin/orders-manager" class="admin-btn admin-btn-primary" name="orders_manager">
                         📋 Manage Orders
                     </a>
                 </div>
             </div>
 
-            <!-- Customer Spotlight Card -->
-            <div class="dashboard-card">
-                <div class="card-icon">📸</div>
-                <div class="card-content">
-                    <h2>Customer Spotlight</h2>
-                    <p>Manage customer images and Instagram handles for the gallery showcase.</p>
-                    <div class="card-stats">
-                        <div class="stat">
-                            <span class="stat-number" id="totalSpotlights">-</span>
-                            <span class="stat-label">Active Spotlights</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-number" id="spotlightsSavings">-</span>
-                            <span class="stat-label">MB Saved</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-actions">
-                    <a href="/admin/customer-spotlight-editor" class="admin-btn admin-btn-primary">
-                        ✨ Spotlight Editor
-                    </a>
-                </div>
-            </div>
+            <!-- Customer Spotlight card removed - managed by the central Customer Spotlight service -->
 
             <!-- Admin Management Card -->
             <div class="dashboard-card">
@@ -174,7 +152,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="{{ url_for('admin.create_admin') }}" class="admin-btn admin-btn-primary">
+                    <a href="{{ url_for('admin.create_admin') }}" class="admin-btn admin-btn-primary" name="create_admin">
                         ➕ Create Admin
                     </a>
                 </div>
@@ -198,7 +176,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="{{ url_for('admin.email_logs') }}" class="admin-btn admin-btn-primary">
+                    <a href="{{ url_for('admin.email_logs') }}" class="admin-btn admin-btn-primary" name="email_logs">
                         📬 View Email Logs
                     </a>
                 </div>
@@ -222,7 +200,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="/admin/email-preview/" class="admin-btn admin-btn-primary">
+                    <a href="/admin/email-preview/" class="admin-btn admin-btn-primary" name="email_preview">
                         👁️ View Previews
                     </a>
                 </div>
@@ -246,7 +224,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="{{ url_for('admin.template_previews') }}" class="admin-btn admin-btn-primary">
+                    <a href="{{ url_for('admin.template_previews') }}" class="admin-btn admin-btn-primary" name="template_previews">
                         👀 View Templates
                     </a>
                 </div>
@@ -270,7 +248,7 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <a href="{{ url_for('admin.logs') }}" class="admin-btn admin-btn-primary">
+                    <a href="{{ url_for('admin.logs') }}" class="admin-btn admin-btn-primary" name="view_logs">
                         🔍 View Logs
                     </a>
                 </div>
@@ -308,31 +286,27 @@
                     <p>Common admin tasks and shortcuts.</p>
                 </div>
                 <div class="quick-actions">
-                    <a href="/admin/news-editor" class="quick-action">
+                    <a href="/admin/news-editor" class="quick-action" name="quick_action_news_editor">
                         <span class="quick-action-icon">📝</span>
                         <span>New Article</span>
                     </a>
-                    <a href="/admin/merchandise-editor" class="quick-action">
+                    <a href="/admin/merchandise-editor" class="quick-action" name="quick_action_merchandise_editor">
                         <span class="quick-action-icon">🏷️</span>
                         <span>New Product</span>
                     </a>
-                    <a href="/admin/orders-manager" class="quick-action">
+                    <a href="/admin/orders-manager" class="quick-action" name="quick_action_orders_manager">
                         <span class="quick-action-icon">📦</span>
                         <span>Manage Orders</span>
                     </a>
-                    <a href="/admin/customer-spotlight-editor" class="quick-action">
-                        <span class="quick-action-icon">📸</span>
-                        <span>Add Spotlight</span>
-                    </a>
-                    <a href="/admin/analytics" class="quick-action">
+                    <a href="/admin/analytics" class="quick-action" name="quick_action_analytics">
                         <span class="quick-action-icon">📊</span>
                         <span>View Stats</span>
                     </a>
-                    <a href="/admin/email-preview/" class="quick-action">
+                    <a href="/admin/email-preview/" class="quick-action" name="quick_action_email_preview">
                         <span class="quick-action-icon">📧</span>
                         <span>Email Preview</span>
                     </a>
-                    <a href="{{ url_for('admin.template_previews') }}" class="quick-action">
+                    <a href="{{ url_for('admin.template_previews') }}" class="quick-action" name="quick_action_template_previews">
                         <span class="quick-action-icon">🎨</span>
                         <span>Templates</span>
                     </a>
@@ -340,7 +314,7 @@
                         <span class="quick-action-icon">🖥️</span>
                         <span>Server Ops</span>
                     </a>
-                    <a href="{{ url_for('admin.change_password') }}" class="quick-action">
+                    <a href="{{ url_for('admin.change_password') }}" class="quick-action" name="quick_action_change_password">
                         <span class="quick-action-icon">🔐</span>
                         <span>Security</span>
                     </a>
@@ -380,10 +354,6 @@
                         }
                         if (data.admin) {
                             document.getElementById('totalAdmins').textContent = data.admin.total_admins || '1';
-                        }
-                        if (data.customer_spotlight) {
-                            document.getElementById('totalSpotlights').textContent = data.customer_spotlight.total_active || '0';
-                            document.getElementById('spotlightsSavings').textContent = data.customer_spotlight.size_savings_mb || '0';
                         }
                         if (data.orders) {
                             document.getElementById('totalOrders').textContent = data.orders.total_orders || '0';

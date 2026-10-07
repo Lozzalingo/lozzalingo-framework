@@ -16,10 +16,6 @@ A modular, reusable Flask admin dashboard framework.
 - **News Public Module**: Public-facing blog/news display with template override support
   - Framework provides: Backend routes, database queries, content formatting
   - Projects provide: Custom styled templates matching site design
-- **Customer Spotlight Module**: Instagram-style customer gallery with infinite scroll
-  - Horizontal carousel showcasing customer photos
-  - Admin interface for managing spotlight entries
-  - Generic base styles with per-project override support
 - **Email Module**: Configurable email service with Resend API
   - Welcome, purchase, shipping, news notification templates
   - Admin preview interface for all templates
@@ -172,33 +168,9 @@ Access:
 - Individual posts: `/news/<slug>`
 - API: `/news/api/articles`
 
-### Customer Spotlight Module
+### Customer Spotlight (retired)
 
-Instagram-style customer photo gallery with infinite-scroll horizontal carousel:
-- Public API endpoint for fetching spotlight data
-- Admin interface for managing entries
-- Generic base styles (override per-project for custom branding)
-- Responsive design for mobile and desktop
-
-**Usage:**
-```python
-from lozzalingo.modules.customer_spotlight import customer_spotlight_bp
-
-app.register_blueprint(customer_spotlight_bp)
-```
-
-**Include in templates:**
-```html
-<div id="customer-spotlight">
-    {% include 'customer_spotlight/spotlight_section.html' %}
-</div>
-```
-
-**Custom styling:** Create a project-specific `spotlight.css` that overrides the generic base styles. See INTEGRATION.md for detailed styling instructions.
-
-Access:
-- Public API: `/api/customer-spotlight`
-- Admin Editor: `/admin/customer-spotlight-editor`
+Served by the central Customer Spotlight service (SOA). Host apps use a small HTTP proxy blueprint. See INTEGRATION.md.
 
 ### Email Module
 

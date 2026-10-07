@@ -40,7 +40,6 @@ Present this table and recommend based on the site's purpose:
 | `news` / `news_public` | Blog/article editor + public display | Blogs, portfolios |
 | `email` | Transactional emails via Resend/SES/SMTP | Sites with subscribers |
 | `subscribers` | Email subscriber popup + management | Sites wanting a mailing list |
-| `customer_spotlight` | Instagram-style photo gallery carousel | E-commerce, community |
 | `merchandise` / `merchandise_public` | Product admin + embed API | E-commerce |
 | `orders` | Order management | E-commerce |
 | `external_api` | API key auth for external integrations | SaaS, integrations |
@@ -204,7 +203,6 @@ features:
   news: true/false
   news_public: true/false
   email: true/false
-  customer_spotlight: true/false
   merchandise: true/false
   merchandise_public: true/false
   orders: true/false
@@ -702,7 +700,6 @@ For each enabled feature, check its admin route:
 - analytics: `/admin/analytics`
 - news: `/admin/news`
 - email: `/admin/email-preview/`
-- customer_spotlight: `/admin/customer-spotlight-editor`
 - merchandise: `/admin/merchandise`
 - orders: `/admin/orders`
 - settings: `/admin/settings`

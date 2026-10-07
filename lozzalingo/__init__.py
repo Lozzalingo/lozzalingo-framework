@@ -63,7 +63,6 @@ class Lozzalingo:
             'dashboard': True,
             'news': True,
             'news_public': True,
-            'customer_spotlight': True,
             'merchandise': True,
             'merchandise_public': True,
             'orders': True,
@@ -75,6 +74,8 @@ class Lozzalingo:
             'ops': True,
             'campaigns': False,
             'crm': False,
+            'api_docs': False,
+            'api_playground': False,
         },
 
         # Analytics settings
@@ -331,9 +332,8 @@ class Lozzalingo:
         if features.get('news_public', True):
             self._register_news_public()
 
-        # Customer Spotlight
-        if features.get('customer_spotlight', True):
-            self._register_customer_spotlight()
+        # Customer Spotlight module removed - served by the central
+        # Customer Spotlight service (SOA). Host apps use an HTTP proxy.
 
         # Merchandise
         if features.get('merchandise', True):
@@ -379,6 +379,14 @@ class Lozzalingo:
         if features.get('crm', False):
             self._register_crm()
 
+        # API Docs (auto-generated from OpenAPI spec)
+        if features.get('api_docs', False):
+            self._register_api_docs()
+
+        # API Playground (interactive API testing tool)
+        if features.get('api_playground', False):
+            self._register_api_playground()
+
         # Client error logging (always on - receives browser JS errors)
         self._register_client_error()
 
@@ -421,16 +429,6 @@ class Lozzalingo:
             self.app.logger.debug("Registered news_public module")
         except Exception as e:
             self.app.logger.error(f"Failed to register news_public module: {e}")
-
-    def _register_customer_spotlight(self):
-        """Register the customer spotlight module."""
-        try:
-            from .modules.customer_spotlight import customer_spotlight_bp
-            self.app.register_blueprint(customer_spotlight_bp)
-            self._registered_blueprints.append('customer_spotlight')
-            self.app.logger.debug("Registered customer_spotlight module")
-        except Exception as e:
-            self.app.logger.error(f"Failed to register customer_spotlight module: {e}")
 
     def _register_merchandise(self):
         """Register the merchandise module."""
@@ -546,6 +544,26 @@ class Lozzalingo:
             self.app.logger.debug("Registered crm module")
         except Exception as e:
             self.app.logger.error(f"Failed to register crm module: {e}")
+
+    def _register_api_docs(self):
+        """Register the API documentation module."""
+        try:
+            from .modules.api_docs import api_docs_bp
+            self.app.register_blueprint(api_docs_bp)
+            self._registered_blueprints.append('api_docs')
+            self.app.logger.debug("Registered api_docs module")
+        except Exception as e:
+            self.app.logger.error(f"Failed to register api_docs module: {e}")
+
+    def _register_api_playground(self):
+        """Register the API playground module."""
+        try:
+            from .modules.api_playground import api_playground_bp
+            self.app.register_blueprint(api_playground_bp)
+            self._registered_blueprints.append('api_playground')
+            self.app.logger.debug("Registered api_playground module")
+        except Exception as e:
+            self.app.logger.error(f"Failed to register api_playground module: {e}")
 
     def _register_client_error(self):
         """Register the client-side error logging endpoint."""

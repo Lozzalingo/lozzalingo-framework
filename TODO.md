@@ -139,13 +139,6 @@
 - [ ] Document email preview feature
 - [ ] Document branding customization
 
-### 3.6 Customer Spotlight Module Documentation
-- [ ] Create `docs/customer-spotlight.md`
-- [ ] Document required HTML (`<div id="customer-spotlight">`)
-- [ ] Document admin interface
-- [ ] Document API endpoint
-- [ ] Document styling customization
-- [ ] Document JavaScript configuration
 
 ### 3.7 News Module Documentation
 - [ ] Create `docs/news.md`
