@@ -80,6 +80,11 @@ class BlogClient:
                 headers=self._headers(),
                 timeout=self.timeout,
             )
+            # A 404 on a GET is normal "not found" behaviour (e.g. slug lookup
+            # for a non-existent article). Return None silently instead of
+            # logging an error that clutters the digest.
+            if response.status_code == 404 and method.upper() == 'GET':
+                return None
             response.raise_for_status()
             return response.json()
         except Exception as e:
