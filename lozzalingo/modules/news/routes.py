@@ -4,14 +4,38 @@ News Admin Routes
 
 Admin interface for news/blog article management.
 Calls the centralised Blog Service (port 7219) for all article data.
+
+Includes a 60s in-process TTL cache so every page view does not hit the
+blog service. Cache is keyed on (site_id, status, category_name,
+exclude_categories) for listings and (site_id, slug) for single lookups.
 """
 
 from flask import render_template, request, redirect, url_for, session, jsonify, current_app
 from . import news_bp
 import os
+import time as _time
 import uuid
 
 from lozzalingo.core import db_log
+
+
+# ===== Blog Service TTL Cache =====
+
+_CACHE_TTL_SECONDS = 60
+_cache = {}
+
+
+def _cache_get(key):
+    """Return cached value if still within TTL, else None."""
+    entry = _cache.get(key)
+    if entry and (_time.time() - entry[0]) < _CACHE_TTL_SECONDS:
+        return entry[1]
+    return None
+
+
+def _cache_set(key, value):
+    """Store a value in the cache with the current timestamp."""
+    _cache[key] = (_time.time(), value)
 
 
 # ===== Blog Service Client =====
@@ -81,24 +105,172 @@ def _service_to_legacy(article):
 
 
 def init_news_db():
-    """No-op. The Blog Service manages its own database."""
+    """No-op. The Blog Service manages its own database.
+
+    The local news.db is kept as a read-only fallback for resilience.
+    """
     pass
 
 
-def get_all_articles_db(status=None, category_name=None, exclude_categories=None):
-    """Get all articles from the Blog Service with optional filters."""
-    client = _get_blog_client()
-    site_id = _get_site_id()
+# ===== Local DB Fallback =====
+# If the blog service is unreachable, fall back to the local news.db
+# so the site keeps serving articles rather than showing empty pages.
 
-    result = client.list_articles(site_id=site_id, status=status, per_page=500)
-    if not result:
+def _get_news_db_path():
+    """Return the path to the local news.db, or None if not configured."""
+    try:
+        path = current_app.config.get('NEWS_DB')
+        if path:
+            return path
+    except RuntimeError:
+        pass
+    return os.getenv('NEWS_DB', None)
+
+
+def _fallback_list_articles(status=None):
+    """Read articles from local news.db as a fallback when the blog service is down."""
+    db_path = _get_news_db_path()
+    if not db_path or not os.path.exists(db_path):
         return []
 
-    articles_raw = result.get('articles', result) if isinstance(result, dict) else result
-    if not isinstance(articles_raw, list):
-        articles_raw = []
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
 
-    articles = [_service_to_legacy(a) for a in articles_raw]
+        if status:
+            rows = conn.execute(
+                'SELECT * FROM news_articles WHERE status = ? ORDER BY created_at DESC',
+                (status,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                'SELECT * FROM news_articles ORDER BY created_at DESC'
+            ).fetchall()
+        conn.close()
+
+        articles = []
+        for r in rows:
+            articles.append({
+                'id': r['id'],
+                'title': r['title'],
+                'slug': r['slug'],
+                'content': r['content'],
+                'image_url': r['image_url'] or '',
+                'status': r['status'],
+                'email_sent': False,
+                'created_at': r['created_at'] or '',
+                'updated_at': r['updated_at'] or '',
+                'excerpt': r['excerpt'] or '',
+                'meta_title': r['meta_title'] or '',
+                'meta_description': r['meta_description'] or '',
+                'author_name': r['author_name'] or '',
+                'author_email': r['author_email'] or '',
+                'category_name': r['category_name'] or '',
+                'source_id': r['source_id'] or '',
+                'source_url': r['source_url'] or '',
+                'crossposted_linkedin': False,
+                'crossposted_medium': False,
+                'crossposted_substack': False,
+                'crossposted_twitter': False,
+                'crossposted_threads': False,
+                'image_position': '50',
+                'ads_enabled': True,
+                'ads_shops': None,
+            })
+
+        db_log('warning', 'news', f'Blog service down, served {len(articles)} articles from local news.db')
+        return articles
+    except Exception as e:
+        db_log('error', 'news', f'Local news.db fallback failed: {e}')
+        return []
+
+
+def _fallback_get_by_slug(slug):
+    """Read a single article by slug from local news.db as a fallback."""
+    db_path = _get_news_db_path()
+    if not db_path or not os.path.exists(db_path):
+        return None
+
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+
+        row = conn.execute(
+            'SELECT * FROM news_articles WHERE slug = ? LIMIT 1', (slug,)
+        ).fetchone()
+        conn.close()
+
+        if not row:
+            return None
+
+        article = {
+            'id': row['id'],
+            'title': row['title'],
+            'slug': row['slug'],
+            'content': row['content'],
+            'image_url': row['image_url'] or '',
+            'status': row['status'],
+            'email_sent': False,
+            'created_at': row['created_at'] or '',
+            'updated_at': row['updated_at'] or '',
+            'excerpt': row['excerpt'] or '',
+            'meta_title': row['meta_title'] or '',
+            'meta_description': row['meta_description'] or '',
+            'author_name': row['author_name'] or '',
+            'author_email': row['author_email'] or '',
+            'category_name': row['category_name'] or '',
+            'source_id': row['source_id'] or '',
+            'source_url': row['source_url'] or '',
+            'crossposted_linkedin': False,
+            'crossposted_medium': False,
+            'crossposted_substack': False,
+            'crossposted_twitter': False,
+            'crossposted_threads': False,
+            'image_position': '50',
+            'ads_enabled': True,
+            'ads_shops': None,
+        }
+        db_log('warning', 'news', f'Blog service down, served slug={slug} from local news.db')
+        return article
+    except Exception as e:
+        db_log('error', 'news', f'Local news.db fallback failed for slug={slug}: {e}')
+        return None
+
+
+def get_all_articles_db(status=None, category_name=None, exclude_categories=None):
+    """Get all articles from the Blog Service with optional filters.
+
+    Results are cached in-process for 60 seconds to avoid hitting the blog
+    service on every page view. The base list (per site_id + status) is
+    cached, then category filters are applied client-side.
+
+    Falls back to local news.db if the blog service is unreachable.
+    """
+    site_id = _get_site_id()
+
+    # Build a cache key for the base list (before category filtering)
+    base_cache_key = f'articles:{site_id}:{status or "all"}'
+    articles = _cache_get(base_cache_key)
+
+    if articles is None:
+        client = _get_blog_client()
+        result = client.list_articles(site_id=site_id, status=status, per_page=500)
+
+        if not result:
+            # Blog service unreachable: fall back to local news.db
+            articles = _fallback_list_articles(status=status)
+            if articles:
+                _cache_set(base_cache_key, articles)
+            return articles if not category_name and not exclude_categories else articles
+
+        articles_raw = result.get('articles', result) if isinstance(result, dict) else result
+        if not isinstance(articles_raw, list):
+            articles_raw = []
+
+        articles = [_service_to_legacy(a) for a in articles_raw]
+        _cache_set(base_cache_key, articles)
 
     # Apply category filters client-side (the blog service may not support these directly)
     if category_name:
@@ -121,11 +293,31 @@ def get_article_db(article_id):
 
 
 def get_article_by_slug_db(slug):
-    """Get a single article by slug from the Blog Service."""
-    client = _get_blog_client()
+    """Get a single article by slug from the Blog Service.
+
+    Cached for 60 seconds per slug. Falls back to local news.db
+    if the blog service is unreachable.
+    """
     site_id = _get_site_id()
+    cache_key = f'slug:{site_id}:{slug}'
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    client = _get_blog_client()
     result = client.get_article_by_slug(slug, site_id=site_id)
-    return _service_to_legacy(result)
+    article = _service_to_legacy(result)
+
+    if article:
+        _cache_set(cache_key, article)
+        return article
+
+    # Blog service returned nothing: could be a genuine 404 or a service outage.
+    # Try the local DB as a fallback so we don't break live pages during outages.
+    fallback = _fallback_get_by_slug(slug)
+    if fallback:
+        _cache_set(cache_key, fallback)
+    return fallback
 
 
 def create_article_db(title, content, image_url=None, status='draft',
