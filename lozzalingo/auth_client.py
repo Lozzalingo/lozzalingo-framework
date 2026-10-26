@@ -22,7 +22,12 @@ Usage:
 
 Environment variables:
     AUTH_SERVICE_URL  - Base URL of the auth service (default: https://auth.laurence.computer)
-    AUTH_JWT_SECRET   - Shared JWT secret for HS256 verification (required in production)
+    AUTH_JWT_SECRET   - (DEPRECATED) HS256 shared secret. Only needed during migration.
+                        New deployments should omit this; the client fetches the RS256
+                        public key from the auth service's JWKS endpoint automatically.
+
+Dependencies:
+    cryptography     - for RS256 JWT verification (pip install cryptography)
 """
 import os
 import json
@@ -30,6 +35,7 @@ import hmac
 import hashlib
 import base64
 import time
+import threading
 from functools import wraps
 from flask import request, g, redirect, jsonify
 
@@ -42,6 +48,88 @@ except ImportError:
 
 AUTH_SERVICE_URL = os.getenv('AUTH_SERVICE_URL', 'https://auth.laurence.computer')
 
+
+# ---------------------------------------------------------------------------
+# RS256 public key fetching and caching
+# ---------------------------------------------------------------------------
+
+_rs256_public_key = None
+_rs256_public_key_lock = threading.Lock()
+_rs256_last_fetch = 0
+_RS256_CACHE_TTL = 3600  # Re-fetch public key every hour
+
+
+def _fetch_rs256_public_key():
+    """Fetch the RS256 public key from the auth service JWKS endpoint.
+
+    Caches the key in memory for up to 1 hour. Thread-safe.
+    Returns the public key object or None on failure.
+    """
+    global _rs256_public_key, _rs256_last_fetch
+
+    now = time.time()
+    if _rs256_public_key is not None and (now - _rs256_last_fetch) < _RS256_CACHE_TTL:
+        return _rs256_public_key
+
+    with _rs256_public_key_lock:
+        # Double-check after acquiring lock
+        now = time.time()
+        if _rs256_public_key is not None and (now - _rs256_last_fetch) < _RS256_CACHE_TTL:
+            return _rs256_public_key
+
+        try:
+            import requests as http_requests
+            resp = http_requests.get(
+                f'{AUTH_SERVICE_URL}/.well-known/jwks.json',
+                timeout=5,
+            )
+            if resp.status_code != 200:
+                print(f'[AUTH_CLIENT] JWKS fetch failed: {resp.status_code}')
+                return _rs256_public_key  # Return stale key if available
+
+            jwks = resp.json()
+            keys = jwks.get('keys', [])
+            if not keys:
+                print('[AUTH_CLIENT] JWKS response has no keys')
+                return _rs256_public_key
+
+            # Use the first RS256 key
+            jwk = next((k for k in keys if k.get('alg') == 'RS256'), keys[0])
+
+            from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers
+            from cryptography.hazmat.backends import default_backend
+
+            def _b64url_decode(data):
+                padding = 4 - len(data) % 4
+                if padding != 4:
+                    data += '=' * padding
+                return base64.urlsafe_b64decode(data)
+
+            n_bytes = _b64url_decode(jwk['n'])
+            e_bytes = _b64url_decode(jwk['e'])
+            n = int.from_bytes(n_bytes, byteorder='big')
+            e = int.from_bytes(e_bytes, byteorder='big')
+
+            pub_numbers = RSAPublicNumbers(e, n)
+            _rs256_public_key = pub_numbers.public_key(default_backend())
+            _rs256_last_fetch = now
+            print('[AUTH_CLIENT] RS256 public key fetched and cached')
+            return _rs256_public_key
+
+        except Exception as exc:
+            print(f'[AUTH_CLIENT] Failed to fetch JWKS: {exc}')
+            return _rs256_public_key  # Return stale key if available
+
+
+def _invalidate_rs256_cache():
+    """Force a re-fetch of the RS256 public key on next verification."""
+    global _rs256_last_fetch
+    _rs256_last_fetch = 0
+
+
+# ---------------------------------------------------------------------------
+# URL helpers
+# ---------------------------------------------------------------------------
 
 def _clean_redirect_url(url):
     """Strip any stale auth_token param from a URL and fix the scheme.
@@ -69,6 +157,10 @@ def _clean_redirect_url(url):
     return parsed._replace(scheme=scheme, query=clean_query).geturl()
 
 
+# ---------------------------------------------------------------------------
+# JWT secret (HS256 fallback, deprecated)
+# ---------------------------------------------------------------------------
+
 def _get_jwt_secret():
     """Get JWT secret lazily so dotenv has time to load in the host app."""
     return os.getenv('AUTH_JWT_SECRET', '')
@@ -82,15 +174,20 @@ def _b64_decode(data):
     return base64.urlsafe_b64decode(data)
 
 
+# ---------------------------------------------------------------------------
+# JWT decoding
+# ---------------------------------------------------------------------------
+
 def decode_jwt(token):
     """
-    Decode and verify a JWT token (HS256).
+    Decode and verify a JWT token.
+
+    Verification order:
+    1. RS256 using the public key from the auth service JWKS endpoint
+    2. HS256 using AUTH_JWT_SECRET (migration fallback, deprecated)
+
     Returns the payload dict or None if invalid/expired.
     """
-    secret = _get_jwt_secret()
-    if not secret:
-        return None
-
     try:
         parts = token.split('.')
         if len(parts) != 3:
@@ -98,36 +195,85 @@ def decode_jwt(token):
 
         header_b64, payload_b64, signature_b64 = parts
 
-        # Verify signature
-        signing_input = f'{header_b64}.{payload_b64}'.encode('utf-8')
-        expected_sig = hmac.new(
-            secret.encode('utf-8'),
-            signing_input,
-            hashlib.sha256
-        ).digest()
-        actual_sig = _b64_decode(signature_b64)
-
-        if not hmac.compare_digest(expected_sig, actual_sig):
-            return None
-
-        # Decode header to confirm algorithm
+        # Decode header to check algorithm
         header = json.loads(_b64_decode(header_b64))
-        if header.get('alg') != 'HS256':
-            return None
+        alg = header.get('alg', '')
 
-        # Decode payload
+        # Decode payload (needed for expiry check regardless of verification method)
         payload = json.loads(_b64_decode(payload_b64))
 
-        # Check expiry
+        # Check expiry early
         exp = payload.get('exp')
         if exp and time.time() > exp:
             return None
 
-        return payload
+        # Try RS256 verification
+        if alg == 'RS256':
+            pub_key = _fetch_rs256_public_key()
+            if pub_key:
+                try:
+                    from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
+                    from cryptography.hazmat.primitives import hashes
+
+                    signing_input = f'{header_b64}.{payload_b64}'.encode('utf-8')
+                    actual_sig = _b64_decode(signature_b64)
+                    pub_key.verify(actual_sig, signing_input, asym_padding.PKCS1v15(), hashes.SHA256())
+                    return payload
+                except Exception:
+                    # Signature invalid, try re-fetching key (might have rotated)
+                    _invalidate_rs256_cache()
+                    pub_key = _fetch_rs256_public_key()
+                    if pub_key:
+                        try:
+                            pub_key.verify(actual_sig, signing_input, asym_padding.PKCS1v15(), hashes.SHA256())
+                            return payload
+                        except Exception:
+                            pass
+                    # RS256 verification failed
+                    return None
+
+        # HS256 verification (legacy fallback)
+        if alg == 'HS256':
+            secret = _get_jwt_secret()
+            if not secret:
+                return None
+            signing_input = f'{header_b64}.{payload_b64}'.encode('utf-8')
+            expected_sig = hmac.new(
+                secret.encode('utf-8'),
+                signing_input,
+                hashlib.sha256
+            ).digest()
+            actual_sig = _b64_decode(signature_b64)
+            if not hmac.compare_digest(expected_sig, actual_sig):
+                return None
+            return payload
+
+        # Unknown algorithm
+        return None
 
     except Exception:
         return None
 
+
+# ---------------------------------------------------------------------------
+# Convenience helpers
+# ---------------------------------------------------------------------------
+
+def get_auth_user_from_cookie():
+    """Read the auth_token cookie and return the decoded JWT payload, or None.
+
+    Useful for views that want to check auth status without requiring it.
+    Does not redirect or return errors - just returns the payload or None.
+    """
+    token = request.cookies.get('auth_token')
+    if not token:
+        return None
+    return decode_jwt(token)
+
+
+# ---------------------------------------------------------------------------
+# Auth decorators
+# ---------------------------------------------------------------------------
 
 def require_auth(f):
     """Decorator that requires a valid JWT token (cookie, header, or query param).
