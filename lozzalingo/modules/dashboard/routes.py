@@ -197,7 +197,45 @@ def logout():
 @dashboard_bp.route('/')
 @dashboard_bp.route('/dashboard')
 def dashboard():
-    """Admin dashboard - the unified admin interface"""
+    """Admin dashboard - the unified admin interface.
+
+    Handles ?auth_token= from the SSO redirect so that cross-domain apps
+    (and subdomain apps whose cookie expired) can log in via the hub.
+    Uses a 200 meta-refresh instead of 302 to avoid Cloudflare stripping
+    the Set-Cookie header.
+    """
+    from flask import make_response
+
+    # Handle ?auth_token= from SSO redirect (cross-domain hub link)
+    token_from_url = request.args.get('auth_token')
+    if token_from_url:
+        try:
+            from lozzalingo.auth_client import decode_jwt, _clean_redirect_url
+            payload = decode_jwt(token_from_url)
+            if payload:
+                is_super = payload.get('is_super_admin', False)
+                has_admin_role = any(
+                    a.get('role') in ('admin', 'owner')
+                    for a in payload.get('site_access', [])
+                )
+                if is_super or has_admin_role:
+                    clean_url = _clean_redirect_url(request.url)
+                    html = (
+                        '<!DOCTYPE html><html><head>'
+                        '<meta http-equiv="refresh" content="0;url={url}">'
+                        '</head><body>Redirecting...</body></html>'
+                    ).format(url=clean_url)
+                    resp = make_response(html, 200)
+                    resp.headers['Content-Type'] = 'text/html'
+                    resp.set_cookie(
+                        'auth_token', token_from_url,
+                        httponly=True, secure=True, samesite='Lax',
+                        max_age=900, path='/',
+                    )
+                    return resp
+        except Exception as exc:
+            print(f'[DASHBOARD] auth_token from URL handling failed: {exc}')
+
     if not _is_admin_authenticated():
         return redirect(url_for('admin.login', next=request.url))
     return render_template('dashboard/dashboard.html')
