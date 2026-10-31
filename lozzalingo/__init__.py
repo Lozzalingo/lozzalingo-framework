@@ -143,7 +143,9 @@ class Lozzalingo:
         # Set up ops monitoring (health checks + alerts on admin page loads)
         if self._config.get('features', {}).get('ops', True):
             self._setup_ops_monitoring()
-            self._setup_ops_banner_injection()
+            ops_cfg = self._config.get('ops', {})
+            if ops_cfg.get('show_banner', True):
+                self._setup_ops_banner_injection()
 
         # Start daily error digest (requires ops feature, sends via centralised email service)
         if self._config.get('features', {}).get('ops', True):
@@ -265,6 +267,10 @@ class Lozzalingo:
         if 'crm' in yaml_config:
             result['crm'] = yaml_config['crm']
 
+        # Map ops section (suppress_checks, etc.)
+        if 'ops' in yaml_config:
+            result['ops'] = yaml_config['ops']
+
         return result
 
     def _configure_flask_app(self):
@@ -291,6 +297,12 @@ class Lozzalingo:
         self.app.config.setdefault('ANALYTICS_DB', os.path.join(db_dir, 'analytics.db'))
         self.app.config.setdefault('PROJECTS_DB', os.path.join(db_dir, 'projects.db'))
         self.app.config.setdefault('QUICK_LINKS_DB', os.path.join(db_dir, 'quick_links.db'))
+
+        # Ops suppress_checks - load from config into Flask app config
+        ops_config = self._config.get('ops', {})
+        suppress = ops_config.get('suppress_checks', [])
+        if suppress:
+            self.app.config.setdefault('OPS_SUPPRESS_CHECKS', suppress)
 
         # Load settings DB values into app.config (if settings module is available)
         try:
@@ -347,9 +359,11 @@ class Lozzalingo:
         if features.get('orders', True):
             self._register_orders()
 
-        # External API
+        # External API (local write endpoints, retired when using centralised blog service)
         if features.get('external_api', True):
             self._register_external_api()
+        else:
+            print("[BLOG] external_api feature disabled, local write endpoints retired")
 
         # Settings
         if features.get('settings', True):
@@ -390,6 +404,9 @@ class Lozzalingo:
         # Client error logging (always on - receives browser JS errors)
         self._register_client_error()
 
+        # Summary: log registered modules for startup verification
+        print(f"[Lozzalingo] Registered modules: {', '.join(self._registered_blueprints)}")
+
     def _register_dashboard(self):
         """Register the admin dashboard module."""
         try:
@@ -417,6 +434,18 @@ class Lozzalingo:
             self.app.register_blueprint(news_bp)
             self._registered_blueprints.append('news')
             self.app.logger.debug("Registered news module")
+
+            # Log blog service wiring status at startup
+            blog_url = os.getenv('BLOG_SERVICE_URL', '')
+            site_id = self.app.config.get('BLOG_SITE_ID') or os.getenv('BLOG_SITE_ID', '')
+            if blog_url and site_id:
+                try:
+                    from .clients.blog_client import BlogClient  # noqa: F401
+                    print(f"[BLOG] Wired to blog service (site_id {site_id}) at {blog_url}")
+                except ImportError:
+                    print(f"[BLOG] WARNING: BLOG_SERVICE_URL set but blog_client.py not found")
+            elif blog_url:
+                print(f"[BLOG] WARNING: BLOG_SERVICE_URL set but BLOG_SITE_ID missing")
         except Exception as e:
             self.app.logger.error(f"Failed to register news module: {e}")
 
@@ -712,20 +741,22 @@ class Lozzalingo:
         """Inject centralised Analytics service tracking snippet into all HTML responses.
 
         Adds lza.js from the centralised Analytics service. Only active when
-        ANALYTICS_SERVICE_URL is set. Extracts site_id from ANALYTICS_SERVICE_KEY
-        using the same pattern as Site Monitor (key format: sm_{site_id}_{random}).
+        ANALYTICS_SERVICE_URL is set. Uses ANALYTICS_SITE_ID if provided,
+        otherwise falls back to extracting site_id from ANALYTICS_SERVICE_KEY
+        (key format: sm_{site_id}_{random}).
         """
         import os
         analytics_url = os.getenv('ANALYTICS_SERVICE_URL')
         if not analytics_url:
             return
 
-        # Extract site_id from the key (same pattern as Site Monitor)
-        analytics_key = os.getenv('ANALYTICS_SERVICE_KEY', '')
-        site_id = ''
-        if analytics_key.startswith('sm_') and analytics_key.count('_') >= 2:
-            parts = analytics_key.split('_')
-            site_id = '_'.join(parts[1:-1])
+        # Prefer explicit ANALYTICS_SITE_ID, fall back to key extraction
+        site_id = os.getenv('ANALYTICS_SITE_ID', '')
+        if not site_id:
+            analytics_key = os.getenv('ANALYTICS_SERVICE_KEY', '')
+            if analytics_key.startswith('sm_') and analytics_key.count('_') >= 2:
+                parts = analytics_key.split('_')
+                site_id = '_'.join(parts[1:-1])
 
         @self.app.after_request
         def inject_analytics_service_scripts(response):
