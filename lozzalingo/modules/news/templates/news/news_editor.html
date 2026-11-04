@@ -4,10 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>News Editor - Admin</title>
+    {#
+        Editor assets are loaded from the blog service (BLOG_EDITOR_EMBED_BASE).
+        If the remote assets fail to load, we fall back to the bundled local copies
+        in modules/news/static so editing never breaks.
+        Configure BLOG_EDITOR_EMBED_BASE in your app config to override the default.
+    #}
+    {% set embed_base = config.get('BLOG_EDITOR_EMBED_BASE', 'https://blog.laurence.computer/embed') %}
     <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css">
-    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/newseditor.css') }}">
+    <link rel="stylesheet"
+          href="{{ embed_base }}/newseditor.css"
+          onerror="this.onerror=null; this.href='{{ url_for('news_admin.static', filename='css/newseditor.css') }}'">
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
 </head>
 <body>
@@ -247,8 +256,13 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
-    <script src="{{ url_for('admin.static', filename='js/image-compress.js') }}"></script>
-    <script src="{{ url_for('admin.static', filename='js/newseditor.js') }}" defer></script>
+    <!-- image-compress: load from blog service, fall back to local bundled copy -->
+    <script src="{{ embed_base }}/image-compress.js"
+            onerror="this.onerror=null; var fb=document.createElement('script'); fb.src='{{ url_for('news_admin.static', filename='js/image-compress.js') }}'; document.head.appendChild(fb);"></script>
+    <!-- newseditor: load from blog service, fall back to local bundled copy -->
+    <script src="{{ embed_base }}/newseditor.js"
+            defer
+            onerror="this.onerror=null; var fb=document.createElement('script'); fb.src='{{ url_for('news_admin.static', filename='js/newseditor.js') }}'; fb.defer=true; document.head.appendChild(fb);"></script>
 
     <style>
     .form-section {
