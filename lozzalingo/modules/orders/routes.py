@@ -47,6 +47,86 @@ def _get_merchandise_conn():
 
     return sqlite3.connect(db_path)
 
+
+# =============================================================================
+# Service-backed mode (centralised E-commerce SCS)
+# =============================================================================
+# Apps opt in by setting ORDERS_SOURCE = 'ecommerce-service' in app config
+# (plus ECOMMERCE_SERVICE_URL and ECOMMERCE_API_KEY env vars). When enabled,
+# admin order endpoints read from the central service instead of the local
+# merchandise.db. The local-DB path below remains the fallback for apps that
+# have not migrated yet (e.g. apps whose webhooks still write locally).
+# =============================================================================
+
+def _get_service_client():
+    """Return an EcommerceClient if the app has opted into service-backed orders.
+
+    Returns None when the app has not opted in or the client cannot be built,
+    in which case callers fall back to the local merchandise database.
+    """
+    if current_app.config.get('ORDERS_SOURCE') != 'ecommerce-service':
+        return None
+    try:
+        from lozzalingo.clients.ecommerce_client import EcommerceClient
+        client = EcommerceClient()
+        if not client.url or not client.key:
+            return None
+        return client
+    except Exception as e:
+        try:
+            from lozzalingo.core import db_log
+            db_log('error', 'orders', 'Failed to build EcommerceClient', {'error': str(e)})
+        except Exception:
+            pass
+        return None
+
+
+def _service_order_products(order):
+    """Build a product summary string from a service order's items."""
+    names = []
+    for item in order.get('items', []):
+        name = item.get('product_name') or 'Unknown'
+        bits = [b for b in (item.get('size'), item.get('colour')) if b]
+        if bits:
+            name += f" ({' '.join(bits)})"
+        qty = item.get('quantity') or 1
+        if qty > 1:
+            name += f" x{qty}"
+        names.append(name)
+    return ', '.join(names) if names else 'Unknown'
+
+
+def _service_order_to_entry(order):
+    """Map a central-service order dict to the admin list entry shape."""
+    order_id = order.get('id')
+    total = order.get('total_pence') or 0
+    status = order.get('status') or ''
+    return {
+        'id': order_id,
+        'order_number': f"ORD-{str(order_id).zfill(6)}",
+        'receipt_id': None,
+        'session_id': order.get('payment_session_id') or '',
+        'customer_email': order.get('customer_email') or '',
+        'customer_name': order.get('customer_name') or '',
+        'total_amount': total,
+        'amount_display': f"£{total / 100:.2f}",
+        'status': status,
+        'fulfilment_status': status if status in ('submitted', 'printing', 'shipped', 'delivered') else 'pending',
+        'created_at': order.get('created_at') or '',
+        'products': _service_order_products(order),
+        'shop': None,
+        'visitor_ip': '',
+        'visitor_city': '',
+        'shipping_cost': order.get('shipping_pence') or 0,
+        'discount_code': order.get('discount_code') or '',
+        'discount_pence': order.get('discount_pence') or 0,
+    }
+
+
+# Statuses that count as a real, paid sale on the central service
+_SERVICE_PAID_STATUSES = ('paid', 'submitted', 'printing', 'shipped', 'delivered')
+
+
 @orders_bp.route('/')
 def orders_manager():
     """Order management page"""
@@ -84,6 +164,33 @@ def api_orders():
     """List recent orders for admin"""
     if 'admin_id' not in session:
         return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    # Service-backed mode: read orders from the central E-commerce service
+    client = _get_service_client()
+    if client:
+        service_orders = client.list_orders(limit=50)
+        if service_orders is None:
+            return jsonify({'success': False, 'error': 'E-commerce service unavailable'}), 502
+
+        orders = [_service_order_to_entry(o) for o in service_orders]
+        real_orders = [o for o in orders if o['status'] != 'cancelled' and o['customer_email']]
+        total_gross = sum(o.get('total_amount') or 0 for o in real_orders)
+        total_shipping = sum(o.get('shipping_cost') or 0 for o in real_orders)
+        total_net = total_gross - total_shipping
+
+        return jsonify({
+            'success': True,
+            'orders': orders,
+            'summary': {
+                'total_orders': len(real_orders),
+                'total_gross': total_gross,
+                'total_gross_display': f"£{total_gross / 100:.2f}",
+                'total_shipping': total_shipping,
+                'total_shipping_display': f"£{total_shipping / 100:.2f}",
+                'total_net': total_net,
+                'total_net_display': f"£{total_net / 100:.2f}",
+            },
+        })
 
     try:
         conn = _get_merchandise_conn()
@@ -283,6 +390,38 @@ def api_order_details(order_id):
     if 'admin_id' not in session:
         return jsonify({'success': False, 'error': 'Authentication required'}), 401
 
+    # Service-backed mode
+    client = _get_service_client()
+    if client:
+        order = client.get_order(order_id)
+        if order is None:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+
+        items = []
+        for item in order.get('items', []):
+            price = item.get('unit_price_pence') or 0
+            qty = item.get('quantity') or 1
+            items.append({
+                'id': item.get('id'),
+                'product_id': item.get('product_id'),
+                'product_name': item.get('product_name') or 'Unknown',
+                'quantity': qty,
+                'size': item.get('size') or '',
+                'color': item.get('colour') or '',
+                'price_at_time': price,
+                'subtotal': price * qty,
+                'attributes': item.get('attributes_json') or '',
+            })
+
+        order_data = _service_order_to_entry(order)
+        order_data['items'] = items
+        order_data['shipping_address'] = order.get('shipping_address') or {}
+        order_data['subtotal_pence'] = order.get('subtotal_pence') or 0
+        order_data['fulfilment_events'] = order.get('fulfilment_events') or []
+        order_data['updated_at'] = order.get('updated_at') or ''
+
+        return jsonify({'success': True, 'order': order_data})
+
     try:
         conn = _get_merchandise_conn()
         if not conn:
@@ -388,6 +527,20 @@ def api_update_order():
         if not order_id:
             return jsonify({'success': False, 'error': 'Order ID required'}), 400
 
+        # Service-backed mode: forward supported fields to the central service
+        client = _get_service_client()
+        if client:
+            payload = {}
+            for key in ('status', 'customer_email', 'customer_name', 'shipping_address'):
+                if key in data and data[key] not in (None, ''):
+                    payload[key] = data[key]
+            if not payload:
+                return jsonify({'success': False, 'error': 'No updatable fields provided'}), 400
+            result = client.update_order(order_id, payload)
+            if result is None:
+                return jsonify({'success': False, 'error': 'E-commerce service update failed'}), 502
+            return jsonify({'success': True, 'message': f'Order {order_id} updated successfully'})
+
         conn = _get_merchandise_conn()
         if not conn:
             return jsonify({'success': False, 'error': 'Database not configured'}), 500
@@ -458,6 +611,21 @@ def api_delete_order():
         if not order_id:
             return jsonify({'success': False, 'error': 'Order ID required'}), 400
 
+        # Service-backed mode: hard deletes are not supported centrally.
+        # Cancel the order instead (restores variant stock on the service).
+        client = _get_service_client()
+        if client:
+            result = client.cancel_order(order_id)
+            if result is None:
+                return jsonify({
+                    'success': False,
+                    'error': 'Could not cancel order on E-commerce service (already shipped, delivered or cancelled?)'
+                }), 502
+            return jsonify({
+                'success': True,
+                'message': f'Order {order_id} cancelled on the central service (hard delete not supported)'
+            })
+
         conn = _get_merchandise_conn()
         if not conn:
             return jsonify({'success': False, 'error': 'Database not configured'}), 500
@@ -499,6 +667,26 @@ def api_products():
     """List available products for adding to orders"""
     if 'admin_id' not in session:
         return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    # Service-backed mode
+    client = _get_service_client()
+    if client:
+        service_products = client.list_products()
+        if service_products is None:
+            return jsonify({'success': False, 'error': 'E-commerce service unavailable'}), 502
+        product_list = []
+        for p in service_products:
+            if not p.get('is_active') or not p.get('name'):
+                continue
+            price = p.get('base_price_pence') or 0
+            product_list.append({
+                'id': p.get('id'),
+                'name': p.get('name'),
+                'price': price,
+                'price_display': f"£{price / 100:.2f}",
+            })
+        product_list.sort(key=lambda x: x['name'])
+        return jsonify({'success': True, 'products': product_list})
 
     try:
         conn = _get_merchandise_conn()
@@ -1246,6 +1434,31 @@ def recent_sales():
     # Emails to exclude (test purchases)
     exclude_emails = current_app.config.get('TICKER_EXCLUDE_EMAILS', _DEFAULT_EXCLUDE_EMAILS)
 
+    # Service-backed mode
+    client = _get_service_client()
+    if client:
+        service_orders = client.list_orders(limit=50)
+        if service_orders is None:
+            return jsonify({'sales': []})
+
+        sales = []
+        for order in service_orders:
+            if order.get('status') not in _SERVICE_PAID_STATUSES:
+                continue
+            if order.get('customer_email') in (exclude_emails or []):
+                continue
+            product_names = [i.get('product_name') for i in order.get('items', []) if i.get('product_name')]
+            title = f"{brand_name} - {', '.join(product_names)}" if product_names else brand_name
+            sales.append({
+                'title': title,
+                'url': site_url,
+                'date': str(order.get('created_at') or '')[:10],
+                'type': 'purchase',
+            })
+            if len(sales) >= 5:
+                break
+        return jsonify({'sales': sales})
+
     try:
         conn = _get_merchandise_conn()
         if not conn:
@@ -1378,6 +1591,34 @@ def sales_summary():
     )
 
     exclude_emails = current_app.config.get('TICKER_EXCLUDE_EMAILS', _DEFAULT_EXCLUDE_EMAILS)
+
+    # Service-backed mode: aggregate from the central service
+    client = _get_service_client()
+    if client:
+        service_orders = client.list_orders(limit=1000)
+        if service_orders is None:
+            return jsonify({'error': 'E-commerce service unavailable'}), 502
+
+        paid = [
+            o for o in service_orders
+            if o.get('status') in _SERVICE_PAID_STATUSES
+            and o.get('customer_email') not in (exclude_emails or [])
+        ]
+        total_revenue = sum(o.get('total_pence') or 0 for o in paid)
+        customers = {o.get('customer_email') for o in paid if o.get('customer_email')}
+        first_sale_date = None
+        dates = sorted(str(o.get('created_at') or '')[:10] for o in paid if o.get('created_at'))
+        if dates:
+            first_sale_date = dates[0]
+
+        return jsonify({
+            'brand': brand_name,
+            'total_revenue_pence': total_revenue,
+            'total_orders': len(paid),
+            'total_customers': len(customers),
+            'first_sale_date': first_sale_date,
+            'currency': 'GBP',
+        })
 
     try:
         conn = _get_merchandise_conn()

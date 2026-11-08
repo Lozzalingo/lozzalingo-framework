@@ -243,6 +243,19 @@ class EcommerceClient:
         }
         return self._request('POST', '/api/ecommerce/orders', json_data=payload)
 
+    def update_order(self, order_id, data):
+        """Update an order (status, customer details, shipping address).
+
+        Args:
+            order_id: The order record ID.
+            data: Dict with any of: status, customer_email, customer_name,
+                  shipping_address (dict).
+
+        Returns:
+            Dict with id and updated flag, or None.
+        """
+        return self._request('PUT', f'/api/ecommerce/orders/{order_id}', json_data=data)
+
     def cancel_order(self, order_id):
         """Cancel an order (restores variant stock). Returns dict or None."""
         return self._request('POST', f'/api/ecommerce/orders/{order_id}/cancel')
