@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Playground</title>
+    <script>
+        (function(){var t=localStorage.getItem('lz-theme')||'dark';document.documentElement.setAttribute('data-theme',t)})();
+    </script>
+    <link rel="stylesheet" href="{{ url_for('api_playground.static', filename='css/playground.css') }}">
+</head>
+<body>
+    <div class="pg-layout">
+        <!-- Left panel: endpoint selector -->
+        <aside class="pg-sidebar" id="pgSidebar">
+            <div class="pg-sidebar-header">
+                <h2>API Playground</h2>
+                <div class="pg-sidebar-actions">
+                    <a href="/api/docs/" name="back_to_docs" class="pg-back-link" title="Back to docs">&larr; Docs</a>
+                    <button name="theme_toggle" class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                        <span class="theme-icon"></span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="pg-search">
+                <input type="text" id="pgSearch" name="playground_search" placeholder="Search endpoints..." autocomplete="off">
+            </div>
+
+            <nav class="pg-nav" id="pgNav">
+                <!-- Populated by JS from groups_json -->
+            </nav>
+        </aside>
+
+        <!-- Right panel: request builder + response -->
+        <main class="pg-main">
+            <!-- URL bar -->
+            <div class="pg-url-bar">
+                <div class="pg-server-select">
+                    <select id="pgServer" name="server_select">
+                        {% for server in servers %}
+                        <option value="{{ server.url }}">{{ server.get('description', server.url) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="pg-method-display">
+                    <span id="pgMethodBadge" class="method-badge method-get">GET</span>
+                </div>
+                <div class="pg-path-display">
+                    <input type="text" id="pgPath" name="request_path" value="/health" readonly>
+                </div>
+                <button name="send_request" id="pgSendBtn" class="pg-send-btn">Send</button>
+            </div>
+
+            <div class="pg-panels">
+                <!-- Request panel -->
+                <div class="pg-request-panel">
+                    <div class="pg-panel-tabs">
+                        <button name="tab_params" class="pg-tab active" data-tab="params">Parameters</button>
+                        <button name="tab_headers" class="pg-tab" data-tab="headers">Headers</button>
+                        <button name="tab_body" class="pg-tab" data-tab="body">Body</button>
+                        <button name="tab_code" class="pg-tab" data-tab="code">Code</button>
+                    </div>
+
+                    <!-- Parameters tab -->
+                    <div class="pg-tab-content active" id="tab-params">
+                        <div class="pg-empty-tab" id="paramsEmpty">
+                            <p>Select an endpoint from the sidebar to see its parameters.</p>
+                        </div>
+                        <div id="paramsFields" class="pg-fields"></div>
+                    </div>
+
+                    <!-- Headers tab -->
+                    <div class="pg-tab-content" id="tab-headers">
+                        <div class="pg-fields" id="headersFields">
+                            <div class="pg-field-row">
+                                <label>Content-Type</label>
+                                <input type="text" name="header_content_type" value="application/json" data-header-key="Content-Type">
+                            </div>
+                            <div class="pg-field-row">
+                                <label>X-API-Key</label>
+                                <input type="text" name="header_api_key" value="" placeholder="Your API key" data-header-key="X-API-Key">
+                            </div>
+                            <div class="pg-field-row">
+                                <label>Authorization</label>
+                                <input type="text" name="header_authorization" value="" placeholder="Bearer eyJ..." data-header-key="Authorization">
+                            </div>
+                        </div>
+                        <button name="add_header" class="pg-add-row-btn" id="addHeaderBtn">+ Add Header</button>
+                    </div>
+
+                    <!-- Body tab -->
+                    <div class="pg-tab-content" id="tab-body">
+                        <div class="pg-body-editor">
+                            <textarea id="pgBodyEditor" name="request_body" placeholder='{"key": "value"}' spellcheck="false"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Code tab -->
+                    <div class="pg-tab-content" id="tab-code">
+                        <div class="pg-code-tabs">
+                            <button name="code_curl" class="pg-code-tab active" data-lang="curl">curl</button>
+                            <button name="code_python" class="pg-code-tab" data-lang="python">Python</button>
+                            <button name="code_javascript" class="pg-code-tab" data-lang="javascript">JavaScript</button>
+                        </div>
+                        <div class="pg-code-output">
+                            <button name="copy_code" class="copy-btn" id="copyCodeBtn">Copy</button>
+                            <pre id="codeOutput"><code>Select an endpoint and configure your request to see the code.</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Response panel -->
+                <div class="pg-response-panel">
+                    <div class="pg-response-header">
+                        <span class="pg-response-title">Response</span>
+                        <div class="pg-response-meta" id="responseMeta">
+                            <!-- Status, time, size populated by JS -->
+                        </div>
+                    </div>
+                    <div class="pg-response-body" id="responseBody">
+                        <div class="pg-empty-tab">
+                            <p>Send a request to see the response here.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        var PLAYGROUND_GROUPS = {{ groups_json|safe }};
+        var PLAYGROUND_SERVERS = {{ servers_json|safe }};
+        var PROXY_URL = '{{ url_for("api_playground.proxy") }}';
+    </script>
+    <script src="{{ url_for('api_playground.static', filename='js/playground.js') }}"></script>
+</body>
+</html>

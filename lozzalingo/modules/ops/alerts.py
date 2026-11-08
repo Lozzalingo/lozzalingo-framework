@@ -45,7 +45,8 @@ def check_and_alert(app):
                 issues.append(('memory_warning', f'Memory usage high: {mem_pct}% ({memory.get("available_mb", "?")}MB available)'))
 
             # Swap check
-            if not memory.get('swap_enabled', True):
+            suppress = current_app.config.get('OPS_SUPPRESS_CHECKS', [])
+            if not memory.get('swap_enabled', True) and 'no_swap' not in suppress:
                 issues.append(('no_swap', 'No swap space configured'))
 
             # Error spike check

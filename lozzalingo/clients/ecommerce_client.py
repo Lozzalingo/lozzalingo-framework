@@ -188,3 +188,114 @@ class EcommerceClient:
             Dict with id and deleted flag, or None.
         """
         return self._request('DELETE', f'/api/ecommerce/products/{product_id}')
+
+    # ------------------------------------------------------------------
+    # Orders
+    # ------------------------------------------------------------------
+
+    def list_orders(self, site_id=None, customer_email=None, status=None,
+                    limit=50, offset=0):
+        """List orders, optionally filtered.
+
+        Returns:
+            List of order dicts (each with items array), or None.
+        """
+        params = {'limit': limit, 'offset': offset}
+        if site_id:
+            params['site_id'] = site_id
+        if customer_email:
+            params['customer_email'] = customer_email
+        if status:
+            params['status'] = status
+        return self._request('GET', '/api/ecommerce/orders', params=params)
+
+    def get_order(self, order_id):
+        """Get a single order with items and fulfilment events, or None."""
+        return self._request('GET', f'/api/ecommerce/orders/{order_id}')
+
+    def create_order(self, customer_email, items, customer_name='',
+                     shipping_address=None, payment_session_id='',
+                     shipping_pence=0, discount_code='', discount_pence=0):
+        """Create an order on the central service.
+
+        Args:
+            customer_email: Customer email (required).
+            items: List of dicts with product_id, quantity, unit_price_pence,
+                   optional variant_id and attributes dict.
+            shipping_address: Optional dict.
+            payment_session_id: Optional payment session reference.
+            shipping_pence: Shipping cost in pence.
+            discount_code: Optional applied discount code.
+            discount_pence: Discount amount in pence.
+
+        Returns:
+            Dict with id and status, or None.
+        """
+        payload = {
+            'customer_email': customer_email,
+            'customer_name': customer_name,
+            'items': items,
+            'shipping_address': shipping_address or {},
+            'payment_session_id': payment_session_id,
+            'shipping_pence': shipping_pence,
+            'discount_code': discount_code,
+            'discount_pence': discount_pence,
+        }
+        return self._request('POST', '/api/ecommerce/orders', json_data=payload)
+
+    def cancel_order(self, order_id):
+        """Cancel an order (restores variant stock). Returns dict or None."""
+        return self._request('POST', f'/api/ecommerce/orders/{order_id}/cancel')
+
+    def fulfil_order(self, order_id, provider='inkthreadable'):
+        """Submit an order for fulfilment. Returns dict or None."""
+        return self._request(
+            'POST', f'/api/ecommerce/orders/{order_id}/fulfil',
+            params={'provider': provider},
+        )
+
+    def get_tracking(self, order_id):
+        """Get fulfilment/tracking status for an order. Returns dict or None."""
+        return self._request('GET', f'/api/ecommerce/orders/{order_id}/tracking')
+
+    # ------------------------------------------------------------------
+    # Discounts
+    # ------------------------------------------------------------------
+
+    def validate_discount(self, code, subtotal_pence):
+        """Validate a discount code against a basket subtotal.
+
+        Returns dict with valid, discount_pence, new_total_pence, or None.
+        """
+        return self._request('POST', '/api/ecommerce/discounts/validate', json_data={
+            'code': code,
+            'subtotal_pence': subtotal_pence,
+        })
+
+    def list_discounts(self):
+        """List discount codes for this site. Returns list or None."""
+        return self._request('GET', '/api/ecommerce/discounts')
+
+    def create_discount(self, code, discount_type, discount_value, **kwargs):
+        """Create a discount code. Extra kwargs: min_order_pence, max_uses,
+        valid_from, valid_until, is_active. Returns dict or None."""
+        payload = {
+            'code': code,
+            'discount_type': discount_type,
+            'discount_value': discount_value,
+        }
+        payload.update(kwargs)
+        return self._request('POST', '/api/ecommerce/discounts', json_data=payload)
+
+    # ------------------------------------------------------------------
+    # Shipping
+    # ------------------------------------------------------------------
+
+    def get_shipping_rate(self, country):
+        """Resolve the shipping rate for a destination country, or None."""
+        return self._request('GET', '/api/ecommerce/shipping/rates',
+                             params={'country': country})
+
+    def seed_default_shipping(self):
+        """Seed the default GB/EU/US/CA/AU/rest-of-world rates. Returns list or None."""
+        return self._request('POST', '/api/ecommerce/shipping/seed-defaults')

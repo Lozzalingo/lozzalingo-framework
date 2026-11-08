@@ -105,152 +105,13 @@ def _service_to_legacy(article):
 
 
 def init_news_db():
-    """No-op. The Blog Service manages its own database.
-
-    The local news.db is kept as a read-only fallback for resilience.
-    """
+    """No-op. The Blog Service manages all article data."""
     pass
 
 
-# ===== Local DB Fallback =====
-# If the blog service is unreachable, fall back to the local news.db
-# so the site keeps serving articles rather than showing empty pages.
-
-def _get_news_db_path():
-    """Return the path to the local news.db, or None if not configured."""
-    try:
-        path = current_app.config.get('NEWS_DB')
-        if path:
-            return path
-    except RuntimeError:
-        pass
-    return os.getenv('NEWS_DB', None)
-
-
-def _fallback_list_articles(status=None):
-    """Read articles from local news.db as a fallback when the blog service is down."""
-    db_path = _get_news_db_path()
-    if not db_path or not os.path.exists(db_path):
-        return []
-
-    try:
-        import sqlite3
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-
-        if status:
-            rows = conn.execute(
-                'SELECT * FROM news_articles WHERE status = ? ORDER BY created_at DESC',
-                (status,)
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                'SELECT * FROM news_articles ORDER BY created_at DESC'
-            ).fetchall()
-        conn.close()
-
-        articles = []
-        for r in rows:
-            articles.append({
-                'id': r['id'],
-                'title': r['title'],
-                'slug': r['slug'],
-                'content': r['content'],
-                'image_url': r['image_url'] or '',
-                'status': r['status'],
-                'email_sent': False,
-                'created_at': r['created_at'] or '',
-                'updated_at': r['updated_at'] or '',
-                'excerpt': r['excerpt'] or '',
-                'meta_title': r['meta_title'] or '',
-                'meta_description': r['meta_description'] or '',
-                'author_name': r['author_name'] or '',
-                'author_email': r['author_email'] or '',
-                'category_name': r['category_name'] or '',
-                'source_id': r['source_id'] or '',
-                'source_url': r['source_url'] or '',
-                'crossposted_linkedin': False,
-                'crossposted_medium': False,
-                'crossposted_substack': False,
-                'crossposted_twitter': False,
-                'crossposted_threads': False,
-                'image_position': '50',
-                'ads_enabled': True,
-                'ads_shops': None,
-            })
-
-        db_log('warning', 'news', f'Blog service down, served {len(articles)} articles from local news.db')
-        return articles
-    except Exception as e:
-        db_log('error', 'news', f'Local news.db fallback failed: {e}')
-        return []
-
-
-def _fallback_get_by_slug(slug):
-    """Read a single article by slug from local news.db as a fallback."""
-    db_path = _get_news_db_path()
-    if not db_path or not os.path.exists(db_path):
-        return None
-
-    try:
-        import sqlite3
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-
-        row = conn.execute(
-            'SELECT * FROM news_articles WHERE slug = ? LIMIT 1', (slug,)
-        ).fetchone()
-        conn.close()
-
-        if not row:
-            return None
-
-        article = {
-            'id': row['id'],
-            'title': row['title'],
-            'slug': row['slug'],
-            'content': row['content'],
-            'image_url': row['image_url'] or '',
-            'status': row['status'],
-            'email_sent': False,
-            'created_at': row['created_at'] or '',
-            'updated_at': row['updated_at'] or '',
-            'excerpt': row['excerpt'] or '',
-            'meta_title': row['meta_title'] or '',
-            'meta_description': row['meta_description'] or '',
-            'author_name': row['author_name'] or '',
-            'author_email': row['author_email'] or '',
-            'category_name': row['category_name'] or '',
-            'source_id': row['source_id'] or '',
-            'source_url': row['source_url'] or '',
-            'crossposted_linkedin': False,
-            'crossposted_medium': False,
-            'crossposted_substack': False,
-            'crossposted_twitter': False,
-            'crossposted_threads': False,
-            'image_position': '50',
-            'ads_enabled': True,
-            'ads_shops': None,
-        }
-        db_log('warning', 'news', f'Blog service down, served slug={slug} from local news.db')
-        return article
-    except Exception as e:
-        db_log('error', 'news', f'Local news.db fallback failed for slug={slug}: {e}')
-        return None
-
-
 def get_all_articles_db(status=None, category_name=None, exclude_categories=None):
-    """Get all articles from the Blog Service with optional filters.
-
-    Results are cached in-process for 60 seconds to avoid hitting the blog
-    service on every page view. The base list (per site_id + status) is
-    cached, then category filters are applied client-side.
-
-    Falls back to local news.db if the blog service is unreachable.
-    """
+    """Get all articles from the Blog Service with optional filters."""
     site_id = _get_site_id()
-
-    # Build a cache key for the base list (before category filtering)
     base_cache_key = f'articles:{site_id}:{status or "all"}'
     articles = _cache_get(base_cache_key)
 
@@ -259,11 +120,8 @@ def get_all_articles_db(status=None, category_name=None, exclude_categories=None
         result = client.list_articles(site_id=site_id, status=status, per_page=500)
 
         if not result:
-            # Blog service unreachable: fall back to local news.db
-            articles = _fallback_list_articles(status=status)
-            if articles:
-                _cache_set(base_cache_key, articles)
-            return articles if not category_name and not exclude_categories else articles
+            db_log('warning', 'news', 'Blog service unreachable, returning empty article list')
+            return []
 
         articles_raw = result.get('articles', result) if isinstance(result, dict) else result
         if not isinstance(articles_raw, list):
@@ -272,7 +130,6 @@ def get_all_articles_db(status=None, category_name=None, exclude_categories=None
         articles = [_service_to_legacy(a) for a in articles_raw]
         _cache_set(base_cache_key, articles)
 
-    # Apply category filters client-side (the blog service may not support these directly)
     if category_name:
         articles = [a for a in articles if a.get('category_name') == category_name]
 
@@ -295,8 +152,7 @@ def get_article_db(article_id):
 def get_article_by_slug_db(slug):
     """Get a single article by slug from the Blog Service.
 
-    Cached for 60 seconds per slug. Falls back to local news.db
-    if the blog service is unreachable.
+    Cached for 60 seconds per slug. Returns None if the article is not found.
     """
     site_id = _get_site_id()
     cache_key = f'slug:{site_id}:{slug}'
@@ -310,14 +166,7 @@ def get_article_by_slug_db(slug):
 
     if article:
         _cache_set(cache_key, article)
-        return article
-
-    # Blog service returned nothing: could be a genuine 404 or a service outage.
-    # Try the local DB as a fallback so we don't break live pages during outages.
-    fallback = _fallback_get_by_slug(slug)
-    if fallback:
-        _cache_set(cache_key, fallback)
-    return fallback
+    return article
 
 
 def create_article_db(title, content, image_url=None, status='draft',
@@ -814,7 +663,7 @@ VALID_CROSSPOST_PLATFORMS = ('linkedin', 'medium', 'substack', 'twitter', 'threa
 
 @news_bp.route('/api/articles/<int:article_id>/crosspost/<platform>', methods=['POST'])
 def crosspost_article(article_id, platform):
-    """Cross-post an article to an external platform"""
+    """Cross-post an article to an external platform via the Blog Service."""
     if 'admin_id' not in session:
         return jsonify({'error': 'Admin access required'}), 401
 
@@ -822,83 +671,8 @@ def crosspost_article(article_id, platform):
         return jsonify({'error': f'Invalid platform. Must be one of: {", ".join(VALID_CROSSPOST_PLATFORMS)}'}), 400
 
     try:
-        article = get_article_db(article_id)
-        if not article:
-            return jsonify({'error': 'Article not found'}), 404
-
-        if article.get('status') != 'published':
-            return jsonify({'error': 'Only published articles can be cross-posted'}), 400
-
-        from flask import current_app
-        site_url = current_app.config.get('EMAIL_WEBSITE_URL', current_app.config.get('SITE_URL', ''))
-        slug = article.get('slug', '')
-
-        canonical_url = None
-        category_name = article.get('category_name', '')
-        if category_name:
-            categories = current_app.config.get('NEWS_CATEGORIES', [])
-            for cat in categories:
-                if cat.get('name') == category_name:
-                    canonical_url = f"{site_url}/{cat['slug']}/{slug}"
-                    break
-        if not canonical_url:
-            canonical_url = f"{site_url}/news/{slug}" if site_url else f"/news/{slug}"
-
-        crosspost_svc = None
-        try:
-            from lozzalingo.modules.crosspost import crosspost_service
-            crosspost_svc = crosspost_service
-        except ImportError:
-            pass
-
-        if crosspost_svc is None:
-            return jsonify({'error': 'Cross-post service not available'}), 500
-
-        image_url = article.get('image_url', '')
-        if image_url and not image_url.startswith('http') and site_url:
-            image_url = f"{site_url}{image_url}"
-
-        result = None
-        if platform == 'linkedin':
-            result = crosspost_svc.post_to_linkedin(
-                title=article['title'],
-                excerpt=article.get('excerpt') or article.get('content', '')[:300],
-                canonical_url=canonical_url,
-                image_url=image_url or None,
-            )
-        elif platform == 'medium':
-            tags = None
-            category = article.get('category_name')
-            if category:
-                tags = [category]
-            result = crosspost_svc.post_to_medium(
-                title=article['title'],
-                html_content=article.get('content', ''),
-                canonical_url=canonical_url,
-                tags=tags,
-                image_url=image_url or None,
-            )
-        elif platform == 'substack':
-            result = crosspost_svc.post_to_substack(
-                title=article['title'],
-                html_content=article.get('content', ''),
-                canonical_url=canonical_url,
-                image_url=image_url or None,
-            )
-        elif platform == 'twitter':
-            result = crosspost_svc.post_to_twitter(
-                title=article['title'],
-                excerpt=article.get('excerpt') or article.get('content', '')[:300],
-                canonical_url=canonical_url,
-                image_url=image_url or None,
-            )
-        elif platform == 'threads':
-            result = crosspost_svc.post_to_threads(
-                title=article['title'],
-                excerpt=article.get('excerpt') or article.get('content', '')[:300],
-                canonical_url=canonical_url,
-                image_url=image_url or None,
-            )
+        client = _get_blog_client()
+        result = client._request('POST', f'/api/blog/articles/{article_id}/crosspost/{platform}')
 
         if result and result.get('success'):
             return jsonify({
@@ -908,7 +682,7 @@ def crosspost_article(article_id, platform):
                 'message': f'Successfully posted to {platform.title()}',
             })
         else:
-            error_msg = result.get('error', 'Unknown error') if result else 'No result'
+            error_msg = result.get('error', 'Unknown error') if result else 'Blog service unavailable'
             return jsonify({'success': False, 'error': error_msg}), 500
 
     except Exception as e:

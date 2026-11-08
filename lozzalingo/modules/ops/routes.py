@@ -219,7 +219,8 @@ def _compute_status(disk, memory):
             status = 'warning'
 
     # Swap check
-    if not memory.get('swap_enabled', True):
+    suppress = current_app.config.get('OPS_SUPPRESS_CHECKS', [])
+    if not memory.get('swap_enabled', True) and 'no_swap' not in suppress:
         issues.append({'type': 'no_swap', 'message': 'No swap space configured'})
         if status != 'critical':
             status = 'warning'
@@ -376,10 +377,34 @@ def _build_health_response(include_errors=False):
 @ops_health_bp.route('/')
 @ops_health_bp.route('')
 def health_check():
-    """Public health endpoint for uptime monitors."""
+    """Public health endpoint for uptime monitors.
+
+    Returns minimal info publicly. Full system metrics require the
+    X-Health-Key header (shared with site-monitor) or X-API-Key.
+    This prevents exposing disk, memory, uptime, and issue details
+    to unauthenticated users.
+    """
     data, status = _build_health_response()
-    code = 503 if status == 'critical' else 200
-    return jsonify(data), code
+    code = 503 if status == 'critical' else (299 if status == 'warning' else 200)
+
+    # Check for authorised internal caller (site-monitor, other services)
+    health_key = os.getenv('HEALTH_CHECK_KEY', '')
+    api_key_header = request.headers.get('X-API-Key', '')
+    health_key_header = request.headers.get('X-Health-Key', '')
+    is_internal = (
+        (health_key and health_key_header == health_key)
+        or (health_key and api_key_header == health_key)
+        or request.remote_addr in ('127.0.0.1', '::1')
+    )
+
+    if is_internal:
+        # Full response for authorised callers (site-monitor, etc.)
+        return jsonify(data), code
+
+    # Public response: status only, no system metrics
+    return jsonify({
+        'status': status,
+    }), code
 
 
 # ---------------------------------------------------------------------------

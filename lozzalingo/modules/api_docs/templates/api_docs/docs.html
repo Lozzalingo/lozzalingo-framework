@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ info.get('title', 'API Documentation') }}</title>
+    <script>
+        /* Apply theme before paint to prevent flash */
+        (function(){var t=localStorage.getItem('lz-theme')||'dark';document.documentElement.setAttribute('data-theme',t)})();
+    </script>
+    <link rel="stylesheet" href="{{ url_for('api_docs.static', filename='css/docs.css') }}">
+</head>
+<body>
+    <div class="docs-layout">
+        <!-- Sidebar -->
+        <aside class="docs-sidebar" id="docsSidebar">
+            <div class="sidebar-header">
+                <h2 class="sidebar-title">{{ info.get('title', 'API Docs') }}</h2>
+                <span class="sidebar-version">v{{ info.get('version', '1.0.0') }}</span>
+            </div>
+
+            <div class="sidebar-search">
+                <input type="text" id="endpointSearch" name="endpoint_search" placeholder="Search endpoints..." autocomplete="off">
+            </div>
+
+            <nav class="sidebar-nav" id="sidebarNav">
+                {% if servers %}
+                <a href="#servers" name="nav_servers" class="sidebar-link sidebar-section-link">Servers</a>
+                {% endif %}
+                {% if security_schemes %}
+                <a href="#authentication" name="nav_authentication" class="sidebar-link sidebar-section-link">Authentication</a>
+                {% endif %}
+
+                {% for group in groups %}
+                <div class="sidebar-group" data-group="{{ group.name|lower|replace(' ', '-') }}">
+                    <button name="toggle_{{ group.name|lower|replace(' ', '-') }}" class="sidebar-group-toggle" data-target="group-{{ loop.index }}">
+                        <span class="toggle-icon">&#9654;</span>
+                        {{ group.name }}
+                        <span class="endpoint-count">{{ group.endpoints|length }}</span>
+                    </button>
+                    <div class="sidebar-group-items" id="group-{{ loop.index }}">
+                        {% for ep in group.endpoints %}
+                        <a href="#{{ ep.operation_id or (ep.method ~ '-' ~ ep.path)|lower|replace('/', '-')|replace('{', '')|replace('}', '') }}"
+                           name="nav_{{ ep.operation_id or 'endpoint' }}"
+                           class="sidebar-link endpoint-link"
+                           data-search="{{ ep.method }} {{ ep.path }} {{ ep.summary }}">
+                            <span class="method-badge method-{{ ep.method|lower }}">{{ ep.method }}</span>
+                            <span class="endpoint-path">{{ ep.path }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="{{ url_for('api_docs.docs_spec') }}" name="view_openapi_spec" class="sidebar-link" target="_blank">
+                    OpenAPI Spec (JSON)
+                </a>
+                <a href="/api/playground/" name="open_playground" class="sidebar-link playground-link">
+                    Open Playground
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main content -->
+        <main class="docs-main">
+            <div class="docs-header">
+                <button name="toggle_sidebar" class="mobile-menu-btn" id="mobileMenuBtn">&#9776;</button>
+                <div class="docs-header-content">
+                    <h1>{{ info.get('title', 'API Documentation') }}</h1>
+                    <p class="docs-description">{{ info.get('description', '') }}</p>
+                </div>
+                <button name="theme_toggle" class="lz-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                    <span class="theme-icon"></span>
+                </button>
+            </div>
+
+            <div class="docs-content">
+                <!-- Servers -->
+                {% if servers %}
+                <section class="docs-section" id="servers">
+                    <h2>Servers</h2>
+                    <div class="servers-list">
+                        {% for server in servers %}
+                        <div class="server-item">
+                            <code class="server-url">{{ server.url }}</code>
+                            <span class="server-desc">{{ server.get('description', '') }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endif %}
+
+                <!-- Authentication -->
+                {% if security_schemes %}
+                <section class="docs-section" id="authentication">
+                    <h2>Authentication</h2>
+                    {% for name, scheme in security_schemes.items() %}
+                    <div class="auth-scheme">
+                        <h3>{{ name }}</h3>
+                        <p>{{ scheme.description }}</p>
+                        <table class="params-table">
+                            <tbody>
+                                <tr><td class="param-label">Type</td><td>{{ scheme.type }}</td></tr>
+                                {% if scheme.get('name') %}
+                                <tr><td class="param-label">Header</td><td><code>{{ scheme.name }}</code></td></tr>
+                                {% endif %}
+                                {% if scheme.get('scheme') %}
+                                <tr><td class="param-label">Scheme</td><td><code>{{ scheme.scheme }}</code></td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endfor %}
+                </section>
+                {% endif %}
+
+                <!-- Endpoint groups -->
+                {% for group in groups %}
+                {% set group_idx = loop.index %}
+                <section class="docs-section endpoint-group" id="group-section-{{ group_idx }}">
+                    <div class="group-header">
+                        <h2>{{ group.name }}</h2>
+                        {% if group.description %}
+                        <p class="group-description">{{ group.description }}</p>
+                        {% endif %}
+                    </div>
+
+                    {% for ep in group.endpoints %}
+                    {% set ep_idx = loop.index %}
+                    <div class="endpoint-card {% if ep.deprecated %}deprecated{% endif %}"
+                         id="{{ ep.operation_id or (ep.method ~ '-' ~ ep.path)|lower|replace('/', '-')|replace('{', '')|replace('}', '') }}">
+
+                        <div class="endpoint-header" data-toggle="endpoint-body-{{ group_idx }}-{{ ep_idx }}">
+                            <div class="endpoint-title">
+                                <span class="method-badge method-{{ ep.method|lower }}">{{ ep.method }}</span>
+                                <code class="endpoint-path-display">{{ ep.path }}</code>
+                                {% if ep.deprecated %}
+                                <span class="deprecated-badge">Deprecated</span>
+                                {% endif %}
+                            </div>
+                            <div class="endpoint-summary">{{ ep.summary }}</div>
+                            <div class="endpoint-meta">
+                                {% for auth in ep.auth_types %}
+                                <span class="auth-badge">{{ auth }}</span>
+                                {% endfor %}
+                                <span class="expand-icon">&#9660;</span>
+                            </div>
+                        </div>
+
+                        <div class="endpoint-body" id="endpoint-body-{{ group_idx }}-{{ ep_idx }}">
+                            {% if ep.description %}
+                            <div class="endpoint-description">
+                                <p>{{ ep.description }}</p>
+                            </div>
+                            {% endif %}
+
+                            <!-- Parameters -->
+                            {% if ep.parameters %}
+                            <div class="endpoint-section">
+                                <h4>Parameters</h4>
+                                <table class="params-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Location</th>
+                                            <th>Type</th>
+                                            <th>Required</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for param in ep.parameters %}
+                                        <tr>
+                                            <td><code>{{ param.name }}</code></td>
+                                            <td><span class="param-location">{{ param.in }}</span></td>
+                                            <td><span class="param-type">{{ param.type }}</span></td>
+                                            <td>{% if param.required %}<span class="required-badge">Required</span>{% else %}<span class="optional-text">Optional</span>{% endif %}</td>
+                                            <td>{{ param.description }}{% if param.default is not none %} <span class="default-val">Default: <code>{{ param.default }}</code></span>{% endif %}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% endif %}
+
+                            <!-- Request body -->
+                            {% if ep.request_body %}
+                            <div class="endpoint-section">
+                                <h4>Request Body{% if ep.request_body.required %} <span class="required-badge">Required</span>{% endif %}</h4>
+
+                                {% if ep.request_body.properties %}
+                                <table class="params-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Field</th>
+                                            <th>Type</th>
+                                            <th>Required</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for field_name, field in ep.request_body.properties.items() %}
+                                        <tr>
+                                            <td><code>{{ field_name }}</code></td>
+                                            <td><span class="param-type">{{ field.get('type', 'string') }}</span></td>
+                                            <td>{% if field_name in ep.request_body.required_fields %}<span class="required-badge">Required</span>{% else %}<span class="optional-text">Optional</span>{% endif %}</td>
+                                            <td>{{ field.get('description', '') }}{% if field.get('minLength') %} <span class="default-val">Min length: {{ field.minLength }}</span>{% endif %}{% if field.get('enum') %} <span class="default-val">Values: {{ field.enum|join(', ') }}</span>{% endif %}{% if field.get('default') is not none %} <span class="default-val">Default: <code>{{ field.default }}</code></span>{% endif %}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                {% endif %}
+
+                                {% if ep.request_body.example %}
+                                <div class="code-block">
+                                    <div class="code-header">
+                                        <span>Example Request Body</span>
+                                        <button name="copy_request_{{ ep.operation_id or ep_idx }}" class="copy-btn" data-copy-target="req-{{ group_idx }}-{{ ep_idx }}">Copy</button>
+                                    </div>
+                                    <pre id="req-{{ group_idx }}-{{ ep_idx }}"><code>{{ ep.request_body.example|tojson(indent=2) }}</code></pre>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            <!-- Responses -->
+                            {% if ep.responses %}
+                            <div class="endpoint-section">
+                                <h4>Responses</h4>
+                                {% for resp in ep.responses %}
+                                {% set resp_idx = loop.index %}
+                                <div class="response-item">
+                                    <div class="response-header">
+                                        <span class="status-code status-{{ resp.status[0] }}xx">{{ resp.status }}</span>
+                                        <span class="response-desc">{{ resp.description }}</span>
+                                    </div>
+                                    {% if resp.example %}
+                                    <div class="code-block">
+                                        <div class="code-header">
+                                            <span>Response</span>
+                                            <button name="copy_response_{{ resp.status }}_{{ ep.operation_id or ep_idx }}" class="copy-btn" data-copy-target="resp-{{ group_idx }}-{{ ep_idx }}-{{ resp_idx }}">Copy</button>
+                                        </div>
+                                        <pre id="resp-{{ group_idx }}-{{ ep_idx }}-{{ resp_idx }}"><code>{{ resp.example|tojson(indent=2) }}</code></pre>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            <!-- Try it link -->
+                            <div class="endpoint-actions">
+                                <a href="/api/playground/?method={{ ep.method }}&path={{ ep.path }}"
+                                   name="try_{{ ep.operation_id or 'endpoint' }}"
+                                   class="try-btn">
+                                    Try it in Playground &rarr;
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </section>
+                {% endfor %}
+
+                {% if not groups %}
+                <div class="empty-state">
+                    <h2>No API specification found</h2>
+                    <p>Place an <code>openapi.yaml</code> file in your app root directory to generate documentation.</p>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('api_docs.static', filename='js/docs.js') }}"></script>
+</body>
+</html>
