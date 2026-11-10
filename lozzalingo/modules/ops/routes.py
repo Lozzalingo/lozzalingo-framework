@@ -377,17 +377,36 @@ def _build_health_response(include_errors=False):
 @ops_health_bp.route('/')
 @ops_health_bp.route('')
 def health_check():
-    """Public health endpoint for uptime monitors.
+    """Public health endpoint for uptime monitors and inter-service checks.
 
-    Returns minimal info publicly. Full system metrics require the
-    X-Health-Key header (shared with site-monitor) or X-API-Key.
-    This prevents exposing disk, memory, uptime, and issue details
-    to unauthenticated users.
+    Returns simple format: {"service": "...", "port": ..., "status": "ok"}.
+    Full system metrics are available at /health/detailed (requires X-Health-Key).
     """
-    data, status = _build_health_response()
-    code = 503 if status == 'critical' else (299 if status == 'warning' else 200)
+    service_name = current_app.config.get('SERVICE_NAME', current_app.name)
+    port = int(current_app.config.get('PORT', os.getenv('PORT', 0)) or 0)
 
-    # Check for authorised internal caller (site-monitor, other services)
+    # Compute status without building the full verbose payload
+    disk = _get_disk_usage()
+    memory = _get_memory_info()
+    status, _ = _compute_status(disk, memory)
+
+    code = 503 if status == 'critical' else 200
+    response = jsonify({
+        'service': service_name,
+        'port': port,
+        'status': status,
+    })
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response, code
+
+
+@ops_health_bp.route('/detailed')
+def health_check_detailed():
+    """Detailed health endpoint - requires X-Health-Key or X-API-Key header, or localhost.
+
+    Returns full disk, memory, uptime, and issue data for authorised internal
+    callers such as site-monitor or other services.
+    """
     health_key = os.getenv('HEALTH_CHECK_KEY', '')
     api_key_header = request.headers.get('X-API-Key', '')
     health_key_header = request.headers.get('X-Health-Key', '')
@@ -397,14 +416,12 @@ def health_check():
         or request.remote_addr in ('127.0.0.1', '::1')
     )
 
-    if is_internal:
-        # Full response for authorised callers (site-monitor, etc.)
-        return jsonify(data), code
+    if not is_internal:
+        return jsonify({'error': 'Unauthorised'}), 401
 
-    # Public response: status only, no system metrics
-    return jsonify({
-        'status': status,
-    }), code
+    data, status = _build_health_response()
+    code = 503 if status == 'critical' else (299 if status == 'warning' else 200)
+    return jsonify(data), code
 
 
 # ---------------------------------------------------------------------------

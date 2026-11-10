@@ -64,7 +64,8 @@ When creating a new host app:
 - Server hardening: `scripts/server-setup.sh` (swap, Docker cleanup, log rotation, unattended-upgrades)
 
 ## Ops Module
-- **Public endpoint**: `GET /health` — JSON health check (no auth), returns `{status, checks: {disk, memory, uptime}, issues}`
+- **Public endpoint**: `GET /health` — simple health check (no auth), returns `{"service": "...", "port": ..., "status": "ok"}`
+- **Detailed endpoint**: `GET /health/detailed` — full disk/memory/uptime/issues (requires `X-Health-Key` or `X-API-Key` header, or localhost)
 - **Admin dashboard**: `/admin/ops` — disk/memory/swap/uptime/load cards, error feed, Docker cleanup
 - **Alerts**: `lozzalingo/modules/ops/alerts.py` — email alerts rate-limited to 1 per issue type per 6h via `app_logs` (source=`ops_alert`)
 - **Banner injection**: `_setup_ops_banner_injection()` in `__init__.py` — injects amber/red warning bar on admin pages when issues are detected

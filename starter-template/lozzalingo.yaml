@@ -10,7 +10,6 @@ site:
 
 # Enable/disable features (all enabled by default)
 features:
-  analytics: true
   auth: true
   dashboard: true
   news: true
@@ -26,10 +25,6 @@ features:
   projects_public: false
   quick_links: false
   ops: true
-
-# Analytics settings
-analytics:
-  track_admin: false  # Don't track admin page views
 
 # Email settings (configure in .env for security)
 # email:

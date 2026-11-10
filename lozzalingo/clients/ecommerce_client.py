@@ -312,3 +312,66 @@ class EcommerceClient:
     def seed_default_shipping(self):
         """Seed the default GB/EU/US/CA/AU/rest-of-world rates. Returns list or None."""
         return self._request('POST', '/api/ecommerce/shipping/seed-defaults')
+
+    # ------------------------------------------------------------------
+    # Cart
+    # ------------------------------------------------------------------
+
+    def create_cart(self, site_id=None):
+        """Create a new cart. Returns dict with cart_id, or None."""
+        payload = {}
+        if site_id:
+            payload['site_id'] = site_id
+        return self._request('POST', '/api/ecommerce/cart', json_data=payload)
+
+    def get_cart(self, cart_id):
+        """Get a cart and its items. Returns dict or None."""
+        return self._request('GET', f'/api/ecommerce/cart/{cart_id}')
+
+    def add_cart_item(self, cart_id, product_id, variant_id=None,
+                      quantity=1, attributes=None):
+        """Add an item to a cart. Returns dict or None."""
+        payload = {
+            'product_id': product_id,
+            'quantity': quantity,
+        }
+        if variant_id:
+            payload['variant_id'] = variant_id
+        if attributes:
+            payload['attributes'] = attributes
+        return self._request(
+            'POST', f'/api/ecommerce/cart/{cart_id}/items',
+            json_data=payload,
+        )
+
+    def remove_cart_item(self, cart_id, item_id):
+        """Remove an item from a cart. Returns dict or None."""
+        return self._request(
+            'DELETE', f'/api/ecommerce/cart/{cart_id}/items/{item_id}',
+        )
+
+    def checkout_cart(self, cart_id, customer_email, customer_name='',
+                      shipping_country='GB', discount_code='',
+                      success_url='', cancel_url=''):
+        """Initiate checkout on a cart via the service.
+
+        The service creates a Stripe session through its configured
+        Payments endpoint and returns the checkout URL.
+
+        Returns dict with checkout_url, session_id etc., or None.
+        """
+        payload = {
+            'customer_email': customer_email,
+            'customer_name': customer_name,
+            'shipping_country': shipping_country,
+        }
+        if discount_code:
+            payload['discount_code'] = discount_code
+        if success_url:
+            payload['success_url'] = success_url
+        if cancel_url:
+            payload['cancel_url'] = cancel_url
+        return self._request(
+            'POST', f'/api/ecommerce/cart/{cart_id}/checkout',
+            json_data=payload,
+        )

@@ -136,12 +136,11 @@ def test_email_client_init_no_config(app, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# 5. Blueprint registration -- all 11 expected modules are registered
+# 5. Blueprint registration -- all expected modules are registered
 # ---------------------------------------------------------------------------
 
 EXPECTED_MODULES = [
     "dashboard",
-    "analytics",
     "news",
     "news_public",
     "merchandise",
@@ -160,7 +159,7 @@ EXPECTED_MODULES = [
 
 
 def test_all_blueprints_registered(app):
-    """All 11 feature modules should be registered as blueprints."""
+    """All feature modules should be registered as blueprints."""
     lozzalingo_ext = app.extensions["lozzalingo"]
     registered = lozzalingo_ext.get_registered_modules()
 
@@ -329,8 +328,8 @@ def test_template_filters_registered(app):
 # ---------------------------------------------------------------------------
 
 def test_health_endpoint(client):
-    """GET /health returns JSON with status field and checks dict.
-    HTTP 200 for ok/warning, 503 for critical  -  both are valid."""
+    """GET /health returns simple SOA format: service, port, status.
+    HTTP 200 for ok, 503 for critical."""
     response = client.get("/health")
     assert response.status_code in (200, 503), (
         f"Expected 200 or 503, got {response.status_code}"
@@ -338,10 +337,11 @@ def test_health_endpoint(client):
     data = response.get_json()
     assert "status" in data, "Health response missing 'status' field"
     assert data["status"] in ("ok", "warning", "critical")
-    assert "checks" in data, "Health response missing 'checks' dict"
-    assert "disk" in data["checks"]
-    assert "memory" in data["checks"]
-    assert "uptime" in data["checks"]
+    assert "service" in data, "Health response missing 'service' field"
+    assert "port" in data, "Health response missing 'port' field"
+    assert response.headers.get("Access-Control-Allow-Origin") == "*", (
+        "Health response missing CORS header"
+    )
 
 
 # ---------------------------------------------------------------------------

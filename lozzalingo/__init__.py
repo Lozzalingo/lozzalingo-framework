@@ -2,8 +2,8 @@
 Lozzalingo - A Flask Admin Framework
 ====================================
 
-A batteries-included Flask framework with admin dashboard, analytics,
-analytics, and more - all working out of the box.
+A batteries-included Flask framework with admin dashboard, news, e-commerce,
+and more - all working out of the box.
 
 Quick Start:
     from flask import Flask
@@ -18,7 +18,6 @@ With configuration:
     lozzalingo = Lozzalingo(app, {
         'brand_name': 'My Site',
         'features': {
-            'analytics': True,
             'news': False,  # Disable news module
         }
     })
@@ -26,8 +25,6 @@ With configuration:
 Or use a YAML config file (lozzalingo.yaml in your app root):
     site:
       name: "My Site"
-    features:
-      analytics: true
 """
 
 __version__ = '0.2.0'
@@ -59,7 +56,6 @@ class Lozzalingo:
 
         # Feature flags - all enabled by default
         'features': {
-            'analytics': True,
             'dashboard': True,
             'news': True,
             'news_public': True,
@@ -76,12 +72,6 @@ class Lozzalingo:
             'crm': False,
             'api_docs': False,
             'api_playground': False,
-        },
-
-        # Analytics settings
-        'analytics': {
-            'track_admin': False,  # Don't track admin page views by default
-            'allowed_origins': None,  # None = allow request origin (dynamic)
         },
 
     }
@@ -127,9 +117,6 @@ class Lozzalingo:
 
         # Register all enabled modules
         self._register_modules()
-
-        # Set up auto-injection for analytics scripts
-        self._setup_auto_injection()
 
         # Set up auto-injection for Site Monitor client snippets
         self._setup_site_monitor_injection()
@@ -258,11 +245,6 @@ class Lozzalingo:
         if 'features' in yaml_config:
             result['features'] = yaml_config['features']
 
-        # Map admin section
-        # Map analytics section
-        if 'analytics' in yaml_config:
-            result['analytics'] = yaml_config['analytics']
-
         # Map CRM section (customer_prefix, scoring weights)
         if 'crm' in yaml_config:
             result['crm'] = yaml_config['crm']
@@ -331,10 +313,6 @@ class Lozzalingo:
         # Dashboard (admin core) - always register first as other modules depend on it
         if features.get('dashboard', True):
             self._register_dashboard()
-
-        # Analytics
-        if features.get('analytics', True):
-            self._register_analytics()
 
         # News (admin)
         if features.get('news', True):
@@ -416,16 +394,6 @@ class Lozzalingo:
             self.app.logger.debug("Registered dashboard module")
         except Exception as e:
             self.app.logger.error(f"Failed to register dashboard module: {e}")
-
-    def _register_analytics(self):
-        """Register the analytics module."""
-        try:
-            from .modules.analytics import analytics_bp
-            self.app.register_blueprint(analytics_bp, url_prefix='/admin/analytics')
-            self._registered_blueprints.append('analytics')
-            self.app.logger.debug("Registered analytics module")
-        except Exception as e:
-            self.app.logger.error(f"Failed to register analytics module: {e}")
 
     def _register_news(self):
         """Register the news admin module."""
@@ -620,65 +588,6 @@ class Lozzalingo:
                     })
                 except Exception:
                     pass  # Don't let logging errors break responses
-            return response
-
-    def _setup_auto_injection(self):
-        """Set up automatic script injection for analytics."""
-        # INTEGRATION: This after_request hook injects analytics JS into ALL HTML responses
-        # (except /admin when track_admin=False). It modifies response bodies in-flight.
-        # If your app returns HTML from non-admin routes, those responses WILL be modified.
-        features = self._config.get('features', {})
-
-        if not features.get('analytics', True):
-            return
-
-        @self.app.after_request
-        def inject_analytics_scripts(response):
-            """Inject analytics scripts into HTML responses."""
-            # Only inject into HTML responses
-            if response.content_type and 'text/html' not in response.content_type:
-                return response
-
-            # Don't inject into admin pages if configured
-            analytics_config = self._config.get('analytics', {})
-            if not analytics_config.get('track_admin', False):
-                from flask import request
-                if request.path.startswith('/admin'):
-                    return response
-
-            # Don't track logged-in admins (site owner) on any page
-            from flask import session
-            if session.get('admin_id'):
-                return response
-
-            # Get the response data
-            try:
-                data = response.get_data(as_text=True)
-            except Exception:
-                return response
-
-            # Check if </body> exists
-            if '</body>' not in data.lower():
-                return response
-
-            # Inject analytics scripts before </body>
-            analytics_scripts = '''
-    <!-- Lozzalingo Analytics -->
-    <script src="/admin/analytics/static/js/analytics.js"></script>
-    <script src="/admin/analytics/static/js/device_analytics.js"></script>
-'''
-
-            # Find </body> case-insensitively and inject before it
-            import re
-            data = re.sub(
-                r'(</body>)',
-                analytics_scripts + r'\1',
-                data,
-                flags=re.IGNORECASE,
-                count=1
-            )
-
-            response.set_data(data)
             return response
 
     def _setup_site_monitor_injection(self):
@@ -947,11 +856,10 @@ class Lozzalingo:
 
 
 # Convenience exports
-from .modules import analytics, dashboard
+from .modules import dashboard
 
 __all__ = [
     'Lozzalingo',
-    'analytics',
     'dashboard',
     '__version__',
 ]
