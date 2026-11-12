@@ -877,6 +877,10 @@
     border: 2px solid var(--noir-gray);
     border-radius: 8px 8px 0 0;
     padding: 8px;
+    /* Keep formatting tools reachable when scrolling long articles */
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .ql-container.ql-snow {
