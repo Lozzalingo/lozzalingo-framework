@@ -181,7 +181,6 @@ def send_error_digest(app: Flask, hours_back=None):
 
             # Send via EmailClient
             from lozzalingo.clients.email_client import EmailClient
-            import os
             _email = EmailClient()
             site_id = app.config.get('EMAIL_SITE_ID', os.getenv('EMAIL_SITE_ID', 'unknown'))
             _email.send(to=recipient, subject=subject, html=html, site_id=site_id)
