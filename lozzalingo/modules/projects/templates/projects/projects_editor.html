@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Projects Editor - Admin</title>
+    {% set embed_base = config.get('BLOG_EDITOR_EMBED_BASE', 'https://blog.laurence.computer/embed') %}
     <script src="{{ url_for('admin.static', filename='js/admin-theme.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/main.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css">
-    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/newseditor.css') }}">
+    <link rel="stylesheet"
+          href="{{ embed_base }}/newseditor.css"
+          onerror="this.onerror=null; this.href='{{ url_for('news_admin.static', filename='css/newseditor.css') }}'">
     <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
 </head>
 <body>
@@ -401,7 +404,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
-    <script src="{{ url_for('news_admin.static', filename='js/editor-shared.js') }}"></script>
+    <script src="{{ embed_base }}/editor-shared.js"
+            onerror="this.onerror=null; var fb=document.createElement('script'); fb.src='{{ url_for('news_admin.static', filename='js/editor-shared.js') }}'; document.head.appendChild(fb);"></script>
     <script>
     // Custom Image blot  -  preserves data-size, data-layout, width on <img>
     (function() {
@@ -503,7 +507,8 @@
         Quill.register(FilmstripBlot, true);
     })();
     </script>
-    <script src="{{ url_for('admin.static', filename='js/image-compress.js') }}"></script>
+    <script src="{{ embed_base }}/image-compress.js"
+            onerror="this.onerror=null; var fb=document.createElement('script'); fb.src='{{ url_for('news_admin.static', filename='js/image-compress.js') }}'; document.head.appendChild(fb);"></script>
     <script>
     (function() {
         const API_BASE = '/admin/projects-editor/api/projects';
@@ -2789,18 +2794,11 @@
         border-radius: 8px;
     }
 
-    /* Override admin theme overflow-y:auto on .editor-form which creates
-       its own scroll context and breaks position:sticky on the toolbar */
+    /* Safety override: ensure .editor-form doesn't re-introduce overflow-y
+       from a stale admin theme CSS, which would break the sticky toolbar
+       provided by newseditor.css from the blog service embed */
     .editor-form {
         overflow-y: visible !important;
-    }
-
-    /* Sticky toolbar so editing tools stay visible while scrolling */
-    .ql-toolbar.ql-snow {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        background: var(--noir-dark, #0f0f1a);
     }
 
     /* Selected image highlight in editor */
