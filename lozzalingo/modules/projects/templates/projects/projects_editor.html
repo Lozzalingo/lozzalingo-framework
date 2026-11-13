@@ -861,6 +861,58 @@
             Quill.register(VideoBlot, true);
         })();
 
+        // Register YouTube embed blot
+        (function() {
+            const BlockEmbed3 = Quill.import('blots/block/embed');
+            class YouTubeBlot extends BlockEmbed3 {
+                static create(url) {
+                    const node = super.create();
+                    const wrapper = document.createElement('div');
+                    wrapper.style.cssText = 'position:relative;padding-bottom:56.25%;height:0;overflow:hidden;max-width:720px;margin:1em auto;border-radius:8px;';
+                    wrapper.setAttribute('contenteditable', 'false');
+
+                    const iframe = document.createElement('iframe');
+                    iframe.setAttribute('src', url);
+                    iframe.setAttribute('frameborder', '0');
+                    iframe.setAttribute('allowfullscreen', 'true');
+                    iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+                    iframe.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;';
+                    wrapper.appendChild(iframe);
+                    node.appendChild(wrapper);
+                    return node;
+                }
+
+                static value(node) {
+                    const iframe = node.querySelector('iframe');
+                    return iframe ? iframe.getAttribute('src') : '';
+                }
+            }
+            YouTubeBlot.blotName = 'youtube';
+            YouTubeBlot.tagName = 'DIV';
+            YouTubeBlot.className = 'ql-youtube-embed';
+            Quill.register(YouTubeBlot, true);
+        })();
+
+        // Helper: extract YouTube embed URL from various formats
+        function parseYouTubeUrl(url) {
+            if (!url) return null;
+            url = url.trim();
+            var m;
+            // youtube.com/watch?v=ID
+            m = url.match(/(?:youtube\.com\/watch\?v=)([\w-]+)/);
+            if (m) return 'https://www.youtube.com/embed/' + m[1];
+            // youtu.be/ID
+            m = url.match(/youtu\.be\/([\w-]+)/);
+            if (m) return 'https://www.youtube.com/embed/' + m[1];
+            // youtube.com/embed/ID (already correct)
+            m = url.match(/youtube\.com\/embed\/([\w-]+)/);
+            if (m) return 'https://www.youtube.com/embed/' + m[1];
+            // youtube.com/shorts/ID
+            m = url.match(/youtube\.com\/shorts\/([\w-]+)/);
+            if (m) return 'https://www.youtube.com/embed/' + m[1];
+            return null;
+        }
+
         const quill = new Quill('#editor', {
             theme: 'snow',
             placeholder: 'Write project description...',
@@ -872,10 +924,23 @@
                         [{ 'list': 'ordered'}, { 'list': 'bullet' }],
                         ['blockquote', 'code-block'],
                         ['link', 'image'],
+                        ['youtube'],
                         ['divider'],
                         ['clean']
                     ],
                     handlers: {
+                        'youtube': function() {
+                            var url = prompt('YouTube URL:');
+                            var embedUrl = parseYouTubeUrl(url);
+                            if (!embedUrl) {
+                                if (url) alert('Could not parse YouTube URL. Try a youtube.com/watch, youtu.be, or youtube.com/shorts link.');
+                                return;
+                            }
+                            var range = this.quill.getSelection(true);
+                            this.quill.insertText(range.index, '\n', Quill.sources.USER);
+                            this.quill.insertEmbed(range.index + 1, 'youtube', embedUrl, Quill.sources.USER);
+                            this.quill.setSelection(range.index + 2, Quill.sources.SILENT);
+                        },
                         'divider': function() {
                             var range = this.quill.getSelection(true);
                             this.quill.insertText(range.index, '\n', Quill.sources.USER);
@@ -906,6 +971,15 @@
         let cachedProjects = []; // client-side cache for filtering
 
         loadProjects();
+
+        // Style the YouTube toolbar button with an icon
+        (function() {
+            var ytBtn = document.querySelector('.ql-toolbar .ql-youtube');
+            if (ytBtn) {
+                ytBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" style="vertical-align:middle;"><path fill="currentColor" d="M21.8 8.001a2.75 2.75 0 0 0-1.94-1.93C18.12 5.5 12 5.5 12 5.5s-6.12 0-7.86.57A2.75 2.75 0 0 0 2.2 8.001 28.7 28.7 0 0 0 1.75 12a28.7 28.7 0 0 0 .45 3.999 2.75 2.75 0 0 0 1.94 1.93c1.74.57 7.86.57 7.86.57s6.12 0 7.86-.57a2.75 2.75 0 0 0 1.94-1.93A28.7 28.7 0 0 0 22.25 12a28.7 28.7 0 0 0-.45-3.999zM9.75 15.02V8.98L15.5 12l-5.75 3.02z"/></svg>';
+                ytBtn.title = 'YouTube Embed';
+            }
+        })();
 
         // === Inline Image Toolbar (works for both images and filmstrip blots) ===
         (function() {
