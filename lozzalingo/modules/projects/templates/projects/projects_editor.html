@@ -2775,6 +2775,14 @@
         border-color: rgba(255,255,255,0.25);
     }
 
+    /* Sticky toolbar so editing tools stay visible while scrolling */
+    .ql-toolbar.ql-snow {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: var(--noir-dark, #0f0f1a);
+    }
+
     /* Selected image highlight in editor */
     .ql-editor img.img-selected {
         outline: 2px solid var(--lz-accent, #c4788a);
