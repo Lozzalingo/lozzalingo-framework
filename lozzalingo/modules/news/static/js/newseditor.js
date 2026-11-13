@@ -19,53 +19,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ===== Quill Initialization =====
 
-// Register horizontal rule blot
-var BlockEmbed = Quill.import('blots/block/embed');
-class DividerBlot extends BlockEmbed {}
-DividerBlot.blotName = 'divider';
-DividerBlot.tagName = 'hr';
-Quill.register(DividerBlot);
-
-// ===== YouTube Embed Blot =====
-
-function extractYouTubeId(url) {
-    var patterns = [
-        /[?&]v=([a-zA-Z0-9_-]{11})/,       // youtube.com/watch?v=
-        /youtu\.be\/([a-zA-Z0-9_-]{11})/,   // youtu.be/
-        /\/embed\/([a-zA-Z0-9_-]{11})/      // youtube.com/embed/
-    ];
-    for (var i = 0; i < patterns.length; i++) {
-        var m = url.match(patterns[i]);
-        if (m) return m[1];
-    }
-    return null;
-}
-
-class YouTubeBlot extends BlockEmbed {
-    static create(videoId) {
-        var node = super.create();
-        node.setAttribute('contenteditable', 'false');
-        var iframe = document.createElement('iframe');
-        iframe.setAttribute('src', 'https://www.youtube.com/embed/' + videoId);
-        iframe.setAttribute('frameborder', '0');
-        iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
-        iframe.setAttribute('allowfullscreen', 'true');
-        node.appendChild(iframe);
-        return node;
-    }
-
-    static value(node) {
-        var iframe = node.querySelector('iframe');
-        if (!iframe) return '';
-        var src = iframe.getAttribute('src') || '';
-        var m = src.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
-        return m ? m[1] : src;
-    }
-}
-YouTubeBlot.blotName = 'youtube';
-YouTubeBlot.tagName = 'div';
-YouTubeBlot.className = 'ql-youtube-embed';
-Quill.register(YouTubeBlot);
+// Blots (divider, youtube, video-embed) registered by editor-shared.js
+// Use shared extractYouTubeId from EditorShared
+var extractYouTubeId = (typeof EditorShared !== 'undefined') ? EditorShared.extractYouTubeId : function(url) {
+    if (!url) return null;
+    var m = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/) || url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+    return m ? m[1] : null;
+};
 
 function initQuill() {
     quill = new Quill('#editor', {
