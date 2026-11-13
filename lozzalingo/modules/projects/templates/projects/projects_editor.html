@@ -1665,19 +1665,7 @@
                     document.getElementById('fetchStatus').textContent = '';
                     document.getElementById('clearFetchBtn').style.display = 'none';
                 }
-                // Use Quill's clipboard to parse HTML so custom blots (video, etc.) are recognised
-                quill.setContents([]);
-                if (p.content) {
-                    var tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = p.content;
-                    // Convert any ql-video-embed divs to delta inserts Quill can parse
-                    var videoEmbeds = tempDiv.querySelectorAll('.ql-video-embed');
-                    videoEmbeds.forEach(function(ve) {
-                        // Mark for Quill blot matching
-                        ve.setAttribute('data-ql-video', 'true');
-                    });
-                    quill.clipboard.dangerouslyPasteHTML(0, tempDiv.innerHTML);
-                }
+                quill.root.innerHTML = p.content || '';
 
                 document.getElementById('formTitle').textContent = 'Edit Project';
                 document.querySelectorAll('.save-mode-select').forEach(sel => { sel.value = p.status || 'draft'; });
