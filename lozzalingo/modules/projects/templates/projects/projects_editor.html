@@ -809,6 +809,58 @@
         DividerBlot.tagName = 'hr';
         Quill.register(DividerBlot);
 
+        // Register video blot so Quill preserves <video> elements
+        (function() {
+            const BlockEmbed2 = Quill.import('blots/block/embed');
+            class VideoBlot extends BlockEmbed2 {
+                static create(value) {
+                    const node = super.create();
+                    const wrapper = document.createElement('div');
+                    wrapper.style.cssText = 'max-width:720px;margin:1em auto;position:relative;cursor:pointer;';
+                    wrapper.setAttribute('contenteditable', 'false');
+
+                    const video = document.createElement('video');
+                    video.setAttribute('controls', '');
+                    video.setAttribute('playsinline', '');
+                    video.setAttribute('preload', 'metadata');
+                    video.style.cssText = 'width:100%;border-radius:8px;';
+                    if (value.poster) video.setAttribute('poster', value.poster);
+
+                    const source = document.createElement('source');
+                    source.setAttribute('src', value.src);
+                    source.setAttribute('type', value.type || 'video/mp4');
+                    video.appendChild(source);
+                    wrapper.appendChild(video);
+
+                    if (value.caption) {
+                        const cap = document.createElement('p');
+                        cap.style.cssText = 'text-align:center;font-size:0.85em;color:rgba(255,255,255,0.5);margin-top:0.5em;';
+                        cap.textContent = value.caption;
+                        wrapper.appendChild(cap);
+                    }
+
+                    node.appendChild(wrapper);
+                    return node;
+                }
+
+                static value(node) {
+                    const video = node.querySelector('video');
+                    const source = node.querySelector('source');
+                    const cap = node.querySelector('p');
+                    return {
+                        src: source ? source.getAttribute('src') : '',
+                        type: source ? source.getAttribute('type') : 'video/mp4',
+                        poster: video ? video.getAttribute('poster') : '',
+                        caption: cap ? cap.textContent : ''
+                    };
+                }
+            }
+            VideoBlot.blotName = 'video-embed';
+            VideoBlot.tagName = 'DIV';
+            VideoBlot.className = 'ql-video-embed';
+            Quill.register(VideoBlot, true);
+        })();
+
         const quill = new Quill('#editor', {
             theme: 'snow',
             placeholder: 'Write project description...',
@@ -2773,6 +2825,20 @@
     .img-tb-btn:hover:not(.active) {
         color: rgba(255,255,255,0.8);
         border-color: rgba(255,255,255,0.25);
+    }
+
+    /* Video embed in editor */
+    .ql-video-embed {
+        max-width: 720px;
+        margin: 1em auto;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    .ql-video-embed video {
+        width: 100%;
+        display: block;
+        border-radius: 8px;
     }
 
     /* Sticky toolbar so editing tools stay visible while scrolling */
