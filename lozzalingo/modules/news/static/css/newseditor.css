@@ -91,7 +91,9 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 40px;
-    align-items: stretch;
+    /* start (not stretch) so grid items keep natural height and
+       position: sticky works for the Quill toolbar */
+    align-items: start;
 }
 
 /* Form Styles */
