@@ -100,7 +100,7 @@
     padding: 30px;
     border-radius: 12px;
     border: 1px solid var(--noir-gray);
-    overflow-y: auto;
+    /* overflow-y removed so the toolbar can stick to the viewport top */
 }
 
 .editor-form h2 {
