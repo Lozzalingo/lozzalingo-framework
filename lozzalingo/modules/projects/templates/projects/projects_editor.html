@@ -45,6 +45,68 @@
                         <span id="saveFlashTop" class="save-flash" style="display:none;"></span>
                     </div>
 
+                    <div class="form-group">
+                        <label>Gallery Layout</label>
+                        <div class="gallery-layout-picker" id="galleryLayoutPicker">
+                            <button type="button" class="gl-btn active" data-layout="single" name="gallery_layout_single">Single</button>
+                            <button type="button" class="gl-btn" data-layout="carousel" name="gallery_layout_carousel">Carousel</button>
+                            <button type="button" class="gl-btn" data-layout="grid" name="gallery_layout_grid">Grid</button>
+                        </div>
+                        <input type="hidden" id="galleryLayout" name="gallery_layout" value="single">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Hero Image Position</label>
+                        <div class="focal-dragger" id="focalDragger">
+                            <div class="focal-dragger-empty" id="focalDraggerEmpty">Add a gallery image to position</div>
+                            <img id="focalDraggerImg" src="" alt="Drag to reposition" style="display:none;">
+                            <div class="focal-dragger-hint" id="focalDraggerHint" style="display:none;">Drag to reposition</div>
+                        </div>
+                        <input type="hidden" id="heroImageAlign" name="hero_image_align" value="center 50%">
+                        <small class="form-hint">Drag the preview up/down to control the hero crop</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Gallery Images</label>
+                        <div class="gallery-thumbs" id="galleryThumbs"></div>
+                        <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+                            <input type="file" id="imageFile" name="image" accept="image/*,.heic,.heif" style="flex:1;">
+                            <button type="button" class="btn-secondary" id="browseImagesBtn" name="gallery_browse_images" style="white-space:nowrap;">Browse</button>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+                            <input type="text" id="galleryUrlInput" placeholder="Paste image URL..." style="flex:1;">
+                            <button type="button" class="btn-secondary" id="galleryAddUrlBtn" name="gallery_add_url" style="white-space:nowrap;">Add URL</button>
+                        </div>
+                        <div class="upload-progress" id="uploadProgress" style="display: none;">
+                            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                            <span class="progress-text" id="progressText">Uploading...</span>
+                        </div>
+                        <input type="hidden" id="galleryImagesHidden" name="gallery_images">
+                        <input type="hidden" id="imageUrl" name="image_url">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cardImageUrl">Card Image (optional)</label>
+                        <div id="cardImagePreview" style="display:none; margin-bottom:8px;">
+                            <img id="cardImageThumb" src="" style="max-width:200px; max-height:120px; border-radius:6px; object-fit:cover; display:block;">
+                            <button type="button" class="btn-secondary" id="cardImageClearBtn" name="card_image_clear" style="margin-top:4px; font-size:0.75rem;">Remove</button>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input type="file" id="cardImageFile" accept="image/*,.heic,.heif" style="flex:1;">
+                            <button type="button" class="btn-secondary" id="cardImageBrowseBtn" name="card_image_browse" style="white-space:nowrap;">Browse</button>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+                            <input type="url" id="cardImageUrl" name="card_image_url" placeholder="Or paste image URL..." style="flex:1;">
+                        </div>
+                        <small class="form-hint">Overrides the gallery banner on homepage featured cards.</small>
+                    </div>
+
+                    <div class="form-group" id="editorGroup">
+                        <label for="content">Project Description *</label>
+                        <div id="editor"></div>
+                        <input type="hidden" id="content" name="content">
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
                             <label for="year">Year (Start)</label>
@@ -158,68 +220,6 @@
                             </table>
                         </div>
                         <input type="hidden" id="insightsHidden" name="insights">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Gallery Layout</label>
-                        <div class="gallery-layout-picker" id="galleryLayoutPicker">
-                            <button type="button" class="gl-btn active" data-layout="single" name="gallery_layout_single">Single</button>
-                            <button type="button" class="gl-btn" data-layout="carousel" name="gallery_layout_carousel">Carousel</button>
-                            <button type="button" class="gl-btn" data-layout="grid" name="gallery_layout_grid">Grid</button>
-                        </div>
-                        <input type="hidden" id="galleryLayout" name="gallery_layout" value="single">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Hero Image Position</label>
-                        <div class="focal-dragger" id="focalDragger">
-                            <div class="focal-dragger-empty" id="focalDraggerEmpty">Add a gallery image to position</div>
-                            <img id="focalDraggerImg" src="" alt="Drag to reposition" style="display:none;">
-                            <div class="focal-dragger-hint" id="focalDraggerHint" style="display:none;">Drag to reposition</div>
-                        </div>
-                        <input type="hidden" id="heroImageAlign" name="hero_image_align" value="center 50%">
-                        <small class="form-hint">Drag the preview up/down to control the hero crop</small>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Gallery Images</label>
-                        <div class="gallery-thumbs" id="galleryThumbs"></div>
-                        <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
-                            <input type="file" id="imageFile" name="image" accept="image/*,.heic,.heif" style="flex:1;">
-                            <button type="button" class="btn-secondary" id="browseImagesBtn" name="gallery_browse_images" style="white-space:nowrap;">Browse</button>
-                        </div>
-                        <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
-                            <input type="text" id="galleryUrlInput" placeholder="Paste image URL..." style="flex:1;">
-                            <button type="button" class="btn-secondary" id="galleryAddUrlBtn" name="gallery_add_url" style="white-space:nowrap;">Add URL</button>
-                        </div>
-                        <div class="upload-progress" id="uploadProgress" style="display: none;">
-                            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-                            <span class="progress-text" id="progressText">Uploading...</span>
-                        </div>
-                        <input type="hidden" id="galleryImagesHidden" name="gallery_images">
-                        <input type="hidden" id="imageUrl" name="image_url">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="cardImageUrl">Card Image (optional)</label>
-                        <div id="cardImagePreview" style="display:none; margin-bottom:8px;">
-                            <img id="cardImageThumb" src="" style="max-width:200px; max-height:120px; border-radius:6px; object-fit:cover; display:block;">
-                            <button type="button" class="btn-secondary" id="cardImageClearBtn" name="card_image_clear" style="margin-top:4px; font-size:0.75rem;">Remove</button>
-                        </div>
-                        <div style="display:flex; gap:8px; align-items:center;">
-                            <input type="file" id="cardImageFile" accept="image/*,.heic,.heif" style="flex:1;">
-                            <button type="button" class="btn-secondary" id="cardImageBrowseBtn" name="card_image_browse" style="white-space:nowrap;">Browse</button>
-                        </div>
-                        <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
-                            <input type="url" id="cardImageUrl" name="card_image_url" placeholder="Or paste image URL..." style="flex:1;">
-                        </div>
-                        <small class="form-hint">Overrides the gallery banner on homepage featured cards.</small>
-                    </div>
-
-                    <div class="form-group" id="editorGroup">
-                        <label for="content">Project Description *</label>
-                        <div id="editor"></div>
-                        <input type="hidden" id="content" name="content">
                     </div>
 
                     <div class="form-group">
