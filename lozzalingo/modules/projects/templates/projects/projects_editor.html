@@ -2385,6 +2385,11 @@
         margin-bottom: 16px;
         padding-bottom: 16px;
         border-bottom: 1px solid var(--noir-gray, #444);
+        position: sticky;
+        top: 0;
+        z-index: 11;
+        background: var(--noir-charcoal, #1a1a2e);
+        padding-top: 16px;
     }
 
     /* Save flash */
@@ -2782,6 +2787,12 @@
         width: 100%;
         display: block;
         border-radius: 8px;
+    }
+
+    /* Override admin theme overflow-y:auto on .editor-form which creates
+       its own scroll context and breaks position:sticky on the toolbar */
+    .editor-form {
+        overflow-y: visible !important;
     }
 
     /* Sticky toolbar so editing tools stay visible while scrolling */
