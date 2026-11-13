@@ -2794,27 +2794,10 @@
         border-radius: 8px;
     }
 
-    /* Projects editor layout overrides.
-       align-items: start prevents the grid from stretching .editor-form to a
-       fixed height, which would confine the sticky scroll context.
-       overflow-y: visible ensures no ancestor traps the sticky toolbar. */
-    .editor-content {
-        align-items: start !important;
-    }
+    /* Sticky toolbar and save bar are provided by newseditor.css from the
+       blog service embed. Only keep the overflow safety net here. */
     .editor-form {
         overflow-y: visible !important;
-        overflow-x: visible !important;
-    }
-    /* Sticky save bar and toolbar with explicit !important to win over embed CSS */
-    .form-actions-top {
-        position: sticky !important;
-        top: 0 !important;
-        z-index: 11 !important;
-    }
-    .ql-toolbar.ql-snow {
-        position: sticky !important;
-        top: 0 !important;
-        z-index: 10 !important;
     }
 
     /* Selected image highlight in editor */
