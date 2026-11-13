@@ -257,7 +257,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <!-- Shared editor blots (divider, youtube, video-embed) used by all editors -->
-    <script src="{{ url_for('news_admin.static', filename='js/editor-shared.js') }}"></script>
+    <script src="{{ embed_base }}/editor-shared.js"
+            onerror="this.onerror=null; var fb=document.createElement('script'); fb.src='{{ url_for('news_admin.static', filename='js/editor-shared.js') }}'; document.head.appendChild(fb);"></script>
     <!-- image-compress: load from blog service, fall back to local bundled copy -->
     <script src="{{ embed_base }}/image-compress.js"
             onerror="this.onerror=null; var fb=document.createElement('script'); fb.src='{{ url_for('news_admin.static', filename='js/image-compress.js') }}'; document.head.appendChild(fb);"></script>
