@@ -252,6 +252,13 @@
     margin-top: 30px;
     padding-top: 25px;
     border-top: 1px solid var(--noir-gray);
+    /* Keep the save buttons reachable while scrolling long articles.
+       Sticks to the viewport bottom until the form end scrolls into view. */
+    position: sticky;
+    bottom: 0;
+    z-index: 9;
+    background: var(--noir-charcoal);
+    padding-bottom: 15px;
 }
 
 .btn-primary,
