@@ -154,6 +154,92 @@
         .project-content img[data-size="small"],
         .project-content img[data-size="medium"] { max-width: 100%; }
     }
+
+    /* ===== Value Add (top hook) ===== */
+    .value-add {
+        max-width: 800px;
+        margin: 0 auto 36px;
+        padding: 20px 24px;
+        border-left: 2px solid rgba(255,255,255,0.12);
+    }
+    .value-add-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        opacity: 0.4;
+        margin-bottom: 14px;
+    }
+    .value-add ul {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 16px;
+    }
+    .value-add ul li {
+        padding: 5px 0 5px 20px;
+        position: relative;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        opacity: 0.85;
+    }
+    .value-add ul li::before {
+        content: '\2192';
+        position: absolute;
+        left: 0;
+        opacity: 0.4;
+    }
+    .value-add-cta {
+        font-size: 0.85rem;
+        opacity: 0.45;
+        font-style: italic;
+        margin: 0;
+    }
+
+    /* ===== Lessons Learned (bottom cards) ===== */
+    .insights-section {
+        max-width: 800px;
+        margin: 40px auto 0;
+        padding-top: 32px;
+        border-top: 1px solid rgba(128,128,128,0.2);
+    }
+    .insights-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        opacity: 0.4;
+        margin-bottom: 16px;
+    }
+    .insights-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 10px;
+    }
+    .insight-card {
+        padding: 14px 16px;
+        border-radius: 8px;
+        font-size: 0.88rem;
+        line-height: 1.55;
+    }
+    .insight-card.win    { background: rgba(46,204,64,0.06);   border-left: 2px solid rgba(46,204,64,0.5); }
+    .insight-card.loss   { background: rgba(255,45,149,0.06);  border-left: 2px solid rgba(255,45,149,0.5); }
+    .insight-card.takeaway { background: rgba(212,168,85,0.06); border-left: 2px solid rgba(212,168,85,0.5); }
+    .insight-type-label {
+        font-size: 0.62rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 6px;
+        display: block;
+    }
+    .insight-card.win    .insight-type-label { color: #2ecc40; }
+    .insight-card.loss   .insight-type-label { color: #ff2d95; }
+    .insight-card.takeaway .insight-type-label { color: #d4a855; }
+
+    @media (max-width: 600px) {
+        .insights-grid { grid-template-columns: 1fr; }
+        .value-add { padding: 16px; }
+    }
     </style>
 </head>
 <body>
@@ -192,16 +278,48 @@
     <img src="{{ project.image_url }}" alt="{{ project.title }}" style="max-width:100%; border-radius:8px; margin-bottom:24px;">
     {% endif %}
 
+    {% set insights = project.insights | parse_insights if project.insights else [] %}
+
+    {% if insights %}
+    <div class="value-add">
+        <p class="value-add-label">Value Add</p>
+        <ul>
+            {% for item in insights %}
+            <li>{{ item.text }}</li>
+            {% endfor %}
+        </ul>
+        <p class="value-add-cta">Read on for the full story.</p>
+    </div>
+    {% endif %}
+
     <div class="project-content">
         {{ project.content | safe }}
     </div>
 
     {% if project.technologies %}
-    <div style="margin-top:32px; padding-top:24px; border-top:1px solid rgba(128,128,128,0.2);">
+    <div style="max-width:800px; margin:32px auto 0; padding-top:24px; border-top:1px solid rgba(128,128,128,0.2);">
         <strong>Technologies:</strong>
         {% for tech in project.technologies.split(',') %}
         <span style="display:inline-block; padding:2px 8px; margin:2px; border-radius:4px; font-size:0.85rem; background:rgba(128,128,128,0.1);">{{ tech.strip() }}</span>
         {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if insights %}
+    <div class="insights-section">
+        <p class="insights-label">Lessons Learned</p>
+        <div class="insights-grid">
+            {% for item in insights %}
+            <div class="insight-card {{ item.type }}">
+                <span class="insight-type-label">
+                    {% if item.type == 'win' %}Win
+                    {% elif item.type == 'loss' %}Loss
+                    {% else %}Lesson{% endif %}
+                </span>
+                {{ item.text }}
+            </div>
+            {% endfor %}
+        </div>
     </div>
     {% endif %}
 
