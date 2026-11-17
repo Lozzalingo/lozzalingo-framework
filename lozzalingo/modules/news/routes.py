@@ -173,7 +173,7 @@ def create_article_db(title, content, image_url=None, status='draft',
                       excerpt=None, meta_title=None, meta_description=None,
                       author_name=None, author_email=None, category_name=None,
                       source_id=None, source_url=None, image_position=None,
-                      ads_enabled=True, ads_shops=None):
+                      ads_enabled=True, ads_shops=None, slug=None):
     """Create a new article via the Blog Service."""
     client = _get_blog_client()
     site_id = _get_site_id()
@@ -188,6 +188,7 @@ def create_article_db(title, content, image_url=None, status='draft',
         seo_title=meta_title,
         seo_description=meta_description,
         og_image_url=image_url,
+        slug=slug,
     )
 
     if result:
@@ -199,7 +200,7 @@ def update_article_db(article_id, title, content, image_url=None, status=None,
                       excerpt=None, meta_title=None, meta_description=None,
                       author_name=None, author_email=None, category_name=None,
                       source_id=None, source_url=None, image_position=None,
-                      ads_enabled=None, ads_shops=None):
+                      ads_enabled=None, ads_shops=None, slug=None):
     """Update an article via the Blog Service."""
     client = _get_blog_client()
 
@@ -207,6 +208,8 @@ def update_article_db(article_id, title, content, image_url=None, status=None,
         'title': title,
         'content_html': content,
     }
+    if slug:
+        data['slug'] = slug
     if image_url is not None:
         data['og_image_url'] = image_url
     if status is not None:
@@ -334,6 +337,8 @@ def create_article():
         ads_enabled = data.get('ads_enabled', True)
         ads_shops = data.get('ads_shops') or None
 
+        requested_slug = (data.get('slug') or '').strip() or None
+
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
 
@@ -342,7 +347,7 @@ def create_article():
             excerpt=excerpt, meta_title=meta_title, meta_description=meta_description,
             author_name=author_name, author_email=author_email, category_name=category_name,
             source_id=source_id, source_url=source_url, image_position=image_position,
-            ads_enabled=ads_enabled, ads_shops=ads_shops
+            ads_enabled=ads_enabled, ads_shops=ads_shops, slug=requested_slug
         )
 
         return jsonify({
@@ -380,6 +385,8 @@ def update_article(article_id):
         ads_enabled = data.get('ads_enabled', True)
         ads_shops = data.get('ads_shops') or None
 
+        requested_slug = (data.get('slug') or '').strip() or None
+
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
 
@@ -388,7 +395,7 @@ def update_article(article_id):
             excerpt=excerpt, meta_title=meta_title, meta_description=meta_description,
             author_name=author_name, author_email=author_email, category_name=category_name,
             source_id=source_id, source_url=source_url, image_position=image_position,
-            ads_enabled=ads_enabled, ads_shops=ads_shops
+            ads_enabled=ads_enabled, ads_shops=ads_shops, slug=requested_slug
         )
 
         if success:

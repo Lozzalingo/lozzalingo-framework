@@ -2,9 +2,11 @@
 let allArticles = [];
 let editingArticleId = null;
 let quill = null;
+let slugBinding = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     initQuill();
+    setupSlugField();
     loadCategories();
     loadArticles();
     setupForm();
@@ -16,6 +18,20 @@ document.addEventListener('DOMContentLoaded', function() {
     setupCoverBrowser();
     setupImagePositionPicker();
 });
+
+// ===== Slug field (optional) =====
+
+// If the template provides a #slug input, keep it in sync with the title via
+// EditorShared.bindSlugField. The field stays optional: templates without it
+// fall back to server-side slug generation, exactly as before.
+function setupSlugField() {
+    const slugInput = document.getElementById('slug');
+    const titleInput = document.getElementById('title');
+    if (!slugInput || !titleInput) return;
+    if (typeof EditorShared !== 'undefined' && EditorShared.bindSlugField) {
+        slugBinding = EditorShared.bindSlugField(titleInput, slugInput);
+    }
+}
 
 // ===== Quill Initialization =====
 
@@ -748,6 +764,18 @@ async function handleSubmit(status) {
         source_url: sourceUrl
     };
 
+    // Optional slug override: only sent when the template has a #slug input
+    // with a value. An empty value lets the server generate the slug.
+    const slugInput = document.getElementById('slug');
+    if (slugInput) {
+        const slugValue = slugBinding
+            ? slugBinding.getSlug()
+            : (slugInput.value || '').trim();
+        if (slugValue) {
+            data.slug = slugValue;
+        }
+    }
+
     console.log('Submitting data:', data);
 
     const publishBtn = document.getElementById('publishBtn');
@@ -821,6 +849,11 @@ async function editArticle(id) {
 
         document.getElementById('articleId').value = article.id;
         document.getElementById('title').value = article.title;
+        if (slugBinding) {
+            slugBinding.setSlug(article.slug || '');
+        } else if (document.getElementById('slug')) {
+            document.getElementById('slug').value = article.slug || '';
+        }
         document.getElementById('imageUrl').value = article.image_url || '';
         document.getElementById('categoryName').value = article.category_name || '';
 
@@ -1131,6 +1164,10 @@ function resetForm() {
     document.getElementById('authorEmail').value = '';
     document.getElementById('sourceId').value = '';
     document.getElementById('sourceUrl').value = '';
+
+    if (slugBinding) {
+        slugBinding.reset();
+    }
 
     editingArticleId = null;
 }

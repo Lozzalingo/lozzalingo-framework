@@ -428,6 +428,69 @@
     }
 
     // =========================================================================
+    // Slug helpers
+    // =========================================================================
+
+    // Convert free text to a URL-friendly slug. Mirrors the server-side
+    // generate_slug() in the Blog Service so previews match what is stored.
+    function slugify(text) {
+        return String(text || '')
+            .toLowerCase()
+            .trim()
+            .replace(/[^\w\s-]/g, '')
+            .replace(/[\s_]+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    }
+
+    // Keep a slug input in sync with a title input until the user edits the
+    // slug by hand. Clearing the slug field re-enables auto-generation.
+    //
+    //   var binding = EditorShared.bindSlugField(titleEl, slugEl);
+    //   binding.setSlug('existing-slug');  // when loading an article, marks manual
+    //   binding.reset();                   // back to auto mode (e.g. on form reset)
+    //   binding.getSlug();                 // cleaned current value or '' (= server decides)
+    function bindSlugField(titleInput, slugInput, options) {
+        options = options || {};
+        var manual = false;
+
+        function syncFromTitle() {
+            if (manual) return;
+            slugInput.value = slugify(titleInput.value);
+        }
+
+        titleInput.addEventListener('input', syncFromTitle);
+
+        slugInput.addEventListener('input', function () {
+            manual = slugInput.value.trim() !== '';
+            if (!manual) syncFromTitle();
+        });
+
+        // Clean the slug on blur so the user sees exactly what will be saved
+        slugInput.addEventListener('blur', function () {
+            if (slugInput.value.trim()) {
+                slugInput.value = slugify(slugInput.value);
+            }
+        });
+
+        return {
+            setSlug: function (value) {
+                slugInput.value = value || '';
+                manual = !!(value && String(value).trim());
+                if (!manual) syncFromTitle();
+            },
+            reset: function () {
+                manual = false;
+                slugInput.value = '';
+            },
+            getSlug: function () {
+                return slugify(slugInput.value);
+            },
+            isManual: function () { return manual; }
+        };
+    }
+
+    // =========================================================================
     // Expose to global scope so editors can use them
     // =========================================================================
 
@@ -438,7 +501,9 @@
         addYouTubeIcon: addYouTubeIcon,
         createVideoUploadHandler: createVideoUploadHandler,
         addVideoUploadIcon: addVideoUploadIcon,
-        createPasteImageHandler: createPasteImageHandler
+        createPasteImageHandler: createPasteImageHandler,
+        slugify: slugify,
+        bindSlugField: bindSlugField
     };
 
     console.log('[EditorShared] Blots registered: divider, youtube, video-embed');

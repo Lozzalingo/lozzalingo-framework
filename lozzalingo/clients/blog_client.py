@@ -163,7 +163,7 @@ class BlogClient:
     def create_article(self, site_id, title, content_html='', status='draft',
                        excerpt=None, author=None, category_id=None,
                        seo_title=None, seo_description=None,
-                       og_image_url=None, tags=None):
+                       og_image_url=None, tags=None, slug=None):
         """Create a new article.
 
         Args:
@@ -178,6 +178,8 @@ class BlogClient:
             seo_description: Optional SEO description.
             og_image_url: Optional Open Graph image URL.
             tags: Optional list of tag strings.
+            slug: Optional explicit slug. The service cleans it and ensures
+                per-site uniqueness. Omit to auto-generate from the title.
 
         Returns:
             Dict with id and slug on success, or None.
@@ -188,6 +190,8 @@ class BlogClient:
             'content_html': content_html,
             'status': status,
         }
+        if slug:
+            payload['slug'] = slug
         if excerpt:
             payload['excerpt'] = excerpt
         if author:
