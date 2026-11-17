@@ -270,6 +270,164 @@
     }
 
     // =========================================================================
+    // Clipboard paste interceptor for images
+    // =========================================================================
+    //
+    // Without this, Quill embeds pasted images (screenshots, copies from the
+    // browser) as base64 data URIs inline in the content. Large articles end
+    // up with tens of MB of base64, killing page loads and causing 413s on
+    // save. This interceptor uploads pasted images to the host app's upload
+    // endpoint (the same one the image toolbar button uses) and inserts the
+    // returned URL instead.
+
+    var pasteUploadCounter = 0;
+
+    function dataUrlToBlob(dataUrl) {
+        try {
+            var parts = dataUrl.split(',');
+            var mime = (parts[0].match(/data:([^;]+)/) || [])[1] || 'image/png';
+            var bin = atob(parts[1]);
+            var arr = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+            return new Blob([arr], { type: mime });
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * Intercept pasted images, upload them, and insert URLs instead of
+     * base64. Call once AFTER Quill init:
+     *
+     *   EditorShared.createPasteImageHandler(quill, { uploadUrl: '/admin/news-editor/upload-image' });
+     *
+     * Covers both paste paths:
+     *   - image FILES on the clipboard (screenshots): paste event listener
+     *   - data: URI <img> tags inside pasted HTML: clipboard matcher
+     *
+     * While an upload is in flight a small grey placeholder token is shown
+     * at the paste position; it is replaced by the image on success or
+     * removed on failure.
+     *
+     * options:
+     *   uploadUrl - POST endpoint accepting multipart/form-data. Falls back
+     *               to window.BLOG_EDITOR_CONFIG.imageUploadUrl. Must return
+     *               JSON {image_url: '...'} (or {url: ...} / {src: ...}).
+     *   fieldName - form field name for the file (default 'image').
+     *   maxBytes  - per-image size cap (default 25MB); oversize pastes are
+     *               dropped with an alert rather than embedded as base64.
+     *   headers   - optional extra request headers (e.g. auth).
+     *   onStatus  - optional function(message|null) for progress UI.
+     */
+    function createPasteImageHandler(quill, options) {
+        options = options || {};
+        var cfg = (typeof window !== 'undefined' && window.BLOG_EDITOR_CONFIG) || {};
+        var uploadUrl = options.uploadUrl || cfg.imageUploadUrl;
+        if (!uploadUrl) {
+            console.warn('[EditorShared] createPasteImageHandler: no uploadUrl configured, pasted images will stay base64');
+            return;
+        }
+        var fieldName = options.fieldName || 'image';
+        var maxBytes = options.maxBytes || 25 * 1024 * 1024;
+        var notify = options.onStatus || function (msg) {
+            if (msg) console.log('[EditorShared] ' + msg);
+        };
+        var Delta = Quill.import('delta');
+
+        function uploadBlob(blob, filename) {
+            var fd = new FormData();
+            fd.append(fieldName, blob, filename);
+            return fetch(uploadUrl, {
+                method: 'POST',
+                body: fd,
+                headers: options.headers || {},
+                credentials: 'same-origin'
+            }).then(function (res) {
+                if (!res.ok) throw new Error('Upload failed with status ' + res.status);
+                return res.json();
+            }).then(function (data) {
+                var url = data.image_url || data.url || data.src;
+                if (!url) throw new Error('Upload response missing image URL');
+                return url;
+            });
+        }
+
+        function replaceToken(token, url) {
+            var idx = quill.getText().indexOf(token);
+            if (idx < 0) return;
+            quill.deleteText(idx, token.length, Quill.sources.SILENT);
+            if (url) {
+                quill.insertEmbed(idx, 'image', url, Quill.sources.USER);
+            }
+        }
+
+        function startUpload(blob, filename, insertIndex) {
+            if (blob.size > maxBytes) {
+                alert('Pasted image is too large (' + Math.round(blob.size / (1024 * 1024)) + 'MB). Maximum is ' + Math.round(maxBytes / (1024 * 1024)) + 'MB.');
+                return;
+            }
+            var token = '[[uploading-image-' + (++pasteUploadCounter) + ']]';
+            if (typeof insertIndex === 'number') {
+                quill.insertText(insertIndex, token, { italic: true, color: '#888888' }, Quill.sources.SILENT);
+                quill.setSelection(insertIndex + token.length, Quill.sources.SILENT);
+            }
+            notify('Uploading pasted image (' + Math.max(1, Math.round(blob.size / 1024)) + 'KB)...');
+            uploadBlob(blob, filename).then(function (url) {
+                replaceToken(token, url);
+                notify(null);
+            }).catch(function (err) {
+                console.error('[EditorShared] Pasted image upload failed:', err);
+                replaceToken(token, null);
+                notify(null);
+                alert('Pasted image upload failed: ' + err.message);
+            });
+            return token;
+        }
+
+        // Path 1: image files on the clipboard (screenshots, copied files).
+        // Capture phase so we beat Quill's own clipboard/uploader handling.
+        quill.root.addEventListener('paste', function (e) {
+            var cd = e.clipboardData;
+            if (!cd || !cd.files || !cd.files.length) return;
+            var images = Array.prototype.filter.call(cd.files, function (f) {
+                return f.type.indexOf('image/') === 0;
+            });
+            if (!images.length) return;
+            e.preventDefault();
+            e.stopPropagation();
+            var range = quill.getSelection(true);
+            var index = range ? range.index : quill.getLength();
+            images.forEach(function (file) {
+                startUpload(file, file.name || ('pasted.' + (file.type.split('/')[1] || 'png')), index);
+            });
+        }, true);
+
+        // Path 2: data: URI <img> tags inside pasted HTML.
+        quill.clipboard.addMatcher('IMG', function (node, delta) {
+            var src = node.getAttribute('src') || '';
+            if (src.indexOf('data:image/') !== 0) return delta;
+            var blob = dataUrlToBlob(src);
+            if (!blob) return new Delta();
+            if (blob.size > maxBytes) {
+                alert('Pasted image is too large (' + Math.round(blob.size / (1024 * 1024)) + 'MB). Maximum is ' + Math.round(maxBytes / (1024 * 1024)) + 'MB.');
+                return new Delta();
+            }
+            var token = '[[uploading-image-' + (++pasteUploadCounter) + ']]';
+            notify('Uploading pasted image (' + Math.max(1, Math.round(blob.size / 1024)) + 'KB)...');
+            uploadBlob(blob, 'pasted.' + (blob.type.split('/')[1] || 'png')).then(function (url) {
+                replaceToken(token, url);
+                notify(null);
+            }).catch(function (err) {
+                console.error('[EditorShared] Pasted image upload failed:', err);
+                replaceToken(token, null);
+                notify(null);
+                alert('Pasted image upload failed: ' + err.message);
+            });
+            return new Delta().insert(token, { italic: true, color: '#888888' });
+        });
+    }
+
+    // =========================================================================
     // Expose to global scope so editors can use them
     // =========================================================================
 
@@ -279,7 +437,8 @@
         dividerHandler: dividerHandler,
         addYouTubeIcon: addYouTubeIcon,
         createVideoUploadHandler: createVideoUploadHandler,
-        addVideoUploadIcon: addVideoUploadIcon
+        addVideoUploadIcon: addVideoUploadIcon,
+        createPasteImageHandler: createPasteImageHandler
     };
 
     console.log('[EditorShared] Blots registered: divider, youtube, video-embed');

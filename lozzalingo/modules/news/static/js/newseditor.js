@@ -59,6 +59,14 @@ function initQuill() {
             }
         }
     });
+
+    // Intercept pasted images: upload to the editor API instead of embedding
+    // base64 data URIs in the content
+    if (typeof EditorShared !== 'undefined' && EditorShared.createPasteImageHandler) {
+        EditorShared.createPasteImageHandler(quill, {
+            uploadUrl: '/admin/news-editor/upload-image'
+        });
+    }
 }
 
 // ===== Custom Image Handler =====
