@@ -149,6 +149,104 @@
     Quill.register(VideoBlot, true);
 
     // =========================================================================
+    // Self-hosted video upload (file picker -> host upload endpoint -> blot)
+    // =========================================================================
+
+    /**
+     * Create a Quill toolbar handler that uploads a video file to the host
+     * app's upload endpoint and inserts a video-embed blot with the returned
+     * URL. Client-side video compression is not practical in the browser, so
+     * the handler enforces a size cap instead; transcode server-side if
+     * smaller files are needed.
+     *
+     * options:
+     *   uploadUrl - POST endpoint accepting multipart/form-data. Falls back
+     *               to window.BLOG_EDITOR_CONFIG.videoUploadUrl. The endpoint
+     *               must return JSON {url: '...'} (or {src: '...'}), plus an
+     *               optional {poster: '...'} thumbnail URL.
+     *   fieldName - form field name for the file (default 'video').
+     *   maxBytes  - size cap in bytes (default 200MB).
+     *   accept    - file picker accept string (default 'video/mp4,video/webm').
+     *   headers   - optional extra request headers (e.g. auth).
+     *   onStatus  - optional function(message|null) for progress UI; called
+     *               with a message when the upload starts and null when done.
+     *
+     * Bind to the Quill toolbar:
+     *   handlers: { 'video-upload': EditorShared.createVideoUploadHandler({uploadUrl: '/admin/projects/upload-video'}) }
+     */
+    function createVideoUploadHandler(options) {
+        options = options || {};
+        return function () {
+            var quill = this.quill;
+            var cfg = (typeof window !== 'undefined' && window.BLOG_EDITOR_CONFIG) || {};
+            var uploadUrl = options.uploadUrl || cfg.videoUploadUrl;
+            if (!uploadUrl) {
+                alert('Video uploads are not configured for this editor.');
+                return;
+            }
+            var maxBytes = options.maxBytes || 200 * 1024 * 1024;
+            var notify = options.onStatus || function (msg) {
+                if (msg) console.log('[EditorShared] ' + msg);
+            };
+            var input = document.createElement('input');
+            input.type = 'file';
+            input.accept = options.accept || 'video/mp4,video/webm';
+            input.onchange = function () {
+                var file = input.files && input.files[0];
+                if (!file) return;
+                if (file.size > maxBytes) {
+                    alert('Video is too large (' + Math.round(file.size / (1024 * 1024)) + 'MB). Maximum is ' + Math.round(maxBytes / (1024 * 1024)) + 'MB.');
+                    return;
+                }
+                notify('Uploading video (' + Math.round(file.size / (1024 * 1024)) + 'MB)...');
+                var fd = new FormData();
+                fd.append(options.fieldName || 'video', file);
+                fetch(uploadUrl, {
+                    method: 'POST',
+                    body: fd,
+                    headers: options.headers || {},
+                    credentials: 'same-origin'
+                })
+                    .then(function (res) {
+                        if (!res.ok) throw new Error('Upload failed with status ' + res.status);
+                        return res.json();
+                    })
+                    .then(function (data) {
+                        var src = data.url || data.src;
+                        if (!src) throw new Error('Upload response missing url');
+                        var range = quill.getSelection(true);
+                        quill.insertText(range.index, '\n', Quill.sources.USER);
+                        quill.insertEmbed(range.index + 1, 'video-embed', {
+                            src: src,
+                            type: file.type || 'video/mp4',
+                            poster: data.poster || '',
+                            caption: ''
+                        }, Quill.sources.USER);
+                        quill.setSelection(range.index + 2, Quill.sources.SILENT);
+                        notify(null);
+                    })
+                    .catch(function (err) {
+                        console.error('[EditorShared] Video upload failed:', err);
+                        notify(null);
+                        alert('Video upload failed: ' + err.message);
+                    });
+            };
+            input.click();
+        };
+    }
+
+    /**
+     * Give the custom video-upload toolbar button an icon (call after Quill init).
+     */
+    function addVideoUploadIcon() {
+        var btn = document.querySelector('.ql-toolbar .ql-video-upload');
+        if (btn) {
+            btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" style="vertical-align:middle;"><path fill="currentColor" d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4zM10 9l4 3-4 3V9z"/></svg>';
+            btn.title = 'Upload Video';
+        }
+    }
+
+    // =========================================================================
     // Divider toolbar handler (shared)
     // =========================================================================
 
@@ -179,7 +277,9 @@
         extractYouTubeId: extractYouTubeId,
         youtubeHandler: youtubeHandler,
         dividerHandler: dividerHandler,
-        addYouTubeIcon: addYouTubeIcon
+        addYouTubeIcon: addYouTubeIcon,
+        createVideoUploadHandler: createVideoUploadHandler,
+        addVideoUploadIcon: addVideoUploadIcon
     };
 
     console.log('[EditorShared] Blots registered: divider, youtube, video-embed');
