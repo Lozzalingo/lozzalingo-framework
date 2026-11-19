@@ -202,6 +202,28 @@ def article_jsonld(article):
 
 # ===== Sitemap Generator =====
 
+def _normalise_lastmod(value):
+    """Normalise any stored datetime string to a valid ISO 8601 lastmod value.
+
+    Handles:
+    - SQLite format: '2026-11-18 09:04:39' -> '2026-11-18T09:04:39+00:00'
+    - ISO with Z:    '2026-11-18T09:04:39.093Z' -> '2026-11-18T09:04:39+00:00'
+    - Already valid: '2026-11-18T09:04:39+00:00' -> unchanged
+    Returns empty string if the value is falsy or unrecognisable.
+    """
+    if not value:
+        return ''
+    s = str(value).strip()
+    # Already has timezone offset - strip any milliseconds then return
+    if '+' in s or (s.endswith('Z') and 'T' in s):
+        s = s.rstrip('Z').split('+')[0]  # strip Z / +offset
+        s = s.split('.')[0]              # strip milliseconds
+        return s + '+00:00'
+    # SQLite space-separated format
+    s = s.replace(' ', 'T').split('.')[0]
+    return s + '+00:00'
+
+
 def _generate_sitemap():
     """Generate a sitemap.xml from config + published news articles.
 
@@ -241,7 +263,7 @@ def _generate_sitemap():
                 path = page.get('path', '')
                 changefreq = page.get('changefreq', 'monthly')
                 priority = page.get('priority', '0.6')
-                lastmod = page.get('lastmod', '')
+                lastmod = _normalise_lastmod(page.get('lastmod', ''))
                 xml += f'    <url>\n'
                 xml += f'        <loc>{site_url}{path}</loc>\n'
                 if lastmod:
@@ -266,10 +288,8 @@ def _generate_sitemap():
         else:
             loc = f'{site_url}/news/{slug}'
 
-        # Format date as ISO 8601
-        lastmod = ''
-        if updated_at:
-            lastmod = updated_at.replace(' ', 'T') + '+00:00'
+        # Format date as valid ISO 8601
+        lastmod = _normalise_lastmod(updated_at)
 
         xml += f'    <url>\n'
         xml += f'        <loc>{loc}</loc>\n'
