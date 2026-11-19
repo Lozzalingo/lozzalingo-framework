@@ -299,6 +299,29 @@ def _generate_sitemap():
         xml += f'        <priority>0.7</priority>\n'
         xml += f'    </url>\n'
 
+    # Published project detail pages (only parents with a write-up)
+    try:
+        from lozzalingo.modules.projects.routes import get_all_projects_db, init_projects_db
+        init_projects_db()
+        all_projects = get_all_projects_db(status='published')
+        for project in all_projects:
+            if project.get('parent_id'):
+                continue  # skip children - they share the parent detail page
+            slug = project.get('slug', '')
+            if not slug:
+                continue
+            updated_at = project.get('updated_at', '')
+            lastmod = _normalise_lastmod(updated_at)
+            xml += f'    <url>\n'
+            xml += f'        <loc>{site_url}/projects/{slug}</loc>\n'
+            if lastmod:
+                xml += f'        <lastmod>{lastmod}</lastmod>\n'
+            xml += f'        <changefreq>monthly</changefreq>\n'
+            xml += f'        <priority>0.7</priority>\n'
+            xml += f'    </url>\n'
+    except Exception as e:
+        print(f"[Sitemap] Error generating project pages: {e}")
+
     xml += '</urlset>'
 
     response = make_response(xml)
