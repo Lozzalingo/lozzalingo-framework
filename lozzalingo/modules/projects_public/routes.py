@@ -160,9 +160,15 @@ def project_detail(slug):
     related_projects = [p for p in all_projects if p['slug'] != slug][:3]
     tech_categories = get_all_tech_categories()
 
+    # Look up parent project if this is a sub-story
+    parent_project = None
+    if project.get('parent_id'):
+        from lozzalingo.modules.projects.routes import get_project_db
+        parent_project = get_project_db(project['parent_id'])
+
     return render_template('projects_public/project_detail.html',
                          project=project, related_projects=related_projects,
-                         tech_categories=tech_categories)
+                         tech_categories=tech_categories, parent_project=parent_project)
 
 
 @projects_public_bp.route('/<slug>/embed')
@@ -229,26 +235,43 @@ def upvote_project(project_id):
             row = cursor.fetchone()
             if row and row[0] == 'coming-soon':
                 return jsonify({'success': False, 'error': 'coming-soon'}), 400
+            # Check if already voted
             cursor.execute(
-                'INSERT OR IGNORE INTO project_upvotes (project_id, fingerprint_hash) VALUES (?, ?)',
+                'SELECT id FROM project_upvotes WHERE project_id = ? AND fingerprint_hash = ?',
                 (project_id, fingerprint_hash)
             )
-            if cursor.rowcount > 0:
+            existing = cursor.fetchone()
+            if existing:
+                # Toggle off -- remove the vote
+                cursor.execute(
+                    'DELETE FROM project_upvotes WHERE project_id = ? AND fingerprint_hash = ?',
+                    (project_id, fingerprint_hash)
+                )
+                cursor.execute(
+                    'UPDATE projects SET upvote_count = MAX(0, upvote_count - 1) WHERE id = ?',
+                    (project_id,)
+                )
+                voted = False
+            else:
+                # Add the vote
+                cursor.execute(
+                    'INSERT INTO project_upvotes (project_id, fingerprint_hash) VALUES (?, ?)',
+                    (project_id, fingerprint_hash)
+                )
                 cursor.execute(
                     'UPDATE projects SET upvote_count = upvote_count + 1 WHERE id = ?',
                     (project_id,)
                 )
-                conn.commit()
-                cursor.execute('SELECT upvote_count FROM projects WHERE id = ?', (project_id,))
-                row = cursor.fetchone()
-                return jsonify({'success': True, 'upvote_count': row[0] if row else 0, 'already_voted': False})
-            else:
-                conn.commit()
-                cursor.execute('SELECT upvote_count FROM projects WHERE id = ?', (project_id,))
-                row = cursor.fetchone()
-                return jsonify({'success': True, 'upvote_count': row[0] if row else 0, 'already_voted': True})
+                voted = True
+            conn.commit()
+            cursor.execute('SELECT upvote_count FROM projects WHERE id = ?', (project_id,))
+            row = cursor.fetchone()
+            count = row[0] if row else 0
+            action = 'Upvoted' if voted else 'Un-upvoted'
+            print(f'[PROJECTS] {action} project {project_id}: {count} total')
+            return jsonify({'success': True, 'upvote_count': count, 'voted': voted})
     except Exception as e:
-        print(f"Error upvoting project: {e}")
+        print(f"[PROJECTS] Error upvoting project: {e}")
         return jsonify({'error': str(e)}), 500
 
 

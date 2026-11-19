@@ -155,6 +155,27 @@
         .project-content img[data-size="medium"] { max-width: 100%; }
     }
 
+    /* ===== Sub-story parent links ===== */
+    .sub-story-parent-link {
+        max-width: 800px;
+        margin: 0 auto 24px;
+        padding: 0 20px;
+        font-size: 0.85rem;
+        font-style: italic;
+        opacity: 0.5;
+    }
+    .sub-story-back-link {
+        max-width: 800px;
+        margin: 40px auto 0;
+        padding: 24px 20px 0;
+        border-top: 1px solid rgba(128,128,128,0.2);
+        font-size: 0.85rem;
+        font-style: italic;
+        opacity: 0.5;
+    }
+    .sub-story-parent-link a,
+    .sub-story-back-link a { opacity: 1; }
+
     /* ===== Value Add (top hook) ===== */
     .value-add {
         max-width: 800px;
@@ -243,6 +264,10 @@
     </style>
 </head>
 <body>
+    {% if parent_project %}
+    <p class="sub-story-parent-link">Part of the <a href="/projects/{{ parent_project.slug }}" name="sub_story_parent_{{ parent_project.slug }}">{{ parent_project.title }}</a> story.</p>
+    {% endif %}
+
     <h1>{{ project.title }}</h1>
     {% if project.year %}<span>{{ project.year }}</span>{% endif %}
     {% if project.project_status %}<span>{{ project.project_status }}</span>{% endif %}
@@ -321,6 +346,10 @@
             {% endfor %}
         </div>
     </div>
+    {% endif %}
+
+    {% if parent_project %}
+    <p class="sub-story-back-link"><a href="/projects/{{ parent_project.slug }}" name="sub_story_back_{{ parent_project.slug }}">← Back to the {{ parent_project.title }} story.</a></p>
     {% endif %}
 
     <script>

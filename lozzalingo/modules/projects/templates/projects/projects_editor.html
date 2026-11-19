@@ -213,7 +213,7 @@
                                 <select id="insightType">
                                     <option value="win">Wins</option>
                                     <option value="loss">Losses</option>
-                                    <option value="takeaway">Takeaways</option>
+                                    <option value="takeaway">Lessons Learned</option>
                                 </select>
                                 <input type="text" id="insightText" placeholder="Add an insight...">
                                 <button type="button" class="btn-secondary" id="insightAddBtn" name="insight_add">Add</button>
@@ -715,7 +715,7 @@
         const insightsTable = document.getElementById('insightsTable');
         const insightsHidden = document.getElementById('insightsHidden');
         const insightTypeColors = { win: '#2ecc40', loss: '#ff2d95', takeaway: '#d4a855' };
-        const insightTypeLabels = { win: 'Wins', loss: 'Losses', takeaway: 'Takeaways' };
+        const insightTypeLabels = { win: 'Wins', loss: 'Losses', takeaway: 'Lessons Learned' };
 
         function syncInsightsHidden() {
             insightsHidden.value = insightItems.length ? JSON.stringify(insightItems) : '';
@@ -821,13 +821,40 @@
                         [{ 'list': 'ordered'}, { 'list': 'bullet' }],
                         ['blockquote', 'code-block'],
                         ['link', 'image'],
-                        ['youtube'],
+                        ['youtube', 'video-upload'],
                         ['divider'],
                         ['clean']
                     ],
                     handlers: {
                         'youtube': EditorShared.youtubeHandler,
+                        'video-upload': EditorShared.createVideoUploadHandler({ uploadUrl: '/admin/projects-editor/upload-video' }),
                         'divider': EditorShared.dividerHandler,
+                        'image': function() {
+                            var quill = this.quill;
+                            var input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/*';
+                            input.onchange = async function() {
+                                var file = input.files && input.files[0];
+                                if (!file) return;
+                                var toUpload = typeof compressImageFile === 'function' ? await compressImageFile(file) : file;
+                                var fd = new FormData();
+                                fd.append('image', toUpload);
+                                try {
+                                    var res = await fetch(UPLOAD_URL, { method: 'POST', body: fd, credentials: 'same-origin' });
+                                    var data = await res.json();
+                                    var url = data.image_url || data.url || data.src;
+                                    if (!url) throw new Error(data.error || 'Upload failed');
+                                    var range = quill.getSelection(true);
+                                    quill.insertEmbed(range.index, 'image', url, Quill.sources.USER);
+                                    quill.setSelection(range.index + 1, Quill.sources.SILENT);
+                                } catch(e) {
+                                    console.error('[Projects] Inline image upload failed:', e);
+                                    alert('Image upload failed: ' + e.message);
+                                }
+                            };
+                            input.click();
+                        },
                         'link': function() {
                             var range = this.quill.getSelection(true);
                             var selectedText = this.quill.getText(range.index, range.length);
@@ -854,6 +881,8 @@
         loadProjects();
 
         EditorShared.addYouTubeIcon();
+        EditorShared.addVideoUploadIcon();
+        EditorShared.createPasteImageHandler(quill, { uploadUrl: '/admin/projects-editor/upload-image' });
 
         // === Inline Image Toolbar (works for both images and filmstrip blots) ===
         (function() {
